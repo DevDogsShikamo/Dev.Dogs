@@ -1,4 +1,7 @@
-# Today's schedule — the appointments a walker runs today. Powers the dashboard + calendar.
+# Appointments, backed by Supabase (table public.citas). Rows load via SupaData;
+# writes go through data.ts use-fns which persist + trigger a refresh.
+use persistPagado, persistHecho from "~/lib/data.ts"
+
 entity Cita {
   hora      text
   cliente   text
@@ -12,13 +15,7 @@ entity Cita {
 }
 
 state {
-  citas = [
-    { hora: "07:00", cliente: "María Restrepo", perro: "Rocky",  servicio: "Paseo Recreativo",    svcClass: "svc-paseo",      direccion: "Cra 35 #7-20, Poblado",  precio: 15000, hecho: true,  pagado: true  },
-    { hora: "08:30", cliente: "Andrés Gómez",   perro: "Luna",   servicio: "Ejercicio Dirigido",  svcClass: "svc-ejercicio",  direccion: "Calle 10 #43-15, Manila", precio: 18000, hecho: true,  pagado: false },
-    { hora: "10:00", cliente: "Laura Vélez",    perro: "Toby",   servicio: "Actividades Cognitivas", svcClass: "svc-cognitiva", direccion: "Cra 43A #18-30, Laureles", precio: 22000, hecho: false, pagado: false },
-    { hora: "12:00", cliente: "Sofía Marín",    perro: "Nala",   servicio: "Salida a Recreación", svcClass: "svc-recreacion", direccion: "Cra 70 #C1-40, Estadio", precio: 28000, hecho: false, pagado: true  },
-    { hora: "15:00", cliente: "Juan Ospina",    perro: "Max",    servicio: "Paseo Recreativo",    svcClass: "svc-paseo",      direccion: "Loma de los Bernal 12", precio: 15000, hecho: false, pagado: false }
-  ] : list<Cita>
+  citas = [] : list<Cita>
 }
 
 get total       = citas.length
@@ -30,5 +27,7 @@ get cobrado     = pagadas.sum by precio
 get sinPagar    = citas where not pagado
 get porCobrar   = sinPagar.sum by precio
 
-action marcarHecho(cid: text)  mutates citas { citas.patch where id == cid with { hecho: true } }
-action marcarPagado(cid: text) mutates citas { citas.patch where id == cid with { pagado: true } }
+action setCitas(rows: list<Cita>) mutates citas { citas.set(rows) }
+
+action marcarHecho(cid: text)  mutates citas { citas.patch where id == cid with { hecho: true }   persistHecho(cid) }
+action marcarPagado(cid: text) mutates citas { citas.patch where id == cid with { pagado: true }  persistPagado(cid) }

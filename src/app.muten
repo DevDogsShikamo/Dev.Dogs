@@ -12,6 +12,7 @@ routes {
 shell {
   Stack class("frame") {
   Custom SupaSession on(session: auth.setSession)
+  Custom SupaData on(empresa: empresa.setInfo, servicios: servicios.setItems, citas: agenda.setCitas)
   when auth.loggedIn {
     Header class("appbar") {
       Stack class("brand") {

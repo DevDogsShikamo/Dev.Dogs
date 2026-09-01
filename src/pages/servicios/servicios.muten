@@ -29,8 +29,8 @@ Page class("screen gap-lg") {
           Text "{cop(s.precio)}" class("price accent")
           Span "{s.duracion} min" class("chip")
         }
-        when s.activo { Button "Pausar" -> servicios.toggle(s.id) class("btn-ghost btn-block") }
-        when not s.activo { Button "Activar" -> servicios.toggle(s.id) class("btn btn-block") }
+        when s.activo { Button "Pausar" -> servicios.toggle(s.id, s.activo) class("btn-ghost btn-block") }
+        when not s.activo { Button "Activar" -> servicios.toggle(s.id, s.activo) class("btn btn-block") }
       }
     }
   }

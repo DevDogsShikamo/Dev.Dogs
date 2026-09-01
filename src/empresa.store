@@ -1,4 +1,7 @@
-# Company profile — the "Información de la empresa" data.
+# Company profile, backed by Supabase (table public.empresa, one row per user).
+# Loaded via SupaData; edits go through data.ts saveEmpresa (upsert + refresh).
+use saveEmpresa from "~/lib/data.ts"
+
 entity Empresa {
   nombre     text required
   eslogan    text
@@ -11,14 +14,19 @@ entity Empresa {
 
 state {
   info = {
-    nombre: "DevDogs",
-    eslogan: "Cuidamos a tus peluditos mientras no estás",
-    telefono: "+57 320 5800647",
-    ciudad: "Medellín",
-    paseadores: 3,
-    clientes: 24,
-    perros: 31
+    nombre: "",
+    eslogan: "",
+    telefono: "",
+    ciudad: "",
+    paseadores: 0,
+    clientes: 0,
+    perros: 0
   } : Empresa
 }
 
-action save(next: Empresa) mutates info { info.set(next) }
+action setInfo(next: Empresa) mutates info { info.set(next) }
+
+action save(next: Empresa) mutates info {
+  info.set(next)
+  saveEmpresa(next)
+}
