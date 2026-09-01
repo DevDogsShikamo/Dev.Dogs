@@ -1,8 +1,23 @@
-# Global auth state. Mock for the MVP: any login/signup flips loggedIn; guards in app.muten react.
+# Global auth state, backed by Supabase Auth via the SupaSession/SupaAuthForm bridges.
+# The bridges call setSession/setError; guards in app.muten react to loggedIn.
+use signOut from "~/lib/authActions.ts"
+
+entity Session { loggedIn bool  userId text  userName text }
+
 state {
-  loggedIn = false : bool persist
-  userName = "Camilo" : text
+  loggedIn    = false : bool persist
+  userId      = ""    : text persist
+  userName    = ""    : text persist
+  authError   = ""    : text
 }
 
-action login  mutates loggedIn { loggedIn.set(true) }
-action logout mutates loggedIn { loggedIn.set(false) }
+action setSession(s: Session) mutates loggedIn, userId, userName, authError {
+  loggedIn.set(s.loggedIn)
+  userId.set(s.userId)
+  userName.set(s.userName)
+  authError.set("")
+}
+
+action setError(msg: text) mutates authError { authError.set(msg) }
+
+action logout { signOut() }

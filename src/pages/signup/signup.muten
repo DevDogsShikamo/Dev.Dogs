@@ -5,22 +5,25 @@ state {
   rol       = "" : text
   nombre    = "" : text
   telefono  = "" : text
+  email     = "" : text
+  pw        = "" : text
   ciudad    = "Medellin" : text
   zona      = "Elegir" : text
   negocio   = "" : text
   docTipo   = "Cedula" : text
   docNumero = "" : text
   nit       = "" : text
+  nonce     = 0  : number
 }
 
-get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and telefono.length > 6) or (step == 2 and zona != "Elegir") or (step == 3 and docNumero.length > 3)
+get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and telefono.length > 6 and email.length > 4 and pw.length > 5) or (step == 2 and zona != "Elegir") or (step == 3 and docNumero.length > 3)
 
 action pick(r: text) mutates rol { rol.set(r) }
 action next mutates step { step.set(step + 1) }
 action back mutates step { step.set(step - 1) }
-action finish {
+action finish mutates nonce {
   signup.save({ rol: rol, nombre: nombre, telefono: telefono, ciudad: ciudad, zona: zona, negocio: negocio, docTipo: docTipo, docNumero: docNumero, nit: nit })
-  auth.login()
+  nonce.set(nonce + 1)
 }
 
 Page class("wiz") {
@@ -104,6 +107,14 @@ Page class("wiz") {
             Stack class("field-ic ic-cyan") { Icon "lucide:phone" }
             Stack class("field-body") { Text "Tu teléfono" class("field-label")  SearchField bind(telefono) "+57 300 000 0000" class("field-input") }
           }
+          Stack class("field") {
+            Stack class("field-ic ic-cyan") { Icon "lucide:mail" }
+            Stack class("field-body") { Text "Tu correo" class("field-label")  SearchField bind(email) "tu@correo.com" class("field-input") }
+          }
+          Stack class("field") {
+            Stack class("field-ic ic-cyan") { Icon "lucide:lock" }
+            Stack class("field-body") { Text "Contraseña (mín. 6)" class("field-label")  Password bind(pw) "••••••••" class("field-input") }
+          }
         }
       }
 
@@ -149,6 +160,10 @@ Page class("wiz") {
         }
       }
     }
+
+    when auth.authError.length > 0 { Text "{auth.authError}" class("gerror pad-sm") }
+
+    Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, nonce: @nonce) on(failed: auth.setError)
 
     Stack class("wiz-nav") {
       when step > 0 { Button -> back class("nav-back") aria(label: "Atrás") { Icon "lucide:chevron-left" } }

@@ -3,10 +3,12 @@ screen login
 state {
   email = "" : text
   pw    = "" : text
+  nonce = 0  : number
 }
 
 action clearEmail mutates email { email.set("") }
 action clearPw    mutates pw    { pw.set("") }
+action submit     mutates nonce { nonce.set(nonce + 1) }
 
 Page class("glogin") {
 
@@ -49,6 +51,8 @@ Page class("glogin") {
         when pw.length > 0 { Button -> clearPw class("gfield-x") aria(label: "Borrar contraseña") { Icon "lucide:x" } }
       }
 
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
       Stack class("gforgot") { Span "¿Olvidaste tu contraseña?" }
 
       Stack class("gsignup") {
@@ -58,10 +62,12 @@ Page class("glogin") {
     }
 
     Stack class("gbar") {
-      Button -> auth.login class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
+      Button -> submit class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
         Span "Entrar"
         Icon "lucide:arrow-right"
       }
     }
+
+    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, nonce: @nonce) on(failed: auth.setError)
   }
 }

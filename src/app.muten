@@ -11,6 +11,7 @@ routes {
 
 shell {
   Stack class("frame") {
+  Custom SupaSession on(session: auth.setSession)
   when auth.loggedIn {
     Header class("appbar") {
       Stack class("brand") {
