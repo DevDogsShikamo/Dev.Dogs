@@ -1,0 +1,27 @@
+# Pre-grouped data for the charts (Chart draws one mark per row, so we group here).
+entity DiaIngreso { dia text  monto number }
+entity SvcVenta   { servicio text  ventas number }
+
+state {
+  ingresosSemana = [
+    { dia: "Lun", monto: 118000 },
+    { dia: "Mar", monto: 96000 },
+    { dia: "Mié", monto: 132000 },
+    { dia: "Jue", monto: 104000 },
+    { dia: "Vie", monto: 151000 },
+    { dia: "Sáb", monto: 178000 },
+    { dia: "Dom", monto: 63000 }
+  ] : list<DiaIngreso>
+
+  topServicios = [
+    { servicio: "Paseo Recreativo",     ventas: 42 },
+    { servicio: "Salida a Recreación",  ventas: 26 },
+    { servicio: "Ejercicio Dirigido",   ventas: 19 },
+    { servicio: "Actividades Cognitivas", ventas: 14 },
+    { servicio: "Acompañamiento",       ventas: 11 }
+  ] : list<SvcVenta>
+}
+
+get ingresoSemana = ingresosSemana.sum by monto
+get mejorDia      = ingresosSemana.max by monto
+get serviciosVendidos = topServicios.sum by ventas

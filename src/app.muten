@@ -1,0 +1,36 @@
+# evDogs — app root. Routes + persistent shell (appbar + bottom tabbar), guarded by the auth store.
+routes {
+  "/"            -> dashboard    guard auth.loggedIn     else "/login"
+  "/calendario"  -> calendario   guard auth.loggedIn     else "/login"
+  "/servicios"   -> servicios    guard auth.loggedIn     else "/login"
+  "/estadisticas"-> estadisticas guard auth.loggedIn     else "/login"
+  "/empresa"     -> empresa       guard auth.loggedIn     else "/login"
+  "/login"       -> login         guard not auth.loggedIn else "/"
+  "/signup"      -> signup        guard not auth.loggedIn else "/"
+}
+
+shell {
+  Stack class("frame") {
+  when auth.loggedIn {
+    Header class("appbar") {
+      Stack class("brand") {
+        Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
+        Span "DevDogs"
+      }
+      Button -> auth.logout class("iconbtn") aria(label: "Cerrar sesión") { Icon "lucide:log-out" }
+    }
+  }
+
+  slot
+
+  when auth.loggedIn {
+    Nav class("tabbar") {
+      Link "" -> "/"             class("tab") { Icon "lucide:layout-dashboard"  Span "Inicio" }
+      Link "" -> "/calendario"   class("tab") { Icon "lucide:calendar-days"     Span "Agenda" }
+      Link "" -> "/servicios"    class("tab") { Icon "lucide:sparkles"          Span "Servicios" }
+      Link "" -> "/estadisticas" class("tab") { Icon "lucide:bar-chart-3"       Span "Stats" }
+      Link "" -> "/empresa"      class("tab") { Icon "lucide:building-2"         Span "Empresa" }
+    }
+  }
+  }
+}

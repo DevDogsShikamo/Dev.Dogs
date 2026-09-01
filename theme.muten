@@ -1,0 +1,24 @@
+# DevDogs — design tokens. Muten emits each entry as a :root CSS var used by src/styles.css.
+theme {
+  space   { xs "4px"  sm "8px"  md "16px"  lg "24px"  xl "40px" }
+  font    { xs "12px"  sm "13px"  md "15px"  lg "20px"  xl "30px"  x2 "40px" }
+  weight  { medium "500"  semibold "600"  bold "700"  black "800" }
+  radius  { sm "10px"  md "16px"  lg "22px"  pill "999px" }
+  leading { tight "1.15"  normal "1.5" }
+  breakpoints { sm "640px"  md "768px"  lg "1024px" }
+  colors {
+    # base
+    bg "#FBFAFE"  surface "#ffffff"  panel "#eef8fb"  border "#dbe7ec"
+    text "#12101c"  muted "#5c6773"
+    # brand
+    primary "#00c2cb"  onprimary "#ffffff"  primarysoft "#d6f4f6"  cyan2 "#4fd4db"
+    # section / accent palette (one color per section or category)
+    coral "#ff5757"  redbright "#e20e1a"  gold "#b29434"  ink "#12101c"
+    mint "#6fdca4"  mango "#ff7a3d"  lavender "#cfc7f8"  violet "#5b3df5"
+    # semantic states
+    success "#22b573"  warning "#ff7a3d"  danger "#ff5757"
+    # charts
+    "chart-1" "#00c2cb"  "chart-2" "#ff7a3d"  "chart-3" "#b29434"
+    "chart-4" "#5b3df5"  "chart-5" "#6fdca4"  "chart-6" "#ff5757"
+  }
+}

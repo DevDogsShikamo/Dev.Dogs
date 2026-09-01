@@ -1,0 +1,40 @@
+screen empresa
+
+entity Empresa {
+  nombre     text required
+  eslogan    text
+  telefono   text
+  ciudad     text
+  paseadores number
+  clientes   number
+  perros     number
+}
+
+state { draft = {} : Empresa }
+
+action guardar(next: Empresa) mutates draft { empresa.save(next)  draft.reset() }
+
+Page class("screen gap-lg") {
+  Stack class("hero-band gap-xs") {
+    Text "{empresa.info.nombre}" class("t-2xl black")
+    Text "{empresa.info.eslogan}" class("t-sm")
+    Stack class("row center gap-sm") { Icon "lucide:map-pin"  Text "{empresa.info.ciudad}" class("t-sm") }
+  }
+
+  Stack class("grid grid-3") {
+    Stack class("card kpi") { Span "Paseadores" class("kpi-l")  Text "{empresa.info.paseadores}" class("kpi-n") }
+    Stack class("card kpi") { Span "Clientes" class("kpi-l")  Text "{empresa.info.clientes}" class("kpi-n") }
+    Stack class("card kpi") { Span "Perros" class("kpi-l")  Text "{empresa.info.perros}" class("kpi-n") }
+  }
+
+  Stack class("card pad-lg gap-md") {
+    Title "Contacto" h2 class("bold t-md")
+    Stack class("row center gap-sm") { Icon "lucide:phone" class("accent")  Text "{empresa.info.telefono}" class("semibold") }
+    Stack class("row center gap-sm") { Icon "lucide:building-2" class("accent")  Text "{empresa.info.ciudad}, Colombia" class("semibold") }
+  }
+
+  Stack class("card pad-lg gap-md") {
+    Title "Editar información" h2 class("bold t-md")
+    Form bind(draft) submit(guardar) "Guardar cambios"
+  }
+}

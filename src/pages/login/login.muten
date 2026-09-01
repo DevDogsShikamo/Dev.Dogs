@@ -1,0 +1,67 @@
+screen login
+
+state {
+  email = "" : text
+  pw    = "" : text
+}
+
+action clearEmail mutates email { email.set("") }
+action clearPw    mutates pw    { pw.set("") }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Stack class("gb-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
+      Span "DevDogs"
+    }
+    Stack class("glogin-photo-in") {
+      Title "Nunca dos paseos a la misma hora." h1 class("glogin-h")
+      Text "Tu agenda, tus clientes y tus cuentas — en un solo lugar." class("glogin-sub")
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+
+      Button class("gbtn-google") {
+        Image "/google.svg" alt("") class("g-ico")
+        Span "Entrar con Google"
+      }
+
+      Stack class("gdiv") { Span "o con tu correo" }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:mail" }
+        Stack class("gfield-body") {
+          Text "Correo" class("gfield-label")
+          SearchField bind(email) "tu@correo.com" class("gfield-input")
+        }
+        when email.length > 0 { Button -> clearEmail class("gfield-x") aria(label: "Borrar correo") { Icon "lucide:x" } }
+      }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:lock" }
+        Stack class("gfield-body") {
+          Text "Contraseña" class("gfield-label")
+          Password bind(pw) "••••••••" class("gfield-input")
+        }
+        when pw.length > 0 { Button -> clearPw class("gfield-x") aria(label: "Borrar contraseña") { Icon "lucide:x" } }
+      }
+
+      Stack class("gforgot") { Span "¿Olvidaste tu contraseña?" }
+
+      Stack class("gsignup") {
+        Text "¿No tienes cuenta?" class("muted t-sm")
+        Link "Regístrate" -> "/signup" class("glink t-sm")
+      }
+    }
+
+    Stack class("gbar") {
+      Button -> auth.login class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
+        Span "Entrar"
+        Icon "lucide:arrow-right"
+      }
+    }
+  }
+}

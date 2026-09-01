@@ -1,0 +1,22 @@
+# Collected sign-up / onboarding data. (Mock for now — later this POSTs to a Supabase Edge Function.)
+entity Registro {
+  rol       text
+  nombre    text
+  telefono  text
+  ciudad    text
+  zona      text
+  negocio   text
+  docTipo   text
+  docNumero text
+  nit       text
+}
+
+state {
+  data       = {} : Registro
+  registrado = false : bool
+}
+
+action save(next: Registro) mutates data, registrado {
+  data.set(next)
+  registrado.set(true)
+}

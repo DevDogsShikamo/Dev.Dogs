@@ -1,0 +1,52 @@
+screen dashboard
+use cop from "~/lib/money.ts"
+
+Page class("screen gap-lg") {
+  Stack class("gap-xs") {
+    Text "¡Hola, {auth.userName}!" class("t-xl black")
+    Text "Esto es lo que tienes para hoy." class("muted")
+  }
+
+  Stack class("grid grid-4") {
+    Stack class("card kpi") {
+      Stack class("row between center") { Span "Paseos hoy" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:calendar-check" } }
+      Text "{agenda.total}" class("kpi-n")
+    }
+    Stack class("card kpi") {
+      Stack class("row between center") { Span "Completados" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:check-circle-2" } }
+      Text "{agenda.hechos}" class("kpi-n")
+    }
+    Stack class("card kpi") {
+      Stack class("row between center") { Span "Ingreso día" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:wallet" } }
+      Text "{cop(agenda.ingresoDia)}" class("kpi-n")
+    }
+    Stack class("card kpi") {
+      Stack class("row between center") { Span "Por cobrar" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:clock" } }
+      Text "{cop(agenda.porCobrar)}" class("kpi-n coral")
+    }
+  }
+
+  Stack class("gap-md") {
+    Stack class("row between center") {
+      Title "Agenda de hoy" h2 class("bold t-lg")
+      Link "Ver todo" -> "/calendario" class("link t-sm")
+    }
+    List class("gap-sm") {
+      each agenda.citas as c {
+        Article class("card pad-md row between center gap-md") {
+          Stack class("row center gap-md") {
+            Stack class("avatar") { Text "{initial(c.perro)}" }
+            Stack class("gap-xs") {
+              Text "{c.perro} · {c.cliente}" class("semibold")
+              Text "{c.hora} · {c.servicio}" class("muted t-sm")
+            }
+          }
+          Stack class("row center gap-sm") {
+            when c.pagado { Span "Pagado" class("badge badge-paid") }
+            when not c.pagado { Span "Debe" class("badge badge-unpaid") }
+          }
+        }
+      }
+    }
+  }
+}

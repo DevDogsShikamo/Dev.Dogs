@@ -1,0 +1,10 @@
+{
+  "name": "Muten app",
+  "short_name": "Muten",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FF5E00",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

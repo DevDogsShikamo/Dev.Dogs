@@ -1,0 +1,8 @@
+# Global auth state. Mock for the MVP: any login/signup flips loggedIn; guards in app.muten react.
+state {
+  loggedIn = false : bool persist
+  userName = "Camilo" : text
+}
+
+action login  mutates loggedIn { loggedIn.set(true) }
+action logout mutates loggedIn { loggedIn.set(false) }

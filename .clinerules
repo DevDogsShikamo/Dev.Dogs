@@ -1,0 +1,8 @@
+# Protocolo de Memoria Persistente con Engram
+
+Tienes acceso a herramientas MCP de Engram para gestionar la memoria persistente del proyecto.
+
+## Reglas de uso de Engram:
+1. **Antes de empezar una tarea:** Consulta siempre la memoria ejecutando `mem_search` o recupera la sesión previa con `mem_context` para conocer decisiones previas, bugs resueltos o convenciones fijadas.
+2. **Durante/Al finalizar una tarea:** Si tomamos una decisión de arquitectura importante, corregimos un bug complejo o definimos una nueva regla, agrégala inmediatamente a la memoria usando `mem_save`.
+3. **Resumen de sesión:** Antes de cerrar o si el contexto se vuelve muy largo, guarda un resumen relevante de lo aprendido.

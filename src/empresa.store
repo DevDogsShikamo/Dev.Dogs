@@ -1,0 +1,24 @@
+# Company profile — the "Información de la empresa" data.
+entity Empresa {
+  nombre     text required
+  eslogan    text
+  telefono   text
+  ciudad     text
+  paseadores number
+  clientes   number
+  perros     number
+}
+
+state {
+  info = {
+    nombre: "DevDogs",
+    eslogan: "Cuidamos a tus peluditos mientras no estás",
+    telefono: "+57 320 5800647",
+    ciudad: "Medellín",
+    paseadores: 3,
+    clientes: 24,
+    perros: 31
+  } : Empresa
+}
+
+action save(next: Empresa) mutates info { info.set(next) }
