@@ -3,36 +3,34 @@ screen landing
 # Public landing ("/") — DevDogs. Original content + layout for a dog-walking business.
 Page class("lp") {
 
-  # ---- hero (dark, dramatic — big display type + protagonist image) ----
-  Section class("lp-dark") {
-    Header class("lp-dnav") {
-      Stack class("brand lp-brand-light") {
+  # ---- hero (full-screen dark, big overlapping type + central visual) ----
+  Section class("hx") {
+    Image "/land-hero.jpg" alt("Perro listo para su paseo") class("hx-bg")
+    Stack class("hx-scrim")
+    Header class("hx-top") {
+      Stack class("brand hx-brand") {
         Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
         Span "DevDogs"
       }
       Stack class("row center gap-sm") {
-        Span "V_ 1.2.0" class("lp-ver")
-        when not auth.loggedIn { Link "Entrar" -> "/login" class("lp-pill") }
-        when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("lp-pill lp-pill-on") }
-        when auth.loggedIn { Link "Mi panel" -> "/app" class("lp-pill lp-pill-on") }
+        Span "V_ 1.2.0" class("hx-ver")
+        when not auth.loggedIn { Link "Entrar" -> "/login" class("hx-pill") }
+        when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("hx-pill hx-pill-on") }
+        when auth.loggedIn { Link "Mi panel" -> "/app" class("hx-pill hx-pill-on") }
       }
     }
-    Stack class("lp-dhero") {
-      Stack class("lp-dhead") {
-        Text "Domina" class("lp-bigword")
-        Text "tus" class("lp-bigword")
-        Text "paseos" class("lp-bigword lp-bigword-accent")
-        Text "Agenda, fichas y cuentas — en un solo lugar." class("lp-byline")
-        Stack class("row gap-sm lp-dcta") {
-          Link "Empezar gratis" -> "/signup" class("btn btn-lg btn-mango")
-          Link "Ver cómo funciona" -> "#flujo" class("lp-pill lp-pill-lg")
-        }
-      }
-      Stack class("lp-heroart") {
-        Stack class("lp-heroimg") { Text "🐾 tu foto aquí" }
-        Stack class("lp-floatcard") { Span "Agenda de hoy" class("t-xs")  Text "5 paseos" class("bold") }
-        Stack class("lp-bubble") { Text "¡Hola! 🐾 Bienvenido a DevDogs" class("t-sm") }
-      }
+
+    Stack class("hx-title") {
+      Text "Domina" class("hx-word")
+      Text "tus" class("hx-word")
+      Text "paseos" class("hx-word")
+    }
+
+    Stack class("hx-bubble") { Text "¡Hola! 🐾 Bienvenido a DevDogs" class("t-sm") }
+
+    Stack class("hx-foot") {
+      Link "Empezar gratis" -> "/signup" class("btn btn-lg btn-mango")
+      Text "Agenda · fichas · cuentas — en un solo lugar" class("hx-by")
     }
   }
 
