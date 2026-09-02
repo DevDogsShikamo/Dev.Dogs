@@ -358,3 +358,30 @@ html{ scroll-padding-top:88px; }
 .lp-foot{ display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:12px;
   padding-top:22px; border-top:1px solid var(--color-border); flex-wrap:wrap; }
 @media (max-width:560px){ .lp{ gap:40px; } }
+
+/* ---- landing extra (sections, marquee, agenda demo, steps) ---- */
+.btn-mango{ background:var(--color-mango); color:#fff; }
+.btn-ink{ background:var(--color-ink); color:#fff; }
+.lp-cta-white{ background:#fff; color:var(--color-primary); }
+.lp-trust{ flex-wrap:wrap; justify-content:center; gap:14px; color:var(--color-muted); margin-top:2px; font-weight:600; }
+.lp-sec{ display:flex; flex-direction:column; gap:14px; }
+.hero-band.lp-sec{ padding:clamp(24px,5vw,44px); }
+.lp-eye-light{ color:#fff !important; }
+.lp-lead-light{ color:rgba(255,255,255,.85); }
+.lp-agenda{ margin-top:10px; }
+.lp-agrow{ background:rgba(255,255,255,.12); border-radius:14px; padding:12px 15px; color:#fff; }
+.lp-agt{ font-weight:800; min-width:48px; }
+.lp-trio .card{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+.lp-portal{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; padding:6px 0; }
+.lp-portal .svc-ic{ background:rgba(255,255,255,.18); color:#fff; }
+.lp-steps{ display:flex; flex-direction:column; gap:14px; }
+.lp-step{ align-items:flex-start; }
+.lp-num{ width:38px; height:38px; border-radius:50%; background:var(--color-primary); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; flex:0 0 auto; }
+.lp-final{ text-align:center; align-items:center; }
+/* marquee */
+.lp-marquee{ overflow:hidden; white-space:nowrap; background:var(--color-ink); color:#fff;
+  padding:12px 0; font-weight:800; letter-spacing:.02em; border-radius:var(--radius-md); }
+.lp-marquee span{ display:inline-block; padding-left:100%; animation:lp-scroll 26s linear infinite; }
+@keyframes lp-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-100%); } }
+@media (prefers-reduced-motion:reduce){ .lp-marquee span{ animation:none; padding-left:0; } }

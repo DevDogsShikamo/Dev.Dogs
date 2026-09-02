@@ -1,8 +1,9 @@
 screen landing
 
-# Public landing — the app's front door ("/"). No auth guard.
+# Public landing ("/") — DevDogs. Original content adapted from the DevDogs concept.
 Page class("lp") {
 
+  # ---- nav ----
   Header class("lp-nav") {
     Stack class("brand") {
       Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
@@ -11,70 +12,122 @@ Page class("lp") {
     Stack class("row center gap-sm") {
       when auth.loggedIn { Link "Mi panel" -> "/app" class("btn") }
       when not auth.loggedIn { Link "Entrar" -> "/login" class("link t-sm") }
-      when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("btn") }
+      when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("btn btn-ink") }
     }
   }
 
+  # ---- hero ----
   Section class("lp-hero") {
-    Span "GESTIÓN DE PASEOS DE PERROS" class("eyebrow")
-    Title "Nunca dos paseos a la misma hora." h1 class("lp-h")
-    Text "Tu agenda, tu equipo y tus cuentas — en un solo lugar. Tus clientes agendan por tu propio link, y vos organizás el día sin planillas." class("lp-lead")
+    Span "✦ GESTIÓN DE PASEOS · MEDELLÍN" class("eyebrow")
+    Title "Maneja tus paseos como un pro, sin Excel." h1 class("lp-h")
+    Text "DevDogs arma tu agenda, tus fichas y tus cuentas por ti. Marcás check-in, el dueño lo ve en vivo, y cobrás sin perseguir a nadie." class("lp-lead")
     Stack class("row center gap-sm lp-cta") {
-      Link "Empezar gratis" -> "/signup" class("btn btn-lg")
+      Link "Crear mi cuenta gratis" -> "/signup" class("btn btn-lg btn-mango")
       Link "Ya tengo cuenta" -> "/login" class("btn-ghost btn-lg")
     }
-    Span "Gratis para empezar · sin tarjeta" class("muted t-sm")
+    Stack class("row center gap-md lp-trust") {
+      Span "✓ Gratis para empezar" class("t-sm")
+      Span "✓ Para paseadores y empresas" class("t-sm")
+      Span "✓ No es un “Uber de perros”" class("t-sm")
+    }
   }
 
-  Section class("lp-band") {
-    Stack class("grid grid-3 gap-md") {
-      Stack class("card pad-lg gap-xs") {
-        Stack class("svc-ic") { Icon "lucide:calendar-check" }
-        Text "Agenda que no choca" class("bold t-md")
-        Text "Cada paseo con su hora, duración y zona. Recibí y entregá con un toque." class("muted t-sm")
+  # ---- marquee ----
+  Stack class("lp-marquee") {
+    Span "Agenda del día ✦ Check-in y check-out ✦ Cuentas sin Excel ✦ Ficha del perro ✦ Portal del dueño ✦ Exporta a Notion ✦ Agenda del día ✦ Check-in y check-out ✦ Cuentas sin Excel ✦"
+  }
+
+  # ---- agenda del día ----
+  Section class("hero-band lp-sec") {
+    Span "✦ TU AGENDA DEL DÍA" class("eyebrow lp-eye-light")
+    Title "Tu día, sin tener que armarlo." h2 class("black t-xl")
+    Text "Abrís la app y ya está: quién viene, a qué hora, cuánto y qué falta cobrar. Los números salen de los paseos que hiciste — no hay nada que cargar a mano." class("t-sm lp-lead-light")
+    Stack class("gap-sm lp-agenda") {
+      Stack class("row between center lp-agrow") { Span "8:00" class("lp-agt")  Span "Max · Ana R. · Paseo" class("semibold")  Span "$15.000" class("bold") }
+      Stack class("row between center lp-agrow") { Span "10:00" class("lp-agt")  Span "Rocky · Luis P. · Paseo largo" class("semibold")  Span "$22.000" class("bold") }
+      Stack class("row between center lp-agrow") { Span "12:00" class("lp-agt")  Span "Luna · Karla M. · Guardería" class("semibold")  Span "sin cobrar" class("coral bold") }
+      Stack class("row between center lp-agrow") { Span "14:00" class("lp-agt")  Span "Toby · José V. · Paseo" class("semibold")  Span "$15.000" class("bold") }
+    }
+  }
+
+  # ---- cómo se ve un paseo ----
+  Section class("lp-sec") {
+    Span "✦ CÓMO SE VE UN PASEO" class("eyebrow")
+    Title "Sabés qué pasa antes, durante y después." h2 class("black t-xl")
+    Stack class("grid grid-3 gap-md lp-trio") {
+      Article class("card pad-lg gap-xs") {
+        Span "Antes" class("chip")
+        Text "La ficha del perro, a la mano" class("bold t-md")
+        Text "Raza, edad, alergias, dónde vive y con quién. Todo lo que importa para cuidarlo bien." class("muted t-sm")
       }
-      Stack class("card pad-lg gap-xs") {
-        Stack class("svc-ic") { Icon "lucide:link" }
-        Text "Tu propio link" class("bold t-md")
-        Text "devdogs.co/tu-negocio. Tus clientes agendan ahí, sin mezclarse con otros." class("muted t-sm")
+      Article class("card pad-lg gap-xs") {
+        Span "Durante" class("chip")
+        Text "Check-in con hora y ruta" class("bold t-md")
+        Text "Marcás inicio y fin. Si querés, dejás la ruta. El dueño lo ve al instante." class("muted t-sm")
       }
-      Stack class("card pad-lg gap-xs") {
-        Stack class("svc-ic") { Icon "lucide:users" }
-        Text "Equipo y grupos" class("bold t-md")
-        Text "Asigná paseadores por zona y armá grupos de perros compatibles." class("muted t-sm")
+      Article class("card pad-lg gap-xs") {
+        Span "Después" class("chip")
+        Text "Reporte y cuenta lista" class("bold t-md")
+        Text "Qué se hizo y cuánto se cobra, listo para enviar. La cuenta del cliente se actualiza sola." class("muted t-sm")
       }
     }
   }
 
-  Section class("lp-roles") {
-    Title "Un portal para cada quien" h2 class("bold t-lg text-center")
+  # ---- una app, tres vistas ----
+  Section class("hero-band lp-sec") {
+    Span "✦ UNA APP, TRES VISTAS" class("eyebrow lp-eye-light")
+    Title "Todo tu negocio, conectado en un solo lugar." h2 class("black t-xl")
+    Text "El mismo dato sirve para los tres: lo que el paseador marca, lo ve la empresa y lo ve el dueño. Sin reenviar nada por WhatsApp." class("t-sm lp-lead-light")
     Stack class("grid grid-3 gap-md") {
-      Stack class("card svc") {
-        Stack class("svc-ic") { Icon "lucide:footprints" }
-        Text "Paseador" class("bold t-md")
-        Text "Ve sus perros del día, recibe, entrega y confirma. Sin planillas." class("muted t-sm")
-      }
-      Stack class("card svc") {
-        Stack class("svc-ic") { Icon "lucide:building-2" }
-        Text "Empresa" class("bold t-md")
-        Text "Gestiona el equipo, los grupos, los clientes y las cuentas." class("muted t-sm")
-      }
-      Stack class("card svc") {
-        Stack class("svc-ic") { Icon "lucide:heart" }
-        Text "Cliente" class("bold t-md")
-        Text "Agenda paseos para su perro y sigue cada salida en vivo." class("muted t-sm")
-      }
+      Stack class("lp-portal") { Stack class("svc-ic") { Icon "lucide:footprints" }  Text "Paseador" class("bold")  Text "Agenda · check-in · cuentas" class("t-sm lp-lead-light") }
+      Stack class("lp-portal") { Stack class("svc-ic") { Icon "lucide:building-2" }  Text "Empresa" class("bold")  Text "Varios paseadores y grupos" class("t-sm lp-lead-light") }
+      Stack class("lp-portal") { Stack class("svc-ic") { Icon "lucide:heart" }  Text "Dueño" class("bold")  Text "Ve a su perro en vivo" class("t-sm lp-lead-light") }
     }
   }
 
-  Section class("lp-final hero-band gap-md") {
-    Title "Empezá hoy, gratis." h2 class("black t-xl")
-    Text "Armá tu negocio en 5 minutos y compartí tu link." class("t-sm")
-    Link "Crear mi cuenta" -> "/signup" class("btn btn-lg")
+  # ---- servicios ----
+  Section class("lp-sec") {
+    Span "✦ NUESTROS SERVICIOS" class("eyebrow")
+    Title "¿Qué necesita tu perro?" h2 class("black t-xl")
+    Stack class("grid grid-3 gap-md") {
+      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:footprints" }  Text "Paseo" class("bold t-md")  Text "Paseos a la medida, con check-in y reporte al terminar." class("muted t-sm") }
+      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:home" }  Text "Guardería" class("bold t-md")  Text "Cuidado de día: juego, siesta y compañía mientras no estás." class("muted t-sm") }
+      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:mountain" }  Text "Aventura" class("bold t-md")  Text "Rutas largas al aire libre para quemar energía." class("muted t-sm") }
+    }
+  }
+
+  # ---- de cero a organizado ----
+  Section class("lp-sec") {
+    Span "✦ DE CERO A ORGANIZADO" class("eyebrow")
+    Title "Empezar toma menos que un tinto." h2 class("black t-xl")
+    Stack class("gap-md lp-steps") {
+      Stack class("row center gap-md lp-step") { Span "1" class("lp-num")  Stack class("gap-xs") { Text "Creá tu cuenta" class("bold")  Text "Con tu correo o Google. Gratis, sin tarjeta." class("muted t-sm") } }
+      Stack class("row center gap-md lp-step") { Span "2" class("lp-num")  Stack class("gap-xs") { Text "Agregá tus perros y clientes" class("bold")  Text "Nombre, dueño y tarifa. Una vez y queda guardado." class("muted t-sm") } }
+      Stack class("row center gap-md lp-step") { Span "3" class("lp-num")  Stack class("gap-xs") { Text "Marcá check-in y listo" class("bold")  Text "La agenda y las cuentas se arman solas con cada paseo." class("muted t-sm") } }
+    }
+  }
+
+  # ---- export ----
+  Section class("lp-sec") {
+    Span "✦ TUS DATOS, DONDE YA TRABAJÁS" class("eyebrow")
+    Title "Exportá a Notion, CSV o Excel en un clic." h2 class("black t-xl")
+    Text "Tus paseos, clientes y cuentas salen tal como los necesitás. Al historial en Notion para compartir, o a Excel para tu contador. Sin copiar y pegar." class("lp-lead")
+    Stack class("row center gap-sm") {
+      Span "Notion" class("chip")  Span "CSV" class("chip")  Span "Excel" class("chip")
+    }
+  }
+
+  # ---- final CTA ----
+  Section class("hero-band lp-final gap-md") {
+    Span "✦ EMPEZÁ HOY" class("eyebrow lp-eye-light")
+    Title "Dejá el cuaderno. Empezá gratis." h2 class("black t-2xl")
+    Text "Armá tu primer día en DevDogs en 5 minutos. Sin tarjeta, sin instalar nada raro." class("t-sm lp-lead-light")
+    Link "Crear mi cuenta gratis" -> "/signup" class("btn btn-lg lp-cta-white")
+    Text "Sin tarjeta · Hecho en Medellín 🐾" class("t-sm lp-lead-light")
   }
 
   Footer class("lp-foot") {
     Span "DevDogs" class("bold")
-    Span "© 2026 · Hecho con cariño para los peluditos" class("muted t-sm")
+    Span "© 2026 DevDogs · Medellín, CO" class("muted t-sm")
   }
 }
