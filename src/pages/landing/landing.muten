@@ -1,34 +1,38 @@
 screen landing
 
-# Public landing ("/") — DevDogs. Original content adapted from the DevDogs concept.
+# Public landing ("/") — DevDogs. Original content + layout for a dog-walking business.
 Page class("lp") {
 
-  # ---- nav ----
-  Header class("lp-nav") {
-    Stack class("brand") {
-      Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
-      Span "DevDogs"
+  # ---- hero (dark, dramatic — big display type + protagonist image) ----
+  Section class("lp-dark") {
+    Header class("lp-dnav") {
+      Stack class("brand lp-brand-light") {
+        Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
+        Span "DevDogs"
+      }
+      Stack class("row center gap-sm") {
+        Span "V_ 1.2.0" class("lp-ver")
+        when not auth.loggedIn { Link "Entrar" -> "/login" class("lp-pill") }
+        when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("lp-pill lp-pill-on") }
+        when auth.loggedIn { Link "Mi panel" -> "/app" class("lp-pill lp-pill-on") }
+      }
     }
-    Stack class("row center gap-sm") {
-      when auth.loggedIn { Link "Mi panel" -> "/app" class("btn") }
-      when not auth.loggedIn { Link "Entrar" -> "/login" class("link t-sm") }
-      when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("btn btn-ink") }
-    }
-  }
-
-  # ---- hero ----
-  Section class("lp-hero") {
-    Span "✦ GESTIÓN DE PASEOS · MEDELLÍN" class("eyebrow")
-    Title "Maneja tus paseos como un pro, sin Excel." h1 class("lp-h")
-    Text "DevDogs arma tu agenda, tus fichas y tus cuentas por ti. Marcás check-in, el dueño lo ve en vivo, y cobrás sin perseguir a nadie." class("lp-lead")
-    Stack class("row center gap-sm lp-cta") {
-      Link "Crear mi cuenta gratis" -> "/signup" class("btn btn-lg btn-mango")
-      Link "Ya tengo cuenta" -> "/login" class("btn-ghost btn-lg")
-    }
-    Stack class("row center gap-md lp-trust") {
-      Span "✓ Gratis para empezar" class("t-sm")
-      Span "✓ Para paseadores y empresas" class("t-sm")
-      Span "✓ No es un “Uber de perros”" class("t-sm")
+    Stack class("lp-dhero") {
+      Stack class("lp-dhead") {
+        Text "Domina" class("lp-bigword")
+        Text "tus" class("lp-bigword")
+        Text "paseos" class("lp-bigword lp-bigword-accent")
+        Text "Agenda, fichas y cuentas — en un solo lugar." class("lp-byline")
+        Stack class("row gap-sm lp-dcta") {
+          Link "Empezar gratis" -> "/signup" class("btn btn-lg btn-mango")
+          Link "Ver cómo funciona" -> "#flujo" class("lp-pill lp-pill-lg")
+        }
+      }
+      Stack class("lp-heroart") {
+        Stack class("lp-heroimg") { Text "🐾 tu foto aquí" }
+        Stack class("lp-floatcard") { Span "Agenda de hoy" class("t-xs")  Text "5 paseos" class("bold") }
+        Stack class("lp-bubble") { Text "¡Hola! 🐾 Bienvenido a DevDogs" class("t-sm") }
+      }
     }
   }
 
@@ -37,39 +41,37 @@ Page class("lp") {
     Span "Agenda del día ✦ Check-in y check-out ✦ Cuentas sin Excel ✦ Ficha del perro ✦ Portal del dueño ✦ Exporta a Notion ✦ Agenda del día ✦ Check-in y check-out ✦ Cuentas sin Excel ✦"
   }
 
-  # ---- agenda del día ----
-  Section class("hero-band lp-sec") {
-    Span "✦ TU AGENDA DEL DÍA" class("eyebrow lp-eye-light")
-    Title "Tu día, sin tener que armarlo." h2 class("black t-xl")
-    Text "Abrís la app y ya está: quién viene, a qué hora, cuánto y qué falta cobrar. Los números salen de los paseos que hiciste — no hay nada que cargar a mano." class("t-sm lp-lead-light")
-    Stack class("gap-sm lp-agenda") {
-      Stack class("row between center lp-agrow") { Span "8:00" class("lp-agt")  Span "Max · Ana R. · Paseo" class("semibold")  Span "$15.000" class("bold") }
-      Stack class("row between center lp-agrow") { Span "10:00" class("lp-agt")  Span "Rocky · Luis P. · Paseo largo" class("semibold")  Span "$22.000" class("bold") }
-      Stack class("row between center lp-agrow") { Span "12:00" class("lp-agt")  Span "Luna · Karla M. · Guardería" class("semibold")  Span "sin cobrar" class("coral bold") }
-      Stack class("row between center lp-agrow") { Span "14:00" class("lp-agt")  Span "Toby · José V. · Paseo" class("semibold")  Span "$15.000" class("bold") }
+  # ---- agenda del día (2 columnas: citas + stats | texto) ----
+  Section class("lp-agsec") {
+    Stack class("lp-agleft") {
+      Stack class("gap-sm") {
+        Stack class("row between center lp-agrow") { Span "8:00" class("lp-agt")  Stack class("lp-agpill violet") { Span "Max · Ana R." class("lp-agnm")  Span "Paseo" class("lp-agsv")  Span "$15.000" class("lp-agpr") } }
+        Stack class("row between center lp-agrow") { Span "9:00" class("lp-agt")  Stack class("lp-agpill empty") { Span "libre hasta las 10:00" class("lp-agsv")  Span "+" class("lp-agplus") } }
+        Stack class("row between center lp-agrow") { Span "10:00" class("lp-agt")  Stack class("lp-agpill violet") { Span "Rocky · Luis P." class("lp-agnm")  Span "Paseo largo" class("lp-agsv")  Span "$22.000" class("lp-agpr") } }
+        Stack class("row between center lp-agrow") { Span "12:00" class("lp-agt")  Stack class("lp-agpill gold") { Span "Luna · Karla M." class("lp-agnm")  Span "Guardería" class("lp-agsv")  Span "sin cobrar" class("lp-agpr") } }
+        Stack class("row between center lp-agrow") { Span "14:00" class("lp-agt")  Stack class("lp-agpill violet") { Span "Toby · José V." class("lp-agnm")  Span "Paseo" class("lp-agsv")  Span "$15.000" class("lp-agpr") } }
+      }
+      Stack class("row gap-sm lp-agstats") {
+        Stack class("lp-agstat") { Text "$430.000" class("lp-agn")  Text "cobrado este mes" class("lp-agk") }
+        Stack class("lp-agstat") { Text "$48.000" class("lp-agn mango")  Text "sin cobrar" class("lp-agk") }
+        Stack class("lp-agstat") { Text "Paseo" class("lp-agn2")  Text "lo que más se vende" class("lp-agk") }
+      }
+    }
+    Stack class("lp-agtext") {
+      Span "✦ Y DEL OTRO LADO" class("eyebrow lp-eye-light")
+      Title "Tu día, sin tener que armarlo." h2 class("black t-xl")
+      Text "Abrís la app y ya está: quién viene, a qué hora, cuánto y qué falta cobrar. Los números salen de los paseos que hiciste — no hay nada que cargar a mano." class("t-sm lp-lead-light")
     }
   }
 
   # ---- cómo se ve un paseo ----
-  Section class("lp-sec") {
+  Section id("flujo") class("lp-sec") {
     Span "✦ CÓMO SE VE UN PASEO" class("eyebrow")
     Title "Sabés qué pasa antes, durante y después." h2 class("black t-xl")
     Stack class("grid grid-3 gap-md lp-trio") {
-      Article class("card pad-lg gap-xs") {
-        Span "Antes" class("chip")
-        Text "La ficha del perro, a la mano" class("bold t-md")
-        Text "Raza, edad, alergias, dónde vive y con quién. Todo lo que importa para cuidarlo bien." class("muted t-sm")
-      }
-      Article class("card pad-lg gap-xs") {
-        Span "Durante" class("chip")
-        Text "Check-in con hora y ruta" class("bold t-md")
-        Text "Marcás inicio y fin. Si querés, dejás la ruta. El dueño lo ve al instante." class("muted t-sm")
-      }
-      Article class("card pad-lg gap-xs") {
-        Span "Después" class("chip")
-        Text "Reporte y cuenta lista" class("bold t-md")
-        Text "Qué se hizo y cuánto se cobra, listo para enviar. La cuenta del cliente se actualiza sola." class("muted t-sm")
-      }
+      Article class("card pad-lg gap-xs") { Span "Antes" class("chip")  Text "La ficha del perro, a la mano" class("bold t-md")  Text "Raza, edad, alergias, dónde vive y con quién. Todo lo que importa para cuidarlo bien." class("muted t-sm") }
+      Article class("card pad-lg gap-xs") { Span "Durante" class("chip")  Text "Check-in con hora y ruta" class("bold t-md")  Text "Marcás inicio y fin. Si querés, dejás la ruta. El dueño lo ve al instante." class("muted t-sm") }
+      Article class("card pad-lg gap-xs") { Span "Después" class("chip")  Text "Reporte y cuenta lista" class("bold t-md")  Text "Qué se hizo y cuánto se cobra, listo para enviar. La cuenta del cliente se actualiza sola." class("muted t-sm") }
     }
   }
 
@@ -85,14 +87,40 @@ Page class("lp") {
     }
   }
 
-  # ---- servicios ----
-  Section class("lp-sec") {
-    Span "✦ NUESTROS SERVICIOS" class("eyebrow")
-    Title "¿Qué necesita tu perro?" h2 class("black t-xl")
+  # ---- servicios (tarjetas con foto, linkeables) ----
+  Section class("lp-dark lp-srvsec") {
+    Stack class("row between center lp-srvhead") {
+      Span "✦ NUESTROS SERVICIOS" class("eyebrow lp-eye-light")
+      Title "¿Qué necesita tu perro?" h2 class("black t-xl lp-srvh")
+    }
     Stack class("grid grid-3 gap-md") {
-      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:footprints" }  Text "Paseo" class("bold t-md")  Text "Paseos a la medida, con check-in y reporte al terminar." class("muted t-sm") }
-      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:home" }  Text "Guardería" class("bold t-md")  Text "Cuidado de día: juego, siesta y compañía mientras no estás." class("muted t-sm") }
-      Article class("card svc") { Stack class("svc-ic") { Icon "lucide:mountain" }  Text "Aventura" class("bold t-md")  Text "Rutas largas al aire libre para quemar energía." class("muted t-sm") }
+      Link "" -> "/signup" class("lp-srvcard") {
+        Stack class("lp-srvimg") { Text "🐕 foto" }
+        Stack class("lp-srvin") {
+          Stack class("svc-ic") { Icon "lucide:footprints" }
+          Text "Paseo" class("bold t-md")
+          Text "Paseos a la medida, con check-in y reporte al terminar." class("lp-lead-light t-sm")
+          Span "Ver más →" class("lp-srvmore")
+        }
+      }
+      Link "" -> "/signup" class("lp-srvcard") {
+        Stack class("lp-srvimg") { Text "🏠 foto" }
+        Stack class("lp-srvin") {
+          Stack class("svc-ic") { Icon "lucide:home" }
+          Text "Guardería" class("bold t-md")
+          Text "Cuidado de día: juego, siesta y compañía mientras no estás." class("lp-lead-light t-sm")
+          Span "Ver más →" class("lp-srvmore")
+        }
+      }
+      Link "" -> "/signup" class("lp-srvcard") {
+        Stack class("lp-srvimg") { Text "🌳 foto" }
+        Stack class("lp-srvin") {
+          Stack class("svc-ic") { Icon "lucide:mountain" }
+          Text "Aventura" class("bold t-md")
+          Text "Rutas largas al aire libre para quemar energía." class("lp-lead-light t-sm")
+          Span "Ver más →" class("lp-srvmore")
+        }
+      }
     }
   }
 
@@ -112,8 +140,43 @@ Page class("lp") {
     Span "✦ TUS DATOS, DONDE YA TRABAJÁS" class("eyebrow")
     Title "Exportá a Notion, CSV o Excel en un clic." h2 class("black t-xl")
     Text "Tus paseos, clientes y cuentas salen tal como los necesitás. Al historial en Notion para compartir, o a Excel para tu contador. Sin copiar y pegar." class("lp-lead")
-    Stack class("row center gap-sm") {
-      Span "Notion" class("chip")  Span "CSV" class("chip")  Span "Excel" class("chip")
+    Stack class("row center gap-sm") { Span "Notion" class("chip")  Span "CSV" class("chip")  Span "Excel" class("chip") }
+  }
+
+  # ---- reseñas ----
+  Section class("lp-sec lp-voices") {
+    Stack class("gap-xs lp-vhead") {
+      Span "★★★★★ RESEÑAS VERIFICADAS" class("eyebrow")
+      Title "Lo que dicen los dueños más consentidores de Medellín" h2 class("black t-xl")
+    }
+    Stack class("grid grid-3 gap-md") {
+      Article class("card pad-lg gap-sm lp-voice") {
+        Span "★★★★★" class("lp-stars")
+        Text "“Ana le da a Rocky un paseo seguro y feliz. Salimos tranquilos sabiendo que está en buenas manos.”" class("t-md")
+        Stack class("row center gap-sm") {
+          Stack class("avatar") { Text "R" }
+          Stack class("gap-xs") { Text "Rocky · Golden" class("semibold t-sm")  Text "con Ana" class("muted t-xs") }
+        }
+        Text "— Camila R., El Poblado" class("muted t-sm")
+      }
+      Article class("card pad-lg gap-sm lp-voice") {
+        Span "★★★★★" class("lp-stars")
+        Text "“Luna adora a su paseador. Siempre puntual y se nota que ama a los animales.”" class("t-md")
+        Stack class("row center gap-sm") {
+          Stack class("avatar") { Text "L" }
+          Stack class("gap-xs") { Text "Luna · Cockapoo" class("semibold t-sm")  Text "con Andrés" class("muted t-xs") }
+        }
+        Text "— Andrés G., Laureles" class("muted t-sm")
+      }
+      Article class("card pad-lg gap-sm lp-voice") {
+        Span "★★★★★" class("lp-stars")
+        Text "“Toby volvió feliz y cansado. Manejan perfecto a los perros con mucha energía.”" class("t-md")
+        Stack class("row center gap-sm") {
+          Stack class("avatar") { Text "T" }
+          Stack class("gap-xs") { Text "Toby · Labrador" class("semibold t-sm")  Text "con Martín" class("muted t-xs") }
+        }
+        Text "— Sofía M., Envigado" class("muted t-sm")
+      }
     }
   }
 
