@@ -11,8 +11,6 @@ routes {
 
 shell {
   Stack class("frame") {
-  Custom SupaSession on(session: auth.setSession)
-  Custom SupaData on(empresa: empresa.setInfo, servicios: servicios.setItems, citas: agenda.setCitas)
   when auth.loggedIn {
     Header class("appbar") {
       Stack class("brand") {
@@ -25,8 +23,7 @@ shell {
 
   slot
 
-  when auth.loggedIn {
-  when auth.isPaseador {
+  when auth.loggedIn and auth.isPaseador {
     Nav class("tabbar") {
       Link "" -> "/"             class("tab") { Icon "lucide:layout-dashboard"  Span "Inicio" }
       Link "" -> "/calendario"   class("tab") { Icon "lucide:calendar-days"     Span "Agenda" }
@@ -34,7 +31,6 @@ shell {
       Link "" -> "/estadisticas" class("tab") { Icon "lucide:bar-chart-3"       Span "Stats" }
       Link "" -> "/empresa"      class("tab") { Icon "lucide:building-2"         Span "Empresa" }
     }
-  }
   }
   }
 }

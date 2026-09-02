@@ -163,7 +163,7 @@ Page class("wiz") {
 
     when auth.authError.length > 0 { Text "{auth.authError}" class("gerror pad-sm") }
 
-    Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, nonce: @nonce) on(failed: auth.setError)
+    Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
 
     Stack class("wiz-nav") {
       when step > 0 { Button -> back class("nav-back") aria(label: "Atrás") { Icon "lucide:chevron-left" } }

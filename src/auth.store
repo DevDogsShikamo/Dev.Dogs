@@ -31,4 +31,13 @@ action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId
 
 action setError(msg: text) mutates authError { authError.set(msg) }
 
-action logout { signOut() }
+action logout mutates loggedIn, userId, userName, rol, negocioId, slug, authError {
+  signOut()
+  loggedIn.set(false)
+  userId.set("")
+  userName.set("")
+  rol.set("")
+  negocioId.set("")
+  slug.set("")
+  authError.set("")
+}

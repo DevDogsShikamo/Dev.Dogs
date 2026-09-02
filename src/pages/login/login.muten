@@ -68,6 +68,6 @@ Page class("glogin") {
       }
     }
 
-    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, nonce: @nonce) on(failed: auth.setError)
+    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
   }
 }

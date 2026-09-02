@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(break)",
+      "Bash(powershell -NoProfile -Command \"Start-Process 'http://localhost:60117/'\")"
+    ]
+  }
+}
