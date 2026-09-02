@@ -26,6 +26,7 @@ shell {
   slot
 
   when auth.loggedIn {
+  when auth.isPaseador {
     Nav class("tabbar") {
       Link "" -> "/"             class("tab") { Icon "lucide:layout-dashboard"  Span "Inicio" }
       Link "" -> "/calendario"   class("tab") { Icon "lucide:calendar-days"     Span "Agenda" }
@@ -33,6 +34,7 @@ shell {
       Link "" -> "/estadisticas" class("tab") { Icon "lucide:bar-chart-3"       Span "Stats" }
       Link "" -> "/empresa"      class("tab") { Icon "lucide:building-2"         Span "Empresa" }
     }
+  }
   }
   }
 }

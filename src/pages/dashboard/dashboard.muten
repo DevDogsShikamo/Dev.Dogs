@@ -1,52 +1,58 @@
 screen dashboard
-use cop from "~/lib/money.ts"
 
+# Role-aware home. One route, content switches by the profile rol (Fase 1 skeletons).
 Page class("screen gap-lg") {
   Stack class("gap-xs") {
     Text "¡Hola, {auth.userName}!" class("t-xl black")
-    Text "Esto es lo que tienes para hoy." class("muted")
+    when auth.slug.length > 0 { Text "Tu link: devdogs.co/{auth.slug}" class("muted t-sm") }
   }
 
-  Stack class("grid grid-4") {
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Paseos hoy" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:calendar-check" } }
-      Text "{agenda.total}" class("kpi-n")
+  # ---- PASEADOR ----
+  when auth.isPaseador {
+    Stack class("hero-band gap-xs") {
+      Text "Portal Paseador" class("black t-lg")
+      Text "Acá vas a ver tus perros del día, recibir/entregar y confirmar." class("t-sm")
     }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Completados" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:check-circle-2" } }
-      Text "{agenda.hechos}" class("kpi-n")
+    Stack class("grid grid-2 gap-md") {
+      Stack class("card pad-lg gap-xs") { Icon "lucide:calendar-check" class("accent")  Text "Mi día" class("bold")  Text "Perros programados" class("muted t-sm") }
+      Stack class("card pad-lg gap-xs") { Icon "lucide:footprints" class("accent")  Text "Confirmación" class("bold")  Text "Quiénes salieron" class("muted t-sm") }
     }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Ingreso día" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:wallet" } }
-      Text "{cop(agenda.ingresoDia)}" class("kpi-n")
-    }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Por cobrar" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:clock" } }
-      Text "{cop(agenda.porCobrar)}" class("kpi-n coral")
-    }
+    Text "🚧 En construcción — Fase 2" class("muted t-sm text-center")
   }
 
-  Stack class("gap-md") {
-    Stack class("row between center") {
-      Title "Agenda de hoy" h2 class("bold t-lg")
-      Link "Ver todo" -> "/calendario" class("link t-sm")
+  # ---- EMPRESA ----
+  when auth.isEmpresa {
+    Stack class("hero-band gap-xs") {
+      Text "Portal Empresa" class("black t-lg")
+      Text "Tu equipo, tus grupos de paseo, clientes y pagos." class("t-sm")
     }
-    List class("gap-sm") {
-      each agenda.citas as c {
-        Article class("card pad-md row between center gap-md") {
-          Stack class("row center gap-md") {
-            Stack class("avatar") { Text "{initial(c.perro)}" }
-            Stack class("gap-xs") {
-              Text "{c.perro} · {c.cliente}" class("semibold")
-              Text "{c.hora} · {c.servicio}" class("muted t-sm")
-            }
-          }
-          Stack class("row center gap-sm") {
-            when c.pagado { Span "Pagado" class("badge badge-paid") }
-            when not c.pagado { Span "Debe" class("badge badge-unpaid") }
-          }
-        }
-      }
+    Stack class("grid grid-2 gap-md") {
+      Stack class("card pad-lg gap-xs") { Icon "lucide:users" class("accent")  Text "Paseadores" class("bold")  Text "Equipo y asignación" class("muted t-sm") }
+      Stack class("card pad-lg gap-xs") { Icon "lucide:layers" class("accent")  Text "Grupos" class("bold")  Text "Agrupar perros" class("muted t-sm") }
+      Stack class("card pad-lg gap-xs") { Icon "lucide:wallet" class("accent")  Text "Pagos" class("bold")  Text "Cobros y salarios" class("muted t-sm") }
+      Stack class("card pad-lg gap-xs") { Icon "lucide:sparkles" class("accent")  Text "Servicios" class("bold")  Text "Catálogo y precios" class("muted t-sm") }
+    }
+    Text "🚧 En construcción — Fase 4" class("muted t-sm text-center")
+  }
+
+  # ---- CLIENTE ----
+  when auth.isCliente {
+    Stack class("hero-band gap-xs") {
+      Text "Portal Cliente" class("black t-lg")
+      Text "Tu perro, tus paseos y tu cuenta." class("t-sm")
+    }
+    Stack class("grid grid-2 gap-md") {
+      Stack class("card pad-lg gap-xs") { Icon "lucide:dog" class("accent")  Text "Mi mascota" class("bold")  Text "Perfil del perro" class("muted t-sm") }
+      Stack class("card pad-lg gap-xs") { Icon "lucide:calendar-plus" class("accent")  Text "Agendar" class("bold")  Text "Pedir un paseo" class("muted t-sm") }
+    }
+    Text "🚧 En construcción — Fase 3" class("muted t-sm text-center")
+  }
+
+  # ---- perfil sin rol (aún no provisionado) ----
+  when auth.rol.length == 0 {
+    Stack class("card pad-lg gap-sm") {
+      Text "Configurando tu cuenta…" class("bold")
+      Text "Si esto no cambia en unos segundos, cerrá sesión y volvé a entrar." class("muted t-sm")
     }
   }
 }
