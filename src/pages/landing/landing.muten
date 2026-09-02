@@ -1,0 +1,80 @@
+screen landing
+
+# Public landing — the app's front door ("/"). No auth guard.
+Page class("lp") {
+
+  Header class("lp-nav") {
+    Stack class("brand") {
+      Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
+      Span "DevDogs"
+    }
+    Stack class("row center gap-sm") {
+      when auth.loggedIn { Link "Mi panel" -> "/app" class("btn") }
+      when not auth.loggedIn { Link "Entrar" -> "/login" class("link t-sm") }
+      when not auth.loggedIn { Link "Crear cuenta" -> "/signup" class("btn") }
+    }
+  }
+
+  Section class("lp-hero") {
+    Span "GESTIÓN DE PASEOS DE PERROS" class("eyebrow")
+    Title "Nunca dos paseos a la misma hora." h1 class("lp-h")
+    Text "Tu agenda, tu equipo y tus cuentas — en un solo lugar. Tus clientes agendan por tu propio link, y vos organizás el día sin planillas." class("lp-lead")
+    Stack class("row center gap-sm lp-cta") {
+      Link "Empezar gratis" -> "/signup" class("btn btn-lg")
+      Link "Ya tengo cuenta" -> "/login" class("btn-ghost btn-lg")
+    }
+    Span "Gratis para empezar · sin tarjeta" class("muted t-sm")
+  }
+
+  Section class("lp-band") {
+    Stack class("grid grid-3 gap-md") {
+      Stack class("card pad-lg gap-xs") {
+        Stack class("svc-ic") { Icon "lucide:calendar-check" }
+        Text "Agenda que no choca" class("bold t-md")
+        Text "Cada paseo con su hora, duración y zona. Recibí y entregá con un toque." class("muted t-sm")
+      }
+      Stack class("card pad-lg gap-xs") {
+        Stack class("svc-ic") { Icon "lucide:link" }
+        Text "Tu propio link" class("bold t-md")
+        Text "devdogs.co/tu-negocio. Tus clientes agendan ahí, sin mezclarse con otros." class("muted t-sm")
+      }
+      Stack class("card pad-lg gap-xs") {
+        Stack class("svc-ic") { Icon "lucide:users" }
+        Text "Equipo y grupos" class("bold t-md")
+        Text "Asigná paseadores por zona y armá grupos de perros compatibles." class("muted t-sm")
+      }
+    }
+  }
+
+  Section class("lp-roles") {
+    Title "Un portal para cada quien" h2 class("bold t-lg text-center")
+    Stack class("grid grid-3 gap-md") {
+      Stack class("card svc") {
+        Stack class("svc-ic") { Icon "lucide:footprints" }
+        Text "Paseador" class("bold t-md")
+        Text "Ve sus perros del día, recibe, entrega y confirma. Sin planillas." class("muted t-sm")
+      }
+      Stack class("card svc") {
+        Stack class("svc-ic") { Icon "lucide:building-2" }
+        Text "Empresa" class("bold t-md")
+        Text "Gestiona el equipo, los grupos, los clientes y las cuentas." class("muted t-sm")
+      }
+      Stack class("card svc") {
+        Stack class("svc-ic") { Icon "lucide:heart" }
+        Text "Cliente" class("bold t-md")
+        Text "Agenda paseos para su perro y sigue cada salida en vivo." class("muted t-sm")
+      }
+    }
+  }
+
+  Section class("lp-final hero-band gap-md") {
+    Title "Empezá hoy, gratis." h2 class("black t-xl")
+    Text "Armá tu negocio en 5 minutos y compartí tu link." class("t-sm")
+    Link "Crear mi cuenta" -> "/signup" class("btn btn-lg")
+  }
+
+  Footer class("lp-foot") {
+    Span "DevDogs" class("bold")
+    Span "© 2026 · Hecho con cariño para los peluditos" class("muted t-sm")
+  }
+}
