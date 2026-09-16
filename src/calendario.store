@@ -1,0 +1,116 @@
+# Agenda calendar (weekly scheduler) — global state for the paseador panel.
+# Nav (anchor/view/sel) is driven by the user; the AgendaCalendario bridge reacts to
+# those inputs, queries real prestaciones for the visible range, and feeds back the
+# computed structure (label, day columns, mini-month, month grid) and positioned events.
+use todayISO, shift, pushCal from "~/lib/cal.ts"
+
+entity CEvento {
+  id       text
+  grupoId  text
+  titulo   text
+  dia      text
+  diaLabel text
+  desde    text
+  hasta    text
+  top      number
+  alto     number
+  color    text
+  svcKey   text
+  c1       text
+  c2       text
+  c3       text
+  extra    number
+  count    number
+  estado   text
+  past     bool
+}
+entity CCol   { dia text  n text  wd text  hoy bool  sel bool }
+entity CMini  { n text  dia text  mut bool  sel bool  hoy bool  wk bool  first bool  last bool }
+entity CMcell { n text  dia text  mut bool  hoy bool  sel bool  count number }
+entity CHora  { h text }
+# Franja no disponible (fuera del horario laboral), posicionada en la grilla.
+entity COff   { dia text  top number  alto number }
+# Bloque de descanso/vacaciones (día completo) + la lista cruda para gestionar.
+entity CDesc  { dia text  nota text }
+entity CVac   { desde text  hasta text  nota text }
+# Fila por perro dentro de un grupo (para la ficha). gid = id del evento/grupo.
+entity CDetalle { id text  gid text  perro text  conducta text  obs text  raza text  tamano text  foto text  estado text }
+
+state {
+  anchor   = ""       : text persist
+  view     = "semana" : text persist
+  sel      = ""       : text persist
+  label    = ""       : text
+  mesLabel = ""       : text
+  cols     = []       : list<CCol>
+  mini     = []       : list<CMini>
+  month    = []       : list<CMcell>
+  eventos  = []       : list<CEvento>
+  noDisp   = []       : list<COff>
+  descansos = []      : list<CDesc>
+  vacas    = []       : list<CVac>
+  horas    = [ { h: "08:00" }, { h: "09:00" }, { h: "10:00" }, { h: "11:00" }, { h: "12:00" }, { h: "13:00" }, { h: "14:00" }, { h: "15:00" }, { h: "16:00" }, { h: "17:00" } ] : list<CHora>
+  # Servicios OCULTOS (filtro). Un servicio está visible salvo que su clave esté aquí.
+  ocultos  = [ "adiestramiento" ] : list<text> persist
+  # Ficha del grupo: filas por perro + id del grupo abierto ("" = cerrada).
+  detalle  = []       : list<CDetalle>
+  abierta  = ""       : text
+  # Ficha individual del perro (se abre al tocar un perro dentro de la ficha del grupo).
+  perroOpen  = false  : bool
+  pfNombre   = ""     : text
+  pfConducta = ""     : text
+  pfObs      = ""     : text
+  pfRaza     = ""     : text
+  pfTamano   = ""     : text
+  pfFoto     = ""     : text
+}
+
+# ---- setters fed by the bridge ----
+action setLabel(v: text) mutates label { label.set(v) }
+action setMesLabel(v: text) mutates mesLabel { mesLabel.set(v) }
+action setCols(rows: list<CCol>) mutates cols { cols.set(rows) }
+action setMini(rows: list<CMini>) mutates mini { mini.set(rows) }
+action setMonth(rows: list<CMcell>) mutates month { month.set(rows) }
+action setEventos(rows: list<CEvento>) mutates eventos { eventos.set(rows) }
+action setNoDisp(rows: list<COff>) mutates noDisp { noDisp.set(rows) }
+action setDescansos(rows: list<CDesc>) mutates descansos { descansos.set(rows) }
+action setVacas(rows: list<CVac>) mutates vacas { vacas.set(rows) }
+# Optimista: la vacación aparece/desaparece al instante en la lista del modal
+# (los bloques del calendario se reconcilian con el refresh que hace data.ts).
+action vacaAddLocal(desde: text, hasta: text, nota: text) mutates vacas { vacas.push({ desde: desde, hasta: hasta, nota: nota }) }
+action vacaDelLocal(pdesde: text) mutates vacas { vacas.remove where desde == pdesde }
+
+action setDetalle(rows: list<CDetalle>) mutates detalle { detalle.set(rows) }
+
+# Filtro de servicios: alterna la visibilidad de una categoría en la grilla.
+action toggleSvc(k: text) mutates ocultos { ocultos.toggle(k) }
+
+# Ficha del grupo: abrir al tocar un bloque, cerrar con el scrim / la X.
+action abrir(gid: text) mutates abierta { abierta.set(gid) }
+action cerrar mutates abierta { abierta.set("") }
+
+# Ficha individual del perro: abrir con los datos ya presentes en la fila de detalle.
+action abrirPerro(nombre: text, conducta: text, obs: text, raza: text, tamano: text, foto: text) mutates perroOpen, pfNombre, pfConducta, pfObs, pfRaza, pfTamano, pfFoto {
+  pfNombre.set(nombre)  pfConducta.set(conducta)  pfObs.set(obs)  pfRaza.set(raza)  pfTamano.set(tamano)  pfFoto.set(foto)
+  perroOpen.set(true)
+}
+action cerrarPerro mutates perroOpen { perroOpen.set(false) }
+
+# ---- navigation (user-driven) ----
+action init mutates anchor, sel {
+  if anchor == "" { anchor.set(todayISO()) }
+  if sel == "" { sel.set(todayISO()) }
+}
+action irHoy mutates anchor, sel { anchor.set(todayISO())  sel.set(todayISO()) }
+action prev  mutates anchor { anchor.set(shift(anchor, view, -1)) }
+action sig   mutates anchor { anchor.set(shift(anchor, view, 1)) }
+# Flechas del mini-mes: SIEMPRE saltan de mes (independiente de la vista activa),
+# para poder recorrer todo el año.
+action prevMes mutates anchor { anchor.set(shift(anchor, "mes", -1)) }
+action sigMes  mutates anchor { anchor.set(shift(anchor, "mes", 1)) }
+action setView(v: text) mutates view { view.set(v) }
+action pickDay(d: text) mutates sel, anchor, view { sel.set(d)  anchor.set(d)  view.set("dia") }
+
+# Cada cambio de navegación (anchor/view/sel) reemite el evento cal:nav → el puente
+# AgendaCalendario re-lee el rango visible desde Supabase.
+effect { pushCal(anchor, view, sel) }

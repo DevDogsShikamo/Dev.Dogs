@@ -1,32 +1,71 @@
-# Company profile, backed by Supabase (table public.empresa, one row per user).
-# Loaded via SupaData; edits go through data.ts saveEmpresa (upsert + refresh).
-use saveEmpresa from "~/lib/data.ts"
-
-entity Empresa {
-  nombre     text required
-  eslogan    text
-  telefono   text
-  ciudad     text
-  paseadores number
-  clientes   number
-  perros     number
+# Estado del portal EMPRESA — agrega sobre muchos paseadores y clientes del negocio.
+# Datos in: bridge EmpresaBridge (profiles por rol + prestaciones de hoy agregadas).
+entity PaseadorRow {
+  id        text
+  nombre    text
+  telefono  text
+  zona      text
+  salario   number
+  verificado bool
+  paseosHoy number
 }
+entity ClienteRow {
+  id       text
+  nombre   text
+  telefono text
+}
+entity Invitacion {
+  id     text
+  rol    text
+  email  text
+  codigo text
+  estado text
+}
+# Reportes / cobros (agregados sobre prestaciones del negocio).
+entity IngresoDia   { dia text  monto number }
+entity TopServicio  { servicio text  monto number }
+entity PaseadorIng  { id text  nombre text  monto number  paseos number }
+# Salida (grupo) con su paseador asignado (para el ABM de asignación de la empresa).
+entity Salida { id text  nombre text  zona text  hora text  servicio text  cuidadorId text  cuidadorNombre text }
 
 state {
-  info = {
-    nombre: "",
-    eslogan: "",
-    telefono: "",
-    ciudad: "",
-    paseadores: 0,
-    clientes: 0,
-    perros: 0
-  } : Empresa
+  paseadores  = [] : list<PaseadorRow>
+  clientes    = [] : list<ClienteRow>
+  # Métricas de hoy (todos los paseadores del negocio).
+  paseosHoy   = 0 : number
+  programados = 0 : number
+  enCurso     = 0 : number
+  finalizados = 0 : number
+  perrosTot   = 0 : number
+  invitaciones = [] : list<Invitacion>
+  # Finanzas del período (últimos 30 días).
+  facturado    = 0 : number
+  cobrado      = 0 : number
+  pendiente    = 0 : number
+  ingresosDia  = [] : list<IngresoDia>
+  topServicios = [] : list<TopServicio>
+  porPaseador  = [] : list<PaseadorIng>
+  salidas      = [] : list<Salida>
 }
 
-action setInfo(next: Empresa) mutates info { info.set(next) }
+get nPaseadores = paseadores.length
+get nClientes   = clientes.length
 
-action save(next: Empresa) mutates info {
-  info.set(next)
-  saveEmpresa(next)
+action setPaseadores(rows: list<PaseadorRow>) mutates paseadores { paseadores.set(rows) }
+action setClientes(rows: list<ClienteRow>) mutates clientes { clientes.set(rows) }
+action setPerrosTot(n: number) mutates perrosTot { perrosTot.set(n) }
+action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitaciones.set(rows) }
+# Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
+action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
+action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
+# Reportes / cobros
+action setFinanzas(fact: number, cob: number, pend: number) mutates facturado, cobrado, pendiente { facturado.set(fact)  cobrado.set(cob)  pendiente.set(pend) }
+action setIngresosDia(rows: list<IngresoDia>) mutates ingresosDia { ingresosDia.set(rows) }
+action setTopServicios(rows: list<TopServicio>) mutates topServicios { topServicios.set(rows) }
+action setPorPaseador(rows: list<PaseadorIng>) mutates porPaseador { porPaseador.set(rows) }
+action setSalidas(rows: list<Salida>) mutates salidas { salidas.set(rows) }
+# Optimista: reasignar paseador a una salida se refleja al instante.
+action asignarSet(sid: text, cid: text, cnom: text) mutates salidas { salidas.patch where id == sid with { cuidadorId: cid, cuidadorNombre: cnom } }
+action setStats(hoy: number, prog: number, curso: number, fin: number) mutates paseosHoy, programados, enCurso, finalizados {
+  paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }

@@ -1,27 +1,28 @@
-# Service catalogue, backed by Supabase (table public.servicios). Rows load via SupaData;
-# writes go through data.ts use-fns which persist + trigger a refresh.
-use setServicioActivo from "~/lib/data.ts"
-
+# Servicios del negocio (oferta + precios). Solo la LISTA (lectura).
+# Datos in: bridge ServiciosBridge. El form vive en la página (dashboard.muten).
 entity Servicio {
-  nombre   text required
-  desc     text
-  emoji    text
-  precio   number
+  id       text
+  nombre   text
+  tipo     text
   duracion number
-  activo   bool
+  precio   number
+  modelo   text
 }
 
 state {
-  items = [] : list<Servicio>
+  servicios = [] : list<Servicio> persist
+  zonas     = [] : list<text> persist
 }
 
-get count     = items.length
-get activos   = items.count where activo
-get precioMin = items.min by precio
+get total = servicios.length
 
-action setItems(rows: list<Servicio>) mutates items { items.set(rows) }
+action setServicios(rows: list<Servicio>) mutates servicios { servicios.set(rows) }
+action setZonas(rows: list<text>) mutates zonas { zonas.set(rows) }
 
-action toggle(sid: text, cur: bool) mutates items {
-  items.patch where id == sid with { activo: not cur }
-  setServicioActivo(sid, not cur)
+# ---- Optimistas (la UI responde al instante; data.ts persiste + revierte si falla).
+action servicioUpd(pid: text, nnombre: text, ntipo: text, nduracion: number, nprecio: number, nmodelo: text) mutates servicios {
+  servicios.patch where id == pid with { nombre: nnombre, tipo: ntipo, duracion: nduracion, precio: nprecio, modelo: nmodelo }
 }
+action servicioDel(pid: text) mutates servicios { servicios.remove where id == pid }
+# Limpia el cache al hacer logout (in-memory + persist).
+action limpiar mutates servicios, zonas { servicios.reset()  zonas.reset() }

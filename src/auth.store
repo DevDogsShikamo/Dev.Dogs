@@ -19,6 +19,11 @@ get isPaseador = rol == "paseador"
 get isEmpresa  = rol == "empresa"
 get isCliente  = rol == "cliente"
 
+# Guards de portal: rol correcto Y sesión activa (los usa app.muten en las rutas link-based).
+get canWalker   = loggedIn and rol == "paseador"
+get canBusiness = loggedIn and rol == "empresa"
+get canClient   = loggedIn and rol == "cliente"
+
 action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, slug, authError {
   loggedIn.set(s.loggedIn)
   userId.set(s.userId)

@@ -1,0 +1,18 @@
+# Idioma global (ES/EN). El toggle cambia `lang`; leer i18n.lang en las
+# interpolaciones hace reactivo el texto. El effect publica el idioma a los
+# componentes Custom (globalThis.__lang + evento "lang:changed").
+use dict, pushLang from "~/lib/i18n.ts"
+
+state {
+  lang = "es" : text persist
+}
+
+# Diccionario del idioma actual. Se accede como i18n.d.nav.inicio (reactivo).
+get d = dict(lang)
+get isEn = lang == "en"
+
+action toggle mutates lang {
+  if lang == "es" { lang.set("en") } else { lang.set("es") }
+}
+
+effect { pushLang(lang) }

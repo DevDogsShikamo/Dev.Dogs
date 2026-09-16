@@ -1,0 +1,70 @@
+# Grupos de HOY (timeline del paseador). Datos in: bridge GruposHoy (Custom) que agrupa
+# las prestaciones de hoy por (hora, tipo, servicio). Solo lectura + navegación.
+entity Grupo {
+  id     text
+  titulo text
+  desde  text
+  hasta  text
+  mins   number
+  count  number
+  c1     text
+  c2     text
+  c3     text
+  extra  number
+  estado text
+  prox   bool
+}
+
+# Perro que sale hoy (para la fila de avatares del Inicio). Único por nombre.
+entity PerroHoy { nombre text  foto text }
+
+# Conflicto de compatibilidad: dos perros incompatibles en la MISMA salida de hoy.
+# nivel: cuidado | no_tolera (tolera NO genera conflicto: se bancan en paseo).
+entity Conflicto {
+  id      text
+  salida  text
+  aId     text
+  aNombre text
+  aFoto   text
+  bId     text
+  bNombre text
+  bFoto   text
+  nivel   text
+  motivo  text
+  nota    text
+}
+
+# Grupo completo (ABM): todos los grupos del negocio, no solo los de hoy.
+entity GrupoAdmin {
+  id       text
+  nombre   text
+  zona     text
+  hora     text
+  horaNum  number
+  duracion number
+  servicio text
+  color    text
+}
+
+state {
+  grupos     = [] : list<Grupo>
+  fecha      = "" : text
+  todos      = [] : list<GrupoAdmin> persist
+  perrosHoy  = [] : list<PerroHoy>
+  conflictos = [] : list<Conflicto>
+}
+
+get total       = grupos.length
+get totalAdmin  = todos.length
+get nConflictos = conflictos.length
+
+action setGrupos(rows: list<Grupo>) mutates grupos { grupos.set(rows) }
+action setFecha(v: text) mutates fecha { fecha.set(v) }
+action setTodos(rows: list<GrupoAdmin>) mutates todos { todos.set(rows) }
+action setPerrosHoy(rows: list<PerroHoy>) mutates perrosHoy { perrosHoy.set(rows) }
+action setConflictos(rows: list<Conflicto>) mutates conflictos { conflictos.set(rows) }
+
+# Optimista: borrar una salida del ABM desaparece al instante.
+action grupoDel(pid: text) mutates todos { todos.remove where id == pid }
+# Limpia el cache al hacer logout (in-memory + persist).
+action limpiar mutates todos, grupos, perrosHoy, conflictos { todos.reset()  grupos.reset()  perrosHoy.reset()  conflictos.reset() }

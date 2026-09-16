@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92 92" width="92" height="92">
+  <defs>
+    <path id="dcmedal" d="M46,46 m-35,0 a35,35 0 1,1 70,0 a35,35 0 1,1 -70,0"/>
+  </defs>
+  <text font-family="'JetBrains Mono',ui-monospace,monospace" font-size="9.5" font-weight="700" letter-spacing="1.6" fill="#0f0c16">
+    <textPath href="#dcmedal" startOffset="0">DEVDOGS · PASEOS · MEDELLÍN · 2026 · </textPath>
+  </text>
+</svg>
