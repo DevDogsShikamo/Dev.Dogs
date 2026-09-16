@@ -279,6 +279,28 @@ export function reprogramarBloque(grupo: string, fechaOld: string, fechaNew: str
   supa.rpc("bloque_reprogramar", { p_grupo: grupo, p_fecha_old: fechaOld, p_fecha_new: fechaNew, p_hora: hora, p_modo: modo }).then(done("No se pudo reprogramar", refresh));
 }
 
+// ---- Modo paseo: el paseador ejecuta el paseo (optimista) -----------------
+// `ids` = los ids de prestación del grupo, unidos por coma (el store los junta).
+// La transición se refleja al instante en el store; el RPC persiste y, si falla,
+// `done` avisa + refresca (revierte). Ver supabase/migration_paseo.sql.
+function idsArr(ids: string): string[] {
+  return (ids || "").split(",").filter(Boolean);
+}
+export function paseoIniciar(ids: string): void {
+  const arr = idsArr(ids);
+  if (!arr.length) return;
+  supa.rpc("paseo_marcar", { p_ids: arr, p_estado: "en_curso" }).then(done("No se pudo iniciar el paseo"));
+}
+export function paseoFinalizar(ids: string, nota: string): void {
+  const arr = idsArr(ids);
+  if (!arr.length) return;
+  supa.rpc("paseo_marcar", { p_ids: arr, p_estado: "finalizado", p_nota: nota || null }).then(done("No se pudo finalizar el paseo"));
+}
+export function perroNoSalio(presId: string, motivo: string): void {
+  if (!presId) return;
+  supa.rpc("paseo_no_salio", { p_id: presId, p_motivo: motivo || "" }).then(done("No se pudo marcar"));
+}
+
 // ---- Gestión del negocio (portal EMPRESA) --------------------------------
 // Salario mensual fijo de un paseador empleado (profiles.salario_fijo).
 export function paseadorSalario(id: string, salario: number): void {

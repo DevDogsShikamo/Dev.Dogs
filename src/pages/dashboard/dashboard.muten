@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio from "~/lib/data.ts"
 use cop from "~/lib/money.ts"
 
 # Panel del paseador — portado FIEL del artifact "Panel DevDogs".
@@ -78,6 +78,11 @@ action moverPerroGrupo(m: MovePayload) { moverPerro(m.perro, m.hacia, m.modo, m.
 action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fecha) }
 # Drag sobre el calendario: reprogramar una ocurrencia (día/hora).
 action reprogramarBloqueAction(m: ReprogPayload) { reprogramarBloque(m.grupo, m.fechaOld, m.fechaNew, m.hora, m.modo) }
+
+# ---- Modo paseo: el paseador ejecuta el paseo (store optimista + data.ts persiste) ----
+action pIniciar { grupos.modoIniciarLocal()  paseoIniciar(grupos.modoPresIds) }
+action pFinalizar { paseoFinalizar(grupos.modoPresIds, "")  grupos.modoFinalizarLocal() }
+action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noSalLocal(motivo) }
 
 # ---- Horario laboral (editor) ----
 action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
@@ -174,7 +179,7 @@ Stack class("dd-app") {
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, conflictos: grupos.setConflictos)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -203,6 +208,63 @@ Stack class("dd-app") {
   # ---------- CONTENIDO ----------
   Stack class("dd-content") {
     Stack class("dd-screen") {
+
+      # ==== MODO PASEO (sheet del grupo — se abre desde Inicio o Grupos) ====
+      when grupos.modoOpen {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: grupos.modoCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "{grupos.modoTitulo}" h3
+              Button -> grupos.modoCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-paseo-status") {
+              when grupos.modoEstado == "programado" { Span "Programado" class("dd-paseo-badge b-prog") }
+              when grupos.modoEstado == "en_curso" { Span "En curso" class("dd-paseo-badge b-curso") }
+              when grupos.modoEstado == "finalizado" { Span "Finalizado" class("dd-paseo-badge b-fin") }
+            }
+
+            # Perros del grupo + acción "no salió" por perro.
+            Stack class("dd-paseo-dogs") {
+              each grupos.perrosPaseo as d where d.gkey == grupos.modoKey {
+                Stack class("dd-paseo-dog") class("no-salio" when d.estado == "no_asistio") {
+                  Stack class("dd-paseo-dog-info") {
+                    Span "{initial(d.nombre)}" class("av")
+                    Stack class("txt") {
+                      Span "{d.nombre}" class("nm")
+                      when d.estado == "no_asistio" { Span "No salió · {d.motivo}" class("sub") }
+                    }
+                  }
+                  when d.estado != "no_asistio" {
+                    when grupos.noSalId == d.id {
+                      Stack class("dd-paseo-motivos") {
+                        Button "Enfermo" -> pNoSalio("enfermo") class("dd-gchip")
+                        Button "No estaba" -> pNoSalio("ausente") class("dd-gchip")
+                        Button "Canceló" -> pNoSalio("cancelo") class("dd-gchip")
+                        Button -> grupos.noSalCerrar class("dd-gchip dd-gchip-x") aria(label: "Cancelar") { Icon "lucide:x" }
+                      }
+                    }
+                    when grupos.noSalId != d.id {
+                      Button "No salió" -> grupos.noSalAbrir(d.id) class("dd-paseo-nosal")
+                    }
+                  }
+                }
+              }
+            }
+
+            # Acción primaria según el estado del paseo.
+            when grupos.modoEstado == "programado" {
+              Button "Iniciar paseo" -> pIniciar class("dd-cat-add dd-hor-save")
+            }
+            when grupos.modoEstado == "en_curso" {
+              Button "Finalizar paseo" -> pFinalizar class("dd-cat-add dd-hor-save")
+            }
+            when grupos.modoEstado == "finalizado" {
+              Stack class("dd-paseo-done") { Icon "lucide:check-circle"  Span "Paseo finalizado" }
+            }
+          }
+        }
+      }
 
       # ==== DASHBOARD ====
       when section == "dashboard" {
@@ -270,7 +332,7 @@ Stack class("dd-app") {
                   }
                   Stack class("dd-c-foot") {
                     Stack class("dd-c-illus") { Span "🐾" }
-                    Button -> go("agenda") class("dd-c-go") aria(label: "Abrir grupo") { Icon "lucide:arrow-right" }
+                    Button -> grupos.modoAbrir(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-c-go") aria(label: "Abrir modo paseo") { Icon "lucide:arrow-right" }
                   }
                 }
               }
@@ -575,13 +637,17 @@ Stack class("dd-app") {
                   Stack class("dd-gr-stop") {
                     Span "{g.desde}" class("dd-gr-hour")
                     Span "" class("dd-gr-node")
-                    Button -> go("agenda") class("dd-gr-block") aria(label: "Ver {g.titulo} en la agenda") {
+                    Button -> grupos.modoAbrir(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-gr-block") class("est-{g.estado}") aria(label: "Abrir modo paseo de {g.titulo}") {
                       Stack class("dd-gr-block-top") {
                         Stack class("dd-gr-titwrap") {
                           Span "{g.titulo}" class("dd-gr-title")
                           Span "{g.desde} – {g.hasta} · {g.mins} min" class("dd-gr-window")
                         }
-                        Span "{g.count} 🐾" class("dd-gr-count")
+                        Stack class("dd-gr-right") {
+                          when g.estado == "en_curso" { Span "En curso" class("dd-paseo-badge b-curso") }
+                          when g.estado == "finalizado" { Span "Finalizado" class("dd-paseo-badge b-fin") }
+                          Span "{g.count} 🐾" class("dd-gr-count")
+                        }
                       }
                       Stack class("dd-gr-dogs") {
                         when g.c1 { Span "{g.c1}" }

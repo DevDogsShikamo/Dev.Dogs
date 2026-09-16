@@ -1158,6 +1158,28 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-gr-title{font-size:1.1rem;font-weight:800;line-height:1.15}
 .dd-app .dd-gr-window{font-size:0.8rem;color:var(--dim);font-weight:600;margin-top:0.2rem}
 .dd-app .dd-gr-count{flex:0 0 auto;font-size:0.75rem;font-weight:800;color:var(--purple);background:var(--purple-soft);padding:0.32rem 0.62rem;border-radius:0.65rem;white-space:nowrap}
+.dd-app .dd-gr-right{display:flex;flex-direction:row;align-items:center;gap:0.4rem;flex:0 0 auto}
+/* Modo paseo — estado del grupo (borde izq como señal) + badges */
+.dd-app .dd-gr-block.est-en_curso{border-left:0.28rem solid #f0a63c}
+.dd-app .dd-gr-block.est-finalizado{border-left:0.28rem solid #3bb273;opacity:0.85}
+.dd-app .dd-paseo-badge{font-size:0.68rem;font-weight:800;padding:0.22rem 0.5rem;border-radius:0.5rem;letter-spacing:0.02em;white-space:nowrap}
+.dd-app .dd-paseo-badge.b-prog{color:var(--dim);background:var(--line)}
+.dd-app .dd-paseo-badge.b-curso{color:#a8650a;background:#fdecd0}
+.dd-app .dd-paseo-badge.b-fin{color:#1f7a4d;background:#d8f2e4}
+.dd-app .dd-paseo-status{margin:0.2rem 0 0.9rem}
+.dd-app .dd-paseo-dogs{display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.1rem}
+.dd-app .dd-paseo-dog{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:0.6rem;background:var(--panel);border:0.0625rem solid var(--line);border-radius:0.9rem;padding:0.55rem 0.7rem}
+.dd-app .dd-paseo-dog.no-salio{opacity:0.6}
+.dd-app .dd-paseo-dog-info{display:flex;flex-direction:row;align-items:center;gap:0.6rem;min-width:0}
+.dd-app .dd-paseo-dog-info .av{display:flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border-radius:999px;background:var(--purple-soft);color:var(--purple);font-weight:800;font-size:0.85rem;flex:0 0 auto}
+.dd-app .dd-paseo-dog-info .txt{display:flex;flex-direction:column;min-width:0}
+.dd-app .dd-paseo-dog-info .nm{font-weight:700;font-size:0.92rem}
+.dd-app .dd-paseo-dog-info .sub{font-size:0.75rem;color:var(--dim)}
+.dd-app .dd-paseo-nosal{flex:0 0 auto;font-size:0.78rem;font-weight:700;color:#e0485a;background:#fdecec;border:0;border-radius:0.6rem;padding:0.4rem 0.7rem;cursor:pointer}
+.dd-app .dd-paseo-motivos{display:flex;flex-direction:row;flex-wrap:wrap;gap:0.3rem;justify-content:flex-end}
+.dd-app .dd-gchip-x{display:flex;align-items:center;padding:0.4rem}
+.dd-app .dd-paseo-done{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;color:#1f7a4d;font-weight:800;padding:0.6rem}
+.dd-app .dd-paseo-done svg{width:1.3rem;height:1.3rem}
 .dd-app .dd-gr-dogs{display:flex;flex-direction:row;align-items:center}
 .dd-app .dd-gr-dogs span{width:2.15rem;height:2.15rem;border-radius:999px;border:0.15rem solid var(--panel);margin-left:-0.55rem;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.05rem;box-shadow:0 0.3rem 0.7rem -0.4rem rgba(30,20,60,.22)}
 .dd-app .dd-gr-dogs span:first-child{margin-left:0}

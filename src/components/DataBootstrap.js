@@ -32,6 +32,15 @@ function mount(el, inputs, on) {
   function nowNum() { var d = new Date(); return d.getHours() + d.getMinutes() / 60; }
   function timeNum(t) { if (!t) return 8; var a = String(t).split(":"); return (+a[0]) + (+a[1] || 0) / 60; }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  // Estado del grupo derivado de sus perros: finalizado si todos terminaron/no salieron;
+  // en_curso si alguno arrancó; si no, programado.
+  function grupoEstado(estados) {
+    var activos = estados.filter(function (e) { return e !== "no_asistio"; });
+    if (activos.length === 0) return "finalizado";
+    if (activos.every(function (e) { return e === "finalizado"; })) return "finalizado";
+    if (activos.some(function (e) { return e === "en_curso" || e === "recibido"; })) return "en_curso";
+    return "programado";
+  }
   function fechaLabel() {
     var d = new Date(), dias = EN() ? DIAS_EN : DIAS_ES, mesc = EN() ? MESC_EN : MESC_ES;
     return EN() ? (dias[(d.getDay() + 6) % 7] + ", " + mesc[d.getMonth()] + " " + d.getDate())
@@ -161,16 +170,21 @@ function mount(el, inputs, on) {
         .eq("cuidador_id", s.uid).eq("fecha", today())
         .then(function (res) {
           if (res && res.error) return;   // no pisar con vacío si la red falló
-          var rows = res.data || [], groups = {}, order = [], perrosSeen = {}, perrosHoy = [];
+          var rows = res.data || [], groups = {}, order = [], perrosSeen = {}, perrosHoy = [], perrosPaseo = [];
           rows.forEach(function (r) {
             var d = r.detalle || {}, svc = r.servicios || {}, pobj = r.perros || {};
-            var hora = d.hora || "08:00", tipo = r.tipo || "paseo";
+            var hora = d.hora || "08:00", tipo = r.tipo || "paseo", estado = r.estado || "programado";
             var key = hora + "|" + tipo + "|" + (svc.nombre || "");
-            if (!groups[key]) { groups[key] = { gid: r.id, hora: hora, tipo: tipo, svc: svc.nombre || "", dur: 0, dogs: [] }; order.push(key); }
+            if (!groups[key]) { groups[key] = { gid: r.id, hora: hora, tipo: tipo, svc: svc.nombre || "", dur: 0, dogs: [], presIds: [], estados: [], recibido: "", entrega: "" }; order.push(key); }
             var g = groups[key], dur = d.duracion || svc.duracion_min || 60;
             if (dur > g.dur) g.dur = dur;
+            g.presIds.push(r.id);
+            g.estados.push(estado);
+            if (d.hora_recibido && !g.recibido) g.recibido = d.hora_recibido;
+            if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
-            g.dogs.push({ id: pobj.id || "", nombre: nombre, foto: pobj.foto_url || "", inc: pobj.incompatibles || [] });
+            g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
+            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, foto: pobj.foto_url || "", estado: estado, motivo: d.motivo_no_salio || "" });
             if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre, foto: pobj.foto_url || "" }); }
           });
           var cards = order.map(function (k) {
@@ -180,7 +194,8 @@ function mount(el, inputs, on) {
               id: g.gid, titulo: g.svc || cap(g.tipo), desde: g.hora, hasta: p(hh) + ":" + p(mm), endNum: endN,
               mins: Math.round(durH * 60), count: count,
               c1: count > 0 ? EMO[0] : "", c2: count > 1 ? EMO[1] : "", c3: count > 2 ? EMO[2] : "",
-              extra: count > 3 ? count - 3 : 0, estado: "programado", prox: false
+              extra: count > 3 ? count - 3 : 0, estado: grupoEstado(g.estados), gkey: k,
+              presIds: g.presIds.join(","), recibido: g.recibido, entrega: g.entrega, prox: false
             };
           }).sort(function (a, b) { return a.desde < b.desde ? -1 : 1; });
           if (cards.length) {
@@ -192,6 +207,7 @@ function mount(el, inputs, on) {
           on.groups(cards);
           if (on.fecha) on.fecha(fechaLabel());
           if (on.perrosHoy) on.perrosHoy(perrosHoy);
+          if (on.perrosPaseo) on.perrosPaseo(perrosPaseo);
 
           // Conflictos: pares incompatibles en la MISMA salida (tolera NO cuenta).
           if (on.conflictos) {
