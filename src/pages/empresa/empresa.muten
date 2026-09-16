@@ -50,13 +50,17 @@ Stack class("dd-app") {
     Span "Empresa" class("dd-navlbl")
     Button -> go("dashboard")  class("dd-lnk") class("dd-on" when section == "dashboard")  { Icon "lucide:home"        Span "Inicio" }
     Button -> go("paseadores") class("dd-lnk") class("dd-on" when section == "paseadores") { Icon "lucide:users"       Span "Paseadores" }
-    Button -> go("clientes")   class("dd-lnk") class("dd-on" when section == "clientes")   { Icon "lucide:user-round"  Span "Clientes" }
+    when auth.isOwner {
+      Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
+    }
     Button -> go("salidas")    class("dd-lnk") class("dd-on" when section == "salidas")    { Icon "lucide:map-pin"     Span "Salidas" }
-    Button -> go("reportes")   class("dd-lnk") class("dd-on" when section == "reportes")   { Icon "lucide:bar-chart-3" Span "Reportes" }
+    when auth.isOwner {
+      Button -> go("reportes") class("dd-lnk") class("dd-on" when section == "reportes") { Icon "lucide:bar-chart-3" Span "Reportes" }
+    }
     Button -> go("perfil")     class("dd-lnk") class("dd-on" when section == "perfil")     { Icon "lucide:user"        Span "Perfil" }
     Stack class("dd-foot") {
       Span "{initial(auth.userName)}" class("dd-ua")
-      Stack { Span "{auth.userName}" class("dd-un")  Span "Empresa" class("dd-ur") }
+      Stack { Span "{auth.userName}" class("dd-un")  when auth.isOwner { Span "Dueño" class("dd-ur") }  when auth.isGestion { Span "Gestión" class("dd-ur") } }
     }
   }
 
@@ -81,8 +85,12 @@ Stack class("dd-app") {
 
           Stack class("dd-emp-kpis") {
             Button -> go("paseadores") class("dd-emp-kpi") { Icon "lucide:users"       Span "{empresa.nPaseadores}" class("v")  Span "Paseadores" class("l") }
-            Button -> go("clientes")   class("dd-emp-kpi") { Icon "lucide:user-round"  Span "{empresa.nClientes}" class("v")    Span "Clientes" class("l") }
-            Stack class("dd-emp-kpi")                       { Icon "lucide:dog"         Span "{empresa.perrosTot}" class("v")    Span "Perros" class("l") }
+            when auth.isOwner {
+              Button -> go("clientes") class("dd-emp-kpi") { Icon "lucide:user-round"  Span "{empresa.nClientes}" class("v")    Span "Clientes" class("l") }
+            }
+            when auth.isOwner {
+              Stack class("dd-emp-kpi")                     { Icon "lucide:dog"         Span "{empresa.perrosTot}" class("v")    Span "Perros" class("l") }
+            }
           }
 
           Span "Paseos de hoy" class("dd-emp-lbl")
@@ -99,17 +107,21 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") {
             Title "Paseadores" h2
-            Button -> invAbrir("paseador") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
+            when auth.isOwner {
+              Button -> invAbrir("paseador") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
+            }
           }
-          # Invitaciones pendientes (paseador)
-          each empresa.invitaciones as iv where iv.rol == "paseador" {
-            Stack class("dd-inv-item") {
-              Icon "lucide:mail" class("ic")
-              Stack class("dd-inv-info") {
-                when iv.email { Span "{iv.email}" class("em") }
-                Span "Código: {iv.codigo}" class("code")
+          # Invitaciones pendientes (paseador) — solo el jefe las gestiona.
+          when auth.isOwner {
+            each empresa.invitaciones as iv where iv.rol == "paseador" {
+              Stack class("dd-inv-item") {
+                Icon "lucide:mail" class("ic")
+                Stack class("dd-inv-info") {
+                  when iv.email { Span "{iv.email}" class("em") }
+                  Span "Código: {iv.codigo}" class("code")
+                }
+                Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
               }
-              Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
             }
           }
           when empresa.nPaseadores == 0 {
@@ -125,11 +137,14 @@ Stack class("dd-app") {
                     when p.verificado { Span "✓" class("dd-emp-ver") }
                     when p.zona { Span "{p.zona}" class("cd") }
                   }
-                  Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta")
+                  when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
+                  when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
                   when p.telefono { Span "{p.telefono}" class("obs") }
                 }
-                Stack class("acts") {
-                  Button -> salAbrir(p.id, p.nombre, p.salario) class("dd-cat-icon") aria(label: "Editar salario de {p.nombre}") { Icon "lucide:pencil" }
+                when auth.isOwner {
+                  Stack class("acts") {
+                    Button -> salAbrir(p.id, p.nombre, p.salario) class("dd-cat-icon") aria(label: "Editar salario de {p.nombre}") { Icon "lucide:pencil" }
+                  }
                 }
               }
             }
@@ -230,12 +245,13 @@ Stack class("dd-app") {
           Stack class("dd-pf-hero") {
             Span "{initial(auth.userName)}" class("dd-pf-av")
             Span "{auth.userName}" class("dd-pf-name")
-            Span "Empresa" class("dd-pf-role")
+            when auth.isOwner { Span "Dueño" class("dd-pf-role") }
+            when auth.isGestion { Span "Gestión" class("dd-pf-role") }
           }
           Stack class("dd-pf-stats") {
             Stack class("dd-pf-stat") { Span "{empresa.nPaseadores}" class("v")  Span "Paseadores" class("l") }
-            Stack class("dd-pf-stat") { Span "{empresa.nClientes}" class("v")  Span "Clientes" class("l") }
-            Stack class("dd-pf-stat") { Span "{empresa.perrosTot}" class("v")  Span "Perros" class("l") }
+            when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.nClientes}" class("v")  Span "Clientes" class("l") } }
+            when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.perrosTot}" class("v")  Span "Perros" class("l") } }
           }
           Button -> auth.logout class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
@@ -306,9 +322,13 @@ Stack class("dd-app") {
   Nav class("dd-tabbar") {
     Button -> go("dashboard")  class("dd-on" when section == "dashboard")  aria(label: "Inicio") { Icon "lucide:home" }
     Button -> go("paseadores") class("dd-on" when section == "paseadores") aria(label: "Paseadores") { Icon "lucide:users" }
-    Button -> go("clientes")   class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
+    when auth.isOwner {
+      Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
+    }
     Button -> go("salidas")    class("dd-on" when section == "salidas")    aria(label: "Salidas") { Icon "lucide:map-pin" }
-    Button -> go("reportes")   class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }
+    when auth.isOwner {
+      Button -> go("reportes") class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }
+    }
     Button -> go("perfil")     class("dd-on" when section == "perfil")     aria(label: "Perfil") { Icon "lucide:user" }
   }
 }
