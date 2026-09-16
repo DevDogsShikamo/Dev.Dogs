@@ -1,4 +1,5 @@
 screen unirse
+use codigoDeURL from "~/lib/share.ts"
 
 # Canje de invitación: el invitado (paseador / cliente / gestión) crea su cuenta con
 # el CÓDIGO que le compartió el negocio. redeem_invite lo asocia al negocio con su rol
@@ -14,6 +15,9 @@ state {
 
 get valido = nombre.length > 1 and email.length > 4 and pw.length > 5 and codigo.length > 3
 action submit mutates nonce { nonce.set(nonce + 1) }
+
+# Precarga el código si venís por un link /unirse?codigo=XXX (al montar).
+effect { codigo.set(codigoDeURL()) }
 
 Page class("glogin") {
 

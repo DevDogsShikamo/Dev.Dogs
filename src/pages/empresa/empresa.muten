@@ -1,6 +1,7 @@
 screen empresa
 use cop from "~/lib/money.ts"
 use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar from "~/lib/data.ts"
+use copiarCodigo, copiarLink from "~/lib/share.ts"
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -31,6 +32,9 @@ action invAbrir(rol: text) mutates invRol, invEmail, invForm { invRol.set(rol)  
 action invCerrar mutates invForm { invForm.set(false) }
 action invGuardar mutates invForm { invitarCrear(invRol, invEmail)  invForm.set(false) }
 action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
+# Compartir invitación: copiar el código o un link con el código precargado.
+action copCod(c: text) { copiarCodigo(c) }
+action copLink(c: text) { copiarLink(c) }
 
 # ---- Asignar paseador a una salida (optimista) ----
 action asigAbrir(id: text, nombre: text) mutates asigSalida, asigNombre, asigForm { asigSalida.set(id)  asigNombre.set(nombre)  asigForm.set(true) }
@@ -114,14 +118,7 @@ Stack class("dd-app") {
           # Invitaciones pendientes (paseador) — solo el jefe las gestiona.
           when auth.isOwner {
             each empresa.invitaciones as iv where iv.rol == "paseador" {
-              Stack class("dd-inv-item") {
-                Icon "lucide:mail" class("ic")
-                Stack class("dd-inv-info") {
-                  when iv.email { Span "{iv.email}" class("em") }
-                  Span "Código: {iv.codigo}" class("code")
-                }
-                Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
-              }
+              InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
             }
           }
           when empresa.nPaseadores == 0 {
@@ -160,14 +157,7 @@ Stack class("dd-app") {
             Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
           }
           each empresa.invitaciones as iv where iv.rol == "cliente" {
-            Stack class("dd-inv-item") {
-              Icon "lucide:mail" class("ic")
-              Stack class("dd-inv-info") {
-                when iv.email { Span "{iv.email}" class("em") }
-                Span "Código: {iv.codigo}" class("code")
-              }
-              Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
-            }
+            InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
           }
           when empresa.nClientes == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invitá a tu primer cliente con el botón de arriba." }
@@ -263,14 +253,7 @@ Stack class("dd-app") {
               }
               # Invitaciones de gestión pendientes.
               each empresa.invitaciones as iv where iv.rol == "empresa" {
-                Stack class("dd-inv-item") {
-                  Icon "lucide:mail" class("ic")
-                  Stack class("dd-inv-info") {
-                    when iv.email { Span "{iv.email}" class("em") }
-                    Span "Código: {iv.codigo}" class("code")
-                  }
-                  Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
-                }
+                InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
               }
               when empresa.nGestion == 0 {
                 Text "Aún no hay empleados de gestión. Invitá a alguien para compartir la oficina." class("dd-rel-hint")

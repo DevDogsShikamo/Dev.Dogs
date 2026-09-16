@@ -1455,6 +1455,7 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-inv-info{display:flex;flex-direction:column;gap:0.1rem;flex:1 1 auto;min-width:0}
 .dd-app .dd-inv-info .em{font-size:0.85rem;font-weight:700}
 .dd-app .dd-inv-info .code{font-size:0.8rem;color:var(--purple);font-weight:800;letter-spacing:0.06em}
+.dd-app .dd-inv-acts{display:flex;flex-direction:row;align-items:center;gap:0.25rem;flex:0 0 auto}
 
 /* ===================== EMPRESA — reportes / charts ===================== */
 .dd-app .dd-rep-kpi .v{font-size:1.05rem}
