@@ -59,6 +59,10 @@ Page class("glogin") {
         Text "¿No tienes cuenta?" class("muted t-sm")
         Link "Regístrate" -> "/signup" class("glink t-sm")
       }
+      Stack class("gsignup") {
+        Text "¿Te invitaron?" class("muted t-sm")
+        Link "Usa tu código" -> "/unirse" class("glink t-sm")
+      }
     }
 
     Stack class("gbar") {

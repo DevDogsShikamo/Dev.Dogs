@@ -58,22 +58,40 @@ function mount(el, inputs, on) {
       });
   }
 
+  // Canje de invitación: crea la cuenta y, con el código, queda asociada al negocio
+  // con el rol de la invitación (redeem_invite es SECURITY DEFINER). Luego setea el
+  // nombre en su profile y reporta la sesión (la cadena de guards la rutea a su portal).
+  function join(inp, user) {
+    supa.rpc("redeem_invite", { p_codigo: (inp.codigo || "").trim() }).then(function (r) {
+      if (r.error) return on.failed(r.error.message || "Invitación inválida o expirada.");
+      var nombre = (inp.nombre || "").trim();
+      if (nombre) {
+        supa.from("profiles").update({ nombre: nombre }).eq("id", user.id)
+          .then(function () { reportSession(user); }).catch(function () { reportSession(user); });
+      } else {
+        reportSession(user);
+      }
+    }).catch(function () { on.failed("No pudimos validar la invitación."); });
+  }
+
   function submit(inp) {
     if (!supa) return on.failed("Cliente no disponible.");
-    if (inp.mode === "signup") {
-      supa.auth.signUp({ email: inp.email, password: inp.pw, options: { data: { nombre: inp.nombre || "" } } })
-        .then(function (res) {
-          if (res.error) return on.failed(res.error.message);
-          if (!res.data.session) return on.failed("Revisa tu correo para confirmar la cuenta.");
-          provision(inp, res.data.user);
-        });
-    } else {
+    if (inp.mode === "login") {
       supa.auth.signInWithPassword({ email: inp.email, password: inp.pw })
         .then(function (res) {
           if (res.error) return on.failed(res.error.message);
           reportSession(res.data.user);
         });
+      return;
     }
+    // signup y join crean la cuenta primero; difieren en qué hacen después.
+    supa.auth.signUp({ email: inp.email, password: inp.pw, options: { data: { nombre: inp.nombre || "" } } })
+      .then(function (res) {
+        if (res.error) return on.failed(res.error.message);
+        if (!res.data.session) return on.failed("Revisa tu correo para confirmar la cuenta.");
+        if (inp.mode === "join") { join(inp, res.data.user); }
+        else { provision(inp, res.data.user); }
+      });
   }
 
   return function (next) {

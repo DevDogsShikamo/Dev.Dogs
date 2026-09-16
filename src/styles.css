@@ -1177,6 +1177,7 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-pf-opt:hover{border-color:var(--purple)}
 .dd-app .dd-pf-opt svg{width:1.25rem;height:1.25rem;color:var(--purple);flex:0 0 auto}
 .dd-app .dd-pf-opt .chev{margin-left:auto;color:var(--dim);width:1.1rem;height:1.1rem}
+.dd-app .dd-pf-team{max-width:34rem;margin-bottom:1.6rem;padding-top:1.2rem;border-top:0.0625rem solid var(--line)}
 .dd-app .dd-pf-logout{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;width:100%;max-width:34rem;padding:0.95rem;border-radius:1.1rem;background:#fdecec;color:#e0485a;font-weight:800;cursor:pointer;font-size:0.95rem;border:0}
 .dd-app .dd-pf-logout svg{width:1.2rem;height:1.2rem;color:#e0485a}
 .dd-app .dd-pf-logout:hover{background:#fbdcdc}

@@ -5,10 +5,12 @@
 function mount(el, inputs, on) {
   el.style.display = "none";
 
-  // negocioId desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
+  // Sesión {uid, negocioId} desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
+  function sesion() {
+    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null, negocioId: null }); })();
+  }
   function negocio() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ negocioId: null }); })()
-      .then(function (s) { return s.negocioId; });
+    return sesion().then(function (s) { return s.negocioId; });
   }
 
   function iso(d) { function p(n) { return String(n).padStart(2, "0"); } return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
@@ -63,6 +65,19 @@ function mount(el, inputs, on) {
         supa.from("perros").select("id").eq("negocio_id", neg).eq("activo", true).then(function (dr) {
           if (dr && dr.error) return;
           on.perrosTot((dr.data || []).length);
+        });
+      }
+
+      // Empleados de gestión (rol empresa) del negocio — la "oficina". Excluye al
+      // propio jefe. Solo el jefe puede leer estos profiles (RLS is_owner).
+      if (on.gestion) {
+        sesion().then(function (s) {
+          supa.from("profiles").select("id,nombre,telefono").eq("negocio_id", neg).eq("rol", "empresa").order("nombre").then(function (gr) {
+            if (gr && gr.error) return;
+            var gs = (gr.data || []).filter(function (g) { return g.id !== s.uid; })
+              .map(function (g) { return { id: g.id, nombre: g.nombre || "", telefono: g.telefono || "" }; });
+            on.gestion(gs);
+          });
         });
       }
 

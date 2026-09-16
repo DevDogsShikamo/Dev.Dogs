@@ -14,6 +14,12 @@ entity ClienteRow {
   nombre   text
   telefono text
 }
+# Empleado de gestión (rol empresa, no dueño) — la "oficina".
+entity GestionRow {
+  id       text
+  nombre   text
+  telefono text
+}
 entity Invitacion {
   id     text
   rol    text
@@ -31,6 +37,7 @@ entity Salida { id text  nombre text  zona text  hora text  servicio text  cuida
 state {
   paseadores  = [] : list<PaseadorRow>
   clientes    = [] : list<ClienteRow>
+  gestion     = [] : list<GestionRow>
   # Métricas de hoy (todos los paseadores del negocio).
   paseosHoy   = 0 : number
   programados = 0 : number
@@ -50,9 +57,11 @@ state {
 
 get nPaseadores = paseadores.length
 get nClientes   = clientes.length
+get nGestion    = gestion.length
 
 action setPaseadores(rows: list<PaseadorRow>) mutates paseadores { paseadores.set(rows) }
 action setClientes(rows: list<ClienteRow>) mutates clientes { clientes.set(rows) }
+action setGestion(rows: list<GestionRow>) mutates gestion { gestion.set(rows) }
 action setPerrosTot(n: number) mutates perrosTot { perrosTot.set(n) }
 action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitaciones.set(rows) }
 # Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.

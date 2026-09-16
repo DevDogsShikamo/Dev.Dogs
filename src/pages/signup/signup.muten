@@ -172,9 +172,15 @@ Page class("wiz") {
     }
 
     when step == 0 {
-      Stack class("row jcenter center gap-xs pad-sm") {
-        Text "¿Ya tienes cuenta?" class("muted t-sm")
-        Link "Inicia sesión" -> "/login" class("link t-sm")
+      Stack class("gap-xs pad-sm") {
+        Stack class("row jcenter center gap-xs") {
+          Text "¿Ya tienes cuenta?" class("muted t-sm")
+          Link "Inicia sesión" -> "/login" class("link t-sm")
+        }
+        Stack class("row jcenter center gap-xs") {
+          Text "¿Te invitó un negocio?" class("muted t-sm")
+          Link "Usa tu código" -> "/unirse" class("link t-sm")
+        }
       }
     }
   }

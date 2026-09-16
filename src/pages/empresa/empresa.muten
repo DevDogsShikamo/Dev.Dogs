@@ -40,7 +40,7 @@ action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(a
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
 
@@ -253,6 +253,42 @@ Stack class("dd-app") {
             when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.nClientes}" class("v")  Span "Clientes" class("l") } }
             when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.perrosTot}" class("v")  Span "Perros" class("l") } }
           }
+
+          # ---- Equipo de gestión (la oficina) — solo el jefe invita y ve ----
+          when auth.isOwner {
+            Stack class("dd-pf-team") {
+              Stack class("dd-cat-head") {
+                Title "Equipo de gestión" h2
+                Button -> invAbrir("empresa") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
+              }
+              # Invitaciones de gestión pendientes.
+              each empresa.invitaciones as iv where iv.rol == "empresa" {
+                Stack class("dd-inv-item") {
+                  Icon "lucide:mail" class("ic")
+                  Stack class("dd-inv-info") {
+                    when iv.email { Span "{iv.email}" class("em") }
+                    Span "Código: {iv.codigo}" class("code")
+                  }
+                  Button -> invBorrar(iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
+                }
+              }
+              when empresa.nGestion == 0 {
+                Text "Aún no hay empleados de gestión. Invitá a alguien para compartir la oficina." class("dd-rel-hint")
+              }
+              Stack class("dd-cat-list") {
+                each empresa.gestion as g {
+                  Stack class("dd-cat-item") {
+                    Stack class("av") { Span "{initial(g.nombre)}" }
+                    Stack class("dd-cat-info") {
+                      Stack class("nmline") { Span "{g.nombre}" class("nm") }
+                      when g.telefono { Span "{g.telefono}" class("meta") }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
           Button -> auth.logout class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }
@@ -281,7 +317,9 @@ Stack class("dd-app") {
           Stack class("dd-cal-scrimbg") on(click: invCerrar)
           Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
             Stack class("dd-cat-formhead") {
-              Title "Invitar {invRol}" h3
+              when invRol == "empresa" { Title "Invitar a gestión" h3 }
+              when invRol == "paseador" { Title "Invitar paseador" h3 }
+              when invRol == "cliente" { Title "Invitar cliente" h3 }
               Button -> invCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
