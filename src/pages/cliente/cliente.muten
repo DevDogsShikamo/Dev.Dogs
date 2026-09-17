@@ -1,5 +1,7 @@
 screen cliente
 use reservarPaseo from "~/lib/data.ts"
+use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
+use cop from "~/lib/money.ts"
 
 # Portal CLIENTE (dueño del perro). Reutiliza la estética .dd-* del paseador.
 # Datos: ClienteBridge (root) + store `cliente`. Inicio · Mis perros · Reservar
@@ -24,6 +26,9 @@ action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: 
 action resPickPerro(id: text) mutates resPerro { resPerro.set(id) }
 action resCerrar mutates resForm { resForm.set(false) }
 action resConfirmar mutates resForm { reservarPaseo(resPerro, resSvcId, resTipo, resCuid, resHora, resSalidaId, resFecha)  resForm.set(false) }
+# Descargar la factura del perro abierto (CSV / Excel).
+action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
+action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
 
 Stack class("dd-app") {
 
@@ -108,6 +113,9 @@ Stack class("dd-app") {
                 Stack class("dd-cat-info") {
                   Stack class("nmline") { Span "{p.nombre}" class("nm") }
                   when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Factura" }
                 }
               }
             }
@@ -198,6 +206,46 @@ Stack class("dd-app") {
               Span "Fecha" class("dd-hor-lbl")
               Date bind(resFecha)
               Button "Confirmar reserva" -> resConfirmar class("dd-cat-add dd-hor-save") disabled when resPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Factura / registro del perro (la "libreta": ver en la app + CSV/Excel) ----
+      when cliente.facturaPerro != "" {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: cliente.facturaCerrar)
+          Stack class("dd-cal-sheet dd-fac-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Factura · {cliente.facturaNombre}" h3
+              Button -> cliente.facturaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-fac-meta") {
+              Span "{auth.userName}" class("dueno")
+              Span "{cliente.facturaCount} servicios" class("cnt")
+            }
+            Stack class("dd-fac-table") {
+              Stack class("dd-fac-row dd-fac-head") {
+                Span "Fecha" class("c-f")  Span "Servicio" class("c-s")  Span "Estado" class("c-e")  Span "Precio" class("c-p")
+              }
+              each cliente.facturaRows as p {
+                Stack class("dd-fac-row") {
+                  Span "{p.fecha}" class("c-f")
+                  Span "{p.servicio}" class("c-s")
+                  Span "{p.estado}" class("c-e")
+                  when p.cobrable { Span "{cop(p.precio)}" class("c-p") }
+                  when not p.cobrable { Span "Mensualidad" class("c-p men") }
+                }
+              }
+              when cliente.facturaCount == 0 { Text "Sin servicios registrados para este perro." class("dd-cli-empty") }
+            }
+            Stack class("dd-fac-total") {
+              Span "Total" class("l")
+              Span "{cop(cliente.facturaTotal)}" class("v")
+            }
+            Stack class("dd-fac-actions") {
+              Button -> facCSV class("dd-fac-exp") { Icon "lucide:download"  Span "CSV" }
+              Button -> facXLS class("dd-fac-exp") { Icon "lucide:download"  Span "Excel" }
             }
           }
         }

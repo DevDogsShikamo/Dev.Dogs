@@ -1492,4 +1492,24 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-cli-empty{font-size:0.9rem;color:var(--dim)}
 .dd-app .dd-cli-hint{font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem;line-height:1.4}
 .dd-app .dd-cli-resbtn{padding:0.45rem 0.9rem;font-size:0.85rem}
+/* Factura / registro del perro (la "libreta" + export) */
+.dd-app .dd-cli-facbtn{padding:0.4rem 0.75rem;font-size:0.82rem}
+.dd-app .dd-fac-sheet{max-width:34rem}
+.dd-app .dd-fac-meta{display:flex;flex-direction:row;justify-content:space-between;align-items:center;margin-bottom:0.9rem;font-size:0.85rem}
+.dd-app .dd-fac-meta .dueno{font-weight:700}
+.dd-app .dd-fac-meta .cnt{color:var(--dim)}
+.dd-app .dd-fac-table{display:flex;flex-direction:column;border:0.0625rem solid var(--line);border-radius:0.9rem;overflow:hidden;margin-bottom:0.9rem}
+.dd-app .dd-fac-row{display:grid;grid-template-columns:4.3rem 1fr 4.6rem 5.4rem;gap:0.4rem;padding:0.5rem 0.7rem;font-size:0.82rem;align-items:center;border-top:0.0625rem solid var(--line)}
+.dd-app .dd-fac-row:first-child{border-top:0}
+.dd-app .dd-fac-head{background:var(--purple-soft);font-weight:800;color:var(--purple);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.03em}
+.dd-app .dd-fac-row .c-e{color:var(--dim)}
+.dd-app .dd-fac-row .c-p{text-align:right;font-weight:700}
+.dd-app .dd-fac-row .c-p.men{font-weight:600;color:var(--dim);font-size:0.73rem}
+.dd-app .dd-fac-total{display:flex;flex-direction:row;justify-content:space-between;align-items:center;padding:0.6rem 0.2rem;border-top:0.13rem solid var(--ink);margin-bottom:1rem}
+.dd-app .dd-fac-total .l{font-weight:700}
+.dd-app .dd-fac-total .v{font-weight:800;font-size:1.15rem;color:var(--purple)}
+.dd-app .dd-fac-actions{display:flex;flex-direction:row;gap:0.6rem}
+.dd-app .dd-fac-exp{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.4rem;padding:0.7rem;border-radius:0.9rem;background:var(--purple);color:#fff;font-weight:700;border:0;cursor:pointer;font-size:0.9rem}
+.dd-app .dd-fac-exp:hover{filter:brightness(1.05)}
+.dd-app .dd-fac-exp svg{width:1.1rem;height:1.1rem}
 .dd-app .dd-cli-past{opacity:0.62}

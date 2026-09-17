@@ -32,15 +32,19 @@ function mount(el, inputs, on) {
 
         // Mis paseos (prestaciones de esos perros).
         if (on.misPaseos && ids.length) {
-          supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
+          supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,precio_aplicado,cobrable,cobrado,perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
             if (pr && pr.error) return;
             var t = today();
             var paseos = (pr.data || []).map(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
+              var cobrable = r.cobrable !== false;
+              var estado = r.estado || "programado";
+              var precio = cobrable ? (r.precio_aplicado || 0) : 0;
               return {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
-                estado: r.estado || "programado", perro: (r.perros && r.perros.nombre) || "", cuidador: "",
-                futuro: (r.fecha || "") >= t
+                estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
+                precio: precio, facturable: (estado === "finalizado") ? precio : 0,
+                cobrable: cobrable, cobrado: !!r.cobrado, cuidador: "", futuro: (r.fecha || "") >= t
               };
             });
             on.misPaseos(paseos);
