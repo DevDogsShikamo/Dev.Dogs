@@ -1,6 +1,7 @@
 screen dashboard
 use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio from "~/lib/data.ts"
 use cop from "~/lib/money.ts"
+use tipoLabel from "~/lib/svc.ts"
 
 # Panel del paseador — portado FIEL del artifact "Panel DevDogs".
 # Navegación responsive (píldora en móvil, sidebar en escritorio) con cambio de sección.
@@ -24,7 +25,7 @@ entity Franja { desde number  hasta number }
 # Servicio (oferta + precio). Duración en minutos, precio en COP.
 entity ServicioDraft {
   nombre   text required
-  tipo     paseo | guarderia | veterinaria
+  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria
   duracion number
   precio   number
   modelo   por_uso | mensual
@@ -777,7 +778,7 @@ Stack class("dd-app") {
                 Stack class("dd-cat-info") {
                   Stack class("nmline") {
                     Span "{s.nombre}" class("nm")
-                    Span "{s.tipo}" class("cd")
+                    Span "{tipoLabel(s.tipo)}" class("cd")
                   }
                   Span "{s.duracion} {i18n.d.sv.min}" class("meta")
                 }
