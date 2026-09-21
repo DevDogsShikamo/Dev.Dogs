@@ -7,7 +7,7 @@ use tipoLabel from "~/lib/svc.ts"
 # Draft del servicio (alta/edición) — el Form de Muten necesita page-state.
 entity ServicioDraft {
   nombre   text required
-  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria
+  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria | comida | accesorio
   duracion number
   precio   number
   modelo   por_uso | mensual

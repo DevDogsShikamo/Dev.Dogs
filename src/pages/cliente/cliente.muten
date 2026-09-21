@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto from "~/lib/data.ts"
 use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -25,6 +25,13 @@ state {
   svcPerro    = "" : text
   svcFecha    = "" : text
   svcForm     = false : bool
+  prodId       = "" : text
+  prodTipo     = "" : text
+  prodNombre   = "" : text
+  prodPerro    = "" : text
+  prodCantidad = 1  : number
+  prodFecha    = "" : text
+  prodForm     = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
@@ -38,6 +45,11 @@ action svcAbrir(id: text, tipo: text, nombre: text) mutates svcId, svcTipo, svcN
 action svcPickPerro(id: text) mutates svcPerro { svcPerro.set(id) }
 action svcCerrar mutates svcForm { svcForm.set(false) }
 action svcConfirmar mutates svcForm { reservarServicio(svcPerro, svcId, svcTipo, svcFecha)  svcForm.set(false) }
+# Comprar un producto (comida/snack): perro + cantidad + fecha → venta registrada.
+action prodAbrir(id: text, tipo: text, nombre: text) mutates prodId, prodTipo, prodNombre, prodPerro, prodCantidad, prodFecha, prodForm { prodId.set(id)  prodTipo.set(tipo)  prodNombre.set(nombre)  prodPerro.set("")  prodCantidad.set(1)  prodFecha.set("")  prodForm.set(true) }
+action prodPickPerro(id: text) mutates prodPerro { prodPerro.set(id) }
+action prodCerrar mutates prodForm { prodForm.set(false) }
+action prodConfirmar mutates prodForm { venderProducto(prodPerro, prodId, prodTipo, prodCantidad, prodFecha)  prodForm.set(false) }
 # Descargar la factura del perro abierto (CSV / Excel).
 action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
 action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
@@ -53,6 +65,7 @@ Stack class("dd-app") {
     Button -> go("dashboard") class("dd-lnk") class("dd-on" when section == "dashboard") { Icon "lucide:home"      Span "Inicio" }
     Button -> go("perros")    class("dd-lnk") class("dd-on" when section == "perros")    { Icon "lucide:dog"       Span "Mis perros" }
     Button -> go("reservar")  class("dd-lnk") class("dd-on" when section == "reservar")  { Icon "lucide:calendar-plus" Span "Reservar" }
+    Button -> go("tienda")    class("dd-lnk") class("dd-on" when section == "tienda")    { Icon "lucide:shopping-bag" Span "Tienda" }
     Button -> go("agenda")    class("dd-lnk") class("dd-on" when section == "agenda")    { Icon "lucide:calendar"  Span "Agenda" }
     Button -> go("perfil")    class("dd-lnk") class("dd-on" when section == "perfil")    { Icon "lucide:user"      Span "Perfil" }
     Stack class("dd-foot") {
@@ -179,6 +192,31 @@ Stack class("dd-app") {
         }
       }
 
+      # ==== TIENDA (comida y snacks) ====
+      when section == "tienda" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Tienda" h2 }
+          Text "Comida y snacks para tu perro. La compra queda en tu cuenta." class("dd-cli-hint")
+          when cliente.nProductos == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:shopping-bag" }  Title "Sin productos" h2  Text "El negocio todavía no publicó productos." }
+          }
+          Stack class("dd-cat-list") {
+            each cliente.servicios as sv where sv.tipo == "comida" or sv.tipo == "accesorio" {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:package" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
+                  when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button "Comprar" -> prodAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                }
+              }
+            }
+          }
+        }
+      }
+
       # ==== AGENDA (mis paseos) ====
       when section == "agenda" {
         Stack class("dd-sec") {
@@ -267,6 +305,33 @@ Stack class("dd-app") {
         }
       }
 
+      # ---- Modal: comprar un producto (comida/snack) ----
+      when prodForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: prodCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Comprar {prodNombre}" h3
+              Button -> prodCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Span "¿Para qué perro?" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each cliente.misPerros as p {
+                  Button "{p.nombre}" -> prodPickPerro(p.id) class("dd-gchip") class("on" when prodPerro == p.id)
+                }
+                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+              }
+              Span "Cantidad" class("dd-hor-lbl")
+              Number bind(prodCantidad) min(1) max(99)
+              Span "Fecha" class("dd-hor-lbl")
+              Date bind(prodFecha)
+              Button "Confirmar compra" -> prodConfirmar class("dd-cat-add dd-hor-save") disabled when prodPerro == ""
+            }
+          }
+        }
+      }
+
       # ---- Factura / registro del perro (la "libreta": ver en la app + CSV/Excel) ----
       when cliente.facturaPerro != "" {
         Stack class("dd-cal-scrim") {
@@ -314,6 +379,7 @@ Stack class("dd-app") {
     Button -> go("dashboard") class("dd-on" when section == "dashboard") aria(label: "Inicio") { Icon "lucide:home" }
     Button -> go("perros")    class("dd-on" when section == "perros")    aria(label: "Mis perros") { Icon "lucide:dog" }
     Button -> go("reservar")  class("dd-on" when section == "reservar")  aria(label: "Reservar") { Icon "lucide:calendar-plus" }
+    Button -> go("tienda")    class("dd-on" when section == "tienda")    aria(label: "Tienda") { Icon "lucide:shopping-bag" }
     Button -> go("agenda")    class("dd-on" when section == "agenda")    aria(label: "Agenda") { Icon "lucide:calendar" }
     Button -> go("perfil")    class("dd-on" when section == "perfil")    aria(label: "Perfil") { Icon "lucide:user" }
   }

@@ -392,3 +392,21 @@ export function reservarServicio(perroId: string, servicioId: string, tipo: stri
     }, servicioId, "No se pudo agendar el servicio");
   });
 }
+
+// ---- Venta de PRODUCTO (comida / snack): se registra como prestación finalizada
+// (tipo comida/accesorio) con la cantidad, así entra directo a factura/reportes/cobros.
+// precio_aplicado = precio unitario del catálogo × cantidad (explícito, no unitario).
+export function venderProducto(perroId: string, servicioId: string, tipo: string, cantidad: number, fecha: string): void {
+  if (!perroId || !servicioId || !fecha) { toast("Elegí producto, perro y fecha"); return; }
+  const qty = cantidad > 0 ? cantidad : 1;
+  conNegocio(function (neg) {
+    supa.from("servicios").select("precio").eq("id", servicioId).single().then(function (sr) {
+      const precio = ((sr.data as { precio?: number }) || {}).precio || 0;
+      supa.from("prestaciones").insert({
+        negocio_id: neg, perro_id: perroId, servicio_id: servicioId, tipo: tipo || "comida",
+        fecha: fecha, estado: "finalizado", precio_aplicado: precio * qty, cobrable: true,
+        detalle: { cantidad: qty },
+      }).then(done("No se pudo registrar la compra", refresh));
+    });
+  });
+}

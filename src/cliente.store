@@ -21,6 +21,8 @@ get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
 # Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.
 get nOtrosServicios = servicios.count where tipo != "paseo"
+# Productos (comida/snacks) — para la Tienda.
+get nProductos = servicios.count where tipo == "comida" or tipo == "accesorio"
 # Registro del perro elegido: filas del perro, total a cobrar y cantidad de paseos.
 get facturaRows  = misPaseos where perroId == facturaPerro
 # Total = solo paseos realizados y cobrables (facturable ya trae 0 en los demás).

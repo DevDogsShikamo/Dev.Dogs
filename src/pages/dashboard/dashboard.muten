@@ -25,7 +25,7 @@ entity Franja { desde number  hasta number }
 # Servicio (oferta + precio). Duración en minutos, precio en COP.
 entity ServicioDraft {
   nombre   text required
-  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria
+  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria | comida | accesorio
   duracion number
   precio   number
   modelo   por_uso | mensual
