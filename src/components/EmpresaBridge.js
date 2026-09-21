@@ -81,6 +81,18 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Catálogo de servicios del negocio (ABM del jefe: crear/editar/borrar).
+      if (on.servicios) {
+        supa.from("servicios").select("id,nombre,tipo,duracion_min,precio,precio_mensual,modelo_cobro").eq("negocio_id", neg).eq("activo", true).order("tipo").then(function (sr) {
+          if (sr && sr.error) return;
+          var svs = (sr.data || []).map(function (r) {
+            var mensual = r.modelo_cobro === "mensual";
+            return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "paseo", duracion: r.duracion_min || 0, precio: mensual ? (r.precio_mensual || 0) : (r.precio || 0), modelo: mensual ? "mensual" : "por_uso" };
+          });
+          on.servicios(svs);
+        });
+      }
+
       // Invitaciones pendientes (paseador/cliente) para compartir el código.
       if (on.invitaciones) {
         supa.from("invitaciones").select("id,rol,email,codigo,estado").eq("negocio_id", neg).eq("estado", "pendiente").order("created_at").then(function (ir) {

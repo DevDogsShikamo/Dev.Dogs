@@ -1,7 +1,17 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar from "~/lib/data.ts"
+use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
+use tipoLabel from "~/lib/svc.ts"
+
+# Draft del servicio (alta/edición) — el Form de Muten necesita page-state.
+entity ServicioDraft {
+  nombre   text required
+  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria
+  duracion number
+  precio   number
+  modelo   por_uso | mensual
+}
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -19,8 +29,25 @@ state {
   asigSalida = "" : text
   asigNombre = "" : text
   asigForm   = false : bool
+  sdraft   = {} : ServicioDraft
+  sedit    = "" : text
+  sform    = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
+
+# ---- Catálogo de servicios (ABM del jefe) ----
+action servicioNuevo mutates sdraft, sedit, sform { sdraft.reset()  sedit.set("")  sform.set(true) }
+action servicioEditar(id: text, nombre: text, tipo: text, duracion: number, precio: number, modelo: text) mutates sdraft, sedit, sform {
+  sdraft.set({ nombre: nombre, tipo: tipo, duracion: duracion, precio: precio, modelo: modelo })
+  sedit.set(id)  sform.set(true)
+}
+action servicioCerrar mutates sform { sform.set(false) }
+action servicioGuardar(s: ServicioDraft) mutates sform {
+  if sedit == "" { servicioCrear(s) }
+  else { servicios.servicioUpd(sedit, s.nombre, s.tipo, s.duracion, s.precio, s.modelo)  servicioActualizar(sedit, s) }
+  sform.set(false)
+}
+action servicioBorrar(id: text) { servicios.servicioDel(id)  servicioEliminar(id) }
 
 # ---- Editar salario del paseador (optimista) ----
 action salAbrir(id: text, nombre: text, sal: number) mutates salEdit, salNombre, salVal, salForm { salEdit.set(id)  salNombre.set(nombre)  salVal.set(sal)  salForm.set(true) }
@@ -47,7 +74,7 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
 
@@ -61,6 +88,9 @@ Stack class("dd-app") {
       Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
     }
     Button -> go("salidas")    class("dd-lnk") class("dd-on" when section == "salidas")    { Icon "lucide:map-pin"     Span "Salidas" }
+    when auth.isOwner {
+      Button -> go("servicios") class("dd-lnk") class("dd-on" when section == "servicios") { Icon "lucide:tag" Span "Servicios" }
+    }
     when auth.isOwner {
       Button -> go("reportes") class("dd-lnk") class("dd-on" when section == "reportes") { Icon "lucide:bar-chart-3" Span "Reportes" }
     }
@@ -250,6 +280,50 @@ Stack class("dd-app") {
         }
       }
 
+      # ==== SERVICIOS (catálogo del negocio — ABM del jefe) ====
+      when section == "servicios" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") {
+            Title "Servicios" h2
+            Button -> servicioNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Agregar" }
+          }
+          when servicios.total == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:tag" }  Title "Sin servicios" h2  Text "Creá tu oferta: paseo, guardería, baño, corte de garras…" }
+          }
+          Stack class("dd-cat-list") {
+            each servicios.servicios as s {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:tag" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{s.nombre}" class("nm")  Span "{tipoLabel(s.tipo)}" class("cd") }
+                  Span "{s.duracion} min" class("meta")
+                }
+                Stack class("dd-sv-price") {
+                  Span "{cop(s.precio)}" class("amt")
+                  when s.modelo == "mensual" { Span "/mes" class("per") }
+                }
+                Stack class("acts") {
+                  Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar servicio") { Icon "lucide:pencil" }
+                  Button -> servicioBorrar(s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar servicio") { Icon "lucide:trash-2" }
+                }
+              }
+            }
+          }
+          when sform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: servicioCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Datos del servicio" h3
+                  Button -> servicioCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Form bind(sdraft) submit(servicioGuardar) "Guardar servicio"
+              }
+            }
+          }
+        }
+      }
+
       # ==== PERFIL ====
       when section == "perfil" {
         Stack class("dd-sec") {
@@ -368,6 +442,9 @@ Stack class("dd-app") {
       Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
     }
     Button -> go("salidas")    class("dd-on" when section == "salidas")    aria(label: "Salidas") { Icon "lucide:map-pin" }
+    when auth.isOwner {
+      Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
+    }
     when auth.isOwner {
       Button -> go("reportes") class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }
     }
