@@ -87,3 +87,7 @@ action asignarSet(sid: text, cid: text, cnom: text) mutates salidas { salidas.pa
 action setStats(hoy: number, prog: number, curso: number, fin: number) mutates paseosHoy, programados, enCurso, finalizados {
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
+# Limpia los datos del negocio al hacer logout (dispositivo compartido).
+action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, ingresosDia, topServicios, porPaseador {
+  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+}

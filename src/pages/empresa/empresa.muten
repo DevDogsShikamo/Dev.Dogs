@@ -47,6 +47,8 @@ state {
   pform    = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
+# Logout: limpia el cache del negocio (dispositivo compartido) y cierra sesión.
+action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  auth.logout() }
 
 # ---- Catálogo de servicios (ABM del jefe) ----
 action servicioNuevo mutates sdraft, sedit, sform { sdraft.reset()  sedit.set("")  sform.set(true) }
@@ -440,7 +442,7 @@ Stack class("dd-app") {
             }
           }
 
-          Button -> auth.logout class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
+          Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }
 

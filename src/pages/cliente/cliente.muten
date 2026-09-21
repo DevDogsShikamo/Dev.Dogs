@@ -34,6 +34,8 @@ state {
   prodForm     = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
+# Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
+action salir { cliente.limpiar()  auth.logout() }
 action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
   resSalidaId.set(sid)  resSvcId.set(svc)  resTipo.set(tipo)  resCuid.set(cuid)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
 }
@@ -250,7 +252,7 @@ Stack class("dd-app") {
             Stack class("dd-pf-stat") { Span "{cliente.nPerros}" class("v")  Span "Perros" class("l") }
             Stack class("dd-pf-stat") { Span "{cliente.proximos}" class("v")  Span "Próximos" class("l") }
           }
-          Button -> auth.logout class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
+          Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }
 

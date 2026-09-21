@@ -35,3 +35,5 @@ action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
 action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
+# Limpia los datos del cliente al hacer logout (dispositivo compartido).
+action limpiar mutates misPerros, misPaseos, salidas, servicios { misPerros.reset()  misPaseos.reset()  salidas.reset()  servicios.reset() }
