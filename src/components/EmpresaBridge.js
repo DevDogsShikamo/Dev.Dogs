@@ -60,11 +60,17 @@ function mount(el, inputs, on) {
         });
       }
 
-      // Total de perros activos del negocio (KPI).
-      if (on.perrosTot) {
-        supa.from("perros").select("id").eq("negocio_id", neg).eq("activo", true).then(function (dr) {
+      // Perros del negocio: lista (para el ABM del jefe) + total (KPI).
+      if (on.perros || on.perrosTot) {
+        supa.from("perros").select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad").eq("negocio_id", neg).eq("activo", true).order("nombre").then(function (dr) {
           if (dr && dr.error) return;
-          on.perrosTot((dr.data || []).length);
+          var raw = dr.data || [];
+          if (on.perrosTot) on.perrosTot(raw.length);
+          if (on.perros) {
+            on.perros(raw.map(function (r) {
+              return { id: r.id, nombre: r.nombre || "", raza: r.raza || "", tamano: r.tamano || "", conducta: r.conducta || "", tips: r.tips || "", foto: r.foto_url || "", sociabilidad: r.sociabilidad || "", relN: 0, relWorst: "" };
+            }));
+          }
         });
       }
 
