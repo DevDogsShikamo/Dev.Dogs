@@ -349,30 +349,46 @@ export function cobroMarcar(id: string, uid: string): void {
   supa.from("prestaciones").update({ cobrado: true, confirmado_por: uid || null, confirmado_at: new Date().toISOString() }).eq("id", id).then(done("No se pudo marcar cobrado"));
 }
 
-// ---- Reserva del CLIENTE: acopla su perro a una salida (crea la prestación) ----
-// El precio se toma del CATÁLOGO (servicios) al reservar, y `cobrable` sale del
-// modelo de cobro (mensual → no se cobra por uso). grupo_id va en su columna real.
-// (El trigger prestacion_precio de la DB es la red de seguridad para las demás vías
-//  que crean prestaciones — RPC mover_perro, seeds — ver migration_precios.sql.)
+// ---- Crear una prestación con el precio del CATÁLOGO (compartido) ----------
+// Toma precio/modelo del servicio y arma el insert; `cobrable` sale del modelo
+// (mensual → no se cobra por uso). `base` trae los campos propios de cada vía
+// (perro, tipo, fecha, y opcional cuidador/grupo/detalle). El trigger de la DB
+// es la red de seguridad para las vías que no pasan por acá (RPC mover_perro, seeds).
+function insertarPrestacion(neg: string, base: Record<string, unknown>, servicioId: string, errMsg: string): void {
+  const finish = function (precio: number, cobrable: boolean): void {
+    supa.from("prestaciones")
+      .insert({ ...base, negocio_id: neg, servicio_id: servicioId || null, estado: "programado", precio_aplicado: precio, cobrable: cobrable })
+      .then(done(errMsg, refresh));
+  };
+  if (servicioId) {
+    supa.from("servicios").select("precio,modelo_cobro").eq("id", servicioId).single().then(function (sr) {
+      const s = (sr.data as { precio?: number; modelo_cobro?: string }) || {};
+      const mensual = s.modelo_cobro === "mensual";
+      finish(mensual ? 0 : (s.precio || 0), !mensual);
+    });
+  } else {
+    finish(0, true);
+  }
+}
+
+// ---- Reserva del CLIENTE: acopla su perro a una salida de paseo -------------
 export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
   conNegocio(function (neg) {
-    const insertar = function (precio: number, cobrable: boolean): void {
-      supa.from("prestaciones").insert({
-        negocio_id: neg, perro_id: perroId, servicio_id: servicioId || null, tipo: tipo || "paseo",
-        cuidador_id: cuidadorId || null, fecha: fecha, estado: "programado", grupo_id: grupoId || null,
-        precio_aplicado: precio, cobrable: cobrable,
-        detalle: { hora: hora || "" },
-      }).then(done("No se pudo reservar el paseo", refresh));
-    };
-    if (servicioId) {
-      supa.from("servicios").select("precio,precio_mensual,modelo_cobro").eq("id", servicioId).single().then(function (sr) {
-        const s = (sr.data as { precio?: number; modelo_cobro?: string }) || {};
-        const mensual = s.modelo_cobro === "mensual";
-        insertar(mensual ? 0 : (s.precio || 0), !mensual);
-      });
-    } else {
-      insertar(0, true);
-    }
+    insertarPrestacion(neg, {
+      perro_id: perroId, tipo: tipo || "paseo", cuidador_id: cuidadorId || null,
+      fecha: fecha, grupo_id: grupoId || null, detalle: { hora: hora || "" },
+    }, servicioId, "No se pudo reservar el paseo");
+  });
+}
+
+// ---- Pedir un SERVICIO cualquiera (baño, guardería, corte, vet…) sin salida --
+// Crea una prestación programada del tipo del servicio; el negocio la asigna/atiende.
+export function reservarServicio(perroId: string, servicioId: string, tipo: string, fecha: string): void {
+  if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
+  conNegocio(function (neg) {
+    insertarPrestacion(neg, {
+      perro_id: perroId, tipo: tipo || "paseo", fecha: fecha, detalle: {},
+    }, servicioId, "No se pudo agendar el servicio");
   });
 }

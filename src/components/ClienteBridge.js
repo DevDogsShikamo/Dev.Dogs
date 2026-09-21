@@ -63,6 +63,18 @@ function mount(el, inputs, on) {
           on.salidas(sal);
         });
       }
+
+      // Catálogo de servicios del negocio (para pedir baño/guardería/corte/etc.).
+      if (on.servicios && s.negocioId) {
+        supa.from("servicios").select("id,nombre,tipo,precio,modelo_cobro").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {
+          if (svr && svr.error) return;
+          var svs = (svr.data || []).map(function (r) {
+            var mensual = r.modelo_cobro === "mensual";
+            return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "paseo", precio: mensual ? 0 : (r.precio || 0), modelo: mensual ? "mensual" : "por_uso" };
+          });
+          on.servicios(svs);
+        });
+      }
     });
   }
 

@@ -4,11 +4,14 @@
 entity PerroMio  { id text  nombre text  raza text  tamano text  foto text }
 entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool }
 entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  cuidadorId text  tipo text }
+# Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
+entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
 
 state {
   misPerros = [] : list<PerroMio>
   misPaseos = [] : list<PaseoMio>
   salidas   = [] : list<SalidaDisp>
+  servicios = [] : list<ServicioCat>
   # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
@@ -16,6 +19,8 @@ state {
 
 get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
+# Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.
+get nOtrosServicios = servicios.count where tipo != "paseo"
 # Registro del perro elegido: filas del perro, total a cobrar y cantidad de paseos.
 get facturaRows  = misPaseos where perroId == facturaPerro
 # Total = solo paseos realizados y cobrables (facturable ya trae 0 en los demás).
@@ -25,5 +30,6 @@ get facturaCount = facturaRows.length
 action setMisPerros(rows: list<PerroMio>) mutates misPerros { misPerros.set(rows) }
 action setMisPaseos(rows: list<PaseoMio>) mutates misPaseos { misPaseos.set(rows) }
 action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
+action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }

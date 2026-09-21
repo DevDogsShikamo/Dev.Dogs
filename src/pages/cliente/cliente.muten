@@ -1,7 +1,8 @@
 screen cliente
-use reservarPaseo from "~/lib/data.ts"
+use reservarPaseo, reservarServicio from "~/lib/data.ts"
 use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
+use tipoLabel from "~/lib/svc.ts"
 
 # Portal CLIENTE (dueño del perro). Reutiliza la estética .dd-* del paseador.
 # Datos: ClienteBridge (root) + store `cliente`. Inicio · Mis perros · Reservar
@@ -18,6 +19,12 @@ state {
   resPerro    = "" : text
   resFecha    = "" : text
   resForm     = false : bool
+  svcId       = "" : text
+  svcTipo     = "" : text
+  svcNombre   = "" : text
+  svcPerro    = "" : text
+  svcFecha    = "" : text
+  svcForm     = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
@@ -26,13 +33,18 @@ action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: 
 action resPickPerro(id: text) mutates resPerro { resPerro.set(id) }
 action resCerrar mutates resForm { resForm.set(false) }
 action resConfirmar mutates resForm { reservarPaseo(resPerro, resSvcId, resTipo, resCuid, resHora, resSalidaId, resFecha)  resForm.set(false) }
+# Pedir un servicio (baño/guardería/corte/…): elegir perro + fecha → prestación.
+action svcAbrir(id: text, tipo: text, nombre: text) mutates svcId, svcTipo, svcNombre, svcPerro, svcFecha, svcForm { svcId.set(id)  svcTipo.set(tipo)  svcNombre.set(nombre)  svcPerro.set("")  svcFecha.set("")  svcForm.set(true) }
+action svcPickPerro(id: text) mutates svcPerro { svcPerro.set(id) }
+action svcCerrar mutates svcForm { svcForm.set(false) }
+action svcConfirmar mutates svcForm { reservarServicio(svcPerro, svcId, svcTipo, svcFecha)  svcForm.set(false) }
 # Descargar la factura del perro abierto (CSV / Excel).
 action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
 action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, salidas: cliente.setSalidas)
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, salidas: cliente.setSalidas, servicios: cliente.setServicios)
 
   # ---------- SIDEBAR ----------
   Sidebar class("dd-side") {
@@ -145,6 +157,25 @@ Stack class("dd-app") {
               }
             }
           }
+
+          # Otros servicios (baño, guardería, corte, vet…) — pedir un turno directo.
+          Span "Otros servicios" class("dd-emp-lbl")
+          Text "Baño, guardería, corte de garras y más — pedí un turno." class("dd-cli-hint")
+          when cliente.nOtrosServicios == 0 { Text "El negocio aún no publicó otros servicios." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each cliente.servicios as sv where sv.tipo != "paseo" {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:sparkles" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
+                  when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button "Pedir" -> svcAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                }
+              }
+            }
+          }
         }
       }
 
@@ -206,6 +237,31 @@ Stack class("dd-app") {
               Span "Fecha" class("dd-hor-lbl")
               Date bind(resFecha)
               Button "Confirmar reserva" -> resConfirmar class("dd-cat-add dd-hor-save") disabled when resPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Modal: pedir un servicio (baño/guardería/corte/…) ----
+      when svcForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: svcCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Pedir {svcNombre}" h3
+              Button -> svcCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Span "¿Qué perro?" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each cliente.misPerros as p {
+                  Button "{p.nombre}" -> svcPickPerro(p.id) class("dd-gchip") class("on" when svcPerro == p.id)
+                }
+                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+              }
+              Span "Fecha" class("dd-hor-lbl")
+              Date bind(svcFecha)
+              Button "Confirmar" -> svcConfirmar class("dd-cat-add dd-hor-save") disabled when svcPerro == ""
             }
           }
         }
