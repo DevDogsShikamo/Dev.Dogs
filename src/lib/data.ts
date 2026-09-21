@@ -343,13 +343,29 @@ export function grupoAsignar(grupoId: string, cuidadorId: string): void {
 }
 
 // ---- Reserva del CLIENTE: acopla su perro a una salida (crea la prestación) ----
+// El precio se toma del CATÁLOGO (servicios) al reservar, y `cobrable` sale del
+// modelo de cobro (mensual → no se cobra por uso). grupo_id va en su columna real.
+// (El trigger prestacion_precio de la DB es la red de seguridad para las demás vías
+//  que crean prestaciones — RPC mover_perro, seeds — ver migration_precios.sql.)
 export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
   conNegocio(function (neg) {
-    supa.from("prestaciones").insert({
-      negocio_id: neg, perro_id: perroId, servicio_id: servicioId || null, tipo: tipo || "paseo",
-      cuidador_id: cuidadorId || null, fecha: fecha, estado: "programado",
-      detalle: { hora: hora || "", grupo_id: grupoId || "" },
-    }).then(done("No se pudo reservar el paseo", refresh));
+    const insertar = function (precio: number, cobrable: boolean): void {
+      supa.from("prestaciones").insert({
+        negocio_id: neg, perro_id: perroId, servicio_id: servicioId || null, tipo: tipo || "paseo",
+        cuidador_id: cuidadorId || null, fecha: fecha, estado: "programado", grupo_id: grupoId || null,
+        precio_aplicado: precio, cobrable: cobrable,
+        detalle: { hora: hora || "" },
+      }).then(done("No se pudo reservar el paseo", refresh));
+    };
+    if (servicioId) {
+      supa.from("servicios").select("precio,precio_mensual,modelo_cobro").eq("id", servicioId).single().then(function (sr) {
+        const s = (sr.data as { precio?: number; modelo_cobro?: string }) || {};
+        const mensual = s.modelo_cobro === "mensual";
+        insertar(mensual ? 0 : (s.precio || 0), !mensual);
+      });
+    } else {
+      insertar(0, true);
+    }
   });
 }
