@@ -1494,6 +1494,8 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-cli-resbtn{padding:0.45rem 0.9rem;font-size:0.85rem}
 /* Factura / registro del perro (la "libreta" + export) */
 .dd-app .dd-cli-facbtn{padding:0.4rem 0.75rem;font-size:0.82rem}
+.dd-app .dd-cobrar-btn{padding:0.45rem 0.85rem;font-size:0.82rem;background:#3bb273}
+.dd-app .dd-cobrar-btn:hover{filter:brightness(1.05)}
 .dd-app .dd-fac-sheet{max-width:34rem}
 .dd-app .dd-fac-meta{display:flex;flex-direction:row;justify-content:space-between;align-items:center;margin-bottom:0.9rem;font-size:0.85rem}
 .dd-app .dd-fac-meta .dueno{font-weight:700}

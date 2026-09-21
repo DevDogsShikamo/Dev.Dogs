@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar from "~/lib/data.ts"
+use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
@@ -41,11 +41,14 @@ action asigAbrir(id: text, nombre: text) mutates asigSalida, asigNombre, asigFor
 action asigCerrar mutates asigForm { asigForm.set(false) }
 action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(asigSalida, cid, cnom)  grupoAsignar(asigSalida, cid)  asigForm.set(false) }
 
+# ---- Cobrar un paseo pendiente (optimista + persiste) ----
+action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
+
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones)
-  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador)
+  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
 
   # ---------- SIDEBAR (escritorio) ----------
@@ -211,6 +214,24 @@ Stack class("dd-app") {
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:circle-check"  Span "{cop(empresa.cobrado)}" class("v")    Span "Cobrado" class("l") }
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:clock"         Span "{cop(empresa.pendiente)}" class("v")  Span "Pendiente" class("l") }
           }
+          # Pendientes de cobro (paseos realizados sin cobrar) — el jefe marca cobrado.
+          Span "Pendientes de cobro · {cop(empresa.pendienteTotal)}" class("dd-emp-lbl")
+          when empresa.nPendientes == 0 { Text "Todo al día — nada por cobrar." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each empresa.pendientes as pe {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:wallet" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{pe.perro}" class("nm")  Span "{pe.servicio}" class("cd") }
+                  Span "{pe.fecha} · {cop(pe.monto)}" class("meta")
+                }
+                Stack class("acts") {
+                  Button "Cobrado" -> cobrar(pe.id) class("dd-cat-add dd-cobrar-btn")
+                }
+              }
+            }
+          }
+
           Stack class("dd-rep-card") { Chart @empresa.ingresosDia "Ingresos por día (7d)" kind(bar) x(dia) y(monto) }
           Stack class("dd-rep-card") { Chart @empresa.topServicios "Top servicios (30d)" kind(donut) x(servicio) y(monto) }
           Span "Por paseador (30d)" class("dd-emp-lbl")

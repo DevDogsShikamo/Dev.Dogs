@@ -22,6 +22,20 @@ function mount(el, inputs, on) {
       if (!neg) return;
       var desde = iso(shiftDays(-29)), hasta = iso(new Date());
 
+      // Pendientes de cobro: paseos realizados (finalizados), cobrables y aún no cobrados.
+      if (on.pendientes) {
+        supa.from("prestaciones")
+          .select("id,fecha,precio_aplicado,perros(nombre),servicios(nombre)")
+          .eq("negocio_id", neg).eq("estado", "finalizado").eq("cobrable", true).eq("cobrado", false).order("fecha")
+          .then(function (pr) {
+            if (pr && pr.error) return;
+            var rows = (pr.data || []).map(function (r) {
+              return { id: r.id, fecha: r.fecha || "", perro: (r.perros && r.perros.nombre) || "", servicio: (r.servicios && r.servicios.nombre) || "", monto: r.precio_aplicado || 0 };
+            });
+            on.pendientes(rows);
+          });
+      }
+
       // Mapa id→nombre de paseadores (para agrupar por paseador con nombre).
       var nombres = {};
       supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {

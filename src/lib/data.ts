@@ -342,6 +342,13 @@ export function grupoAsignar(grupoId: string, cuidadorId: string): void {
   supa.from("grupos").update({ cuidador_id: cuidadorId || null }).eq("id", grupoId).then(done("No se pudo asignar el paseador"));
 }
 
+// ---- Cobros (empresa/jefe): marcar una prestación como cobrada (optimista) ----
+// RLS "prestaciones owner all" ya deja al dueño actualizar; registra quién/cuándo.
+export function cobroMarcar(id: string, uid: string): void {
+  if (!id) return;
+  supa.from("prestaciones").update({ cobrado: true, confirmado_por: uid || null, confirmado_at: new Date().toISOString() }).eq("id", id).then(done("No se pudo marcar cobrado"));
+}
+
 // ---- Reserva del CLIENTE: acopla su perro a una salida (crea la prestación) ----
 // El precio se toma del CATÁLOGO (servicios) al reservar, y `cobrable` sale del
 // modelo de cobro (mensual → no se cobra por uso). grupo_id va en su columna real.

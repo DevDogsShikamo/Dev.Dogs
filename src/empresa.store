@@ -33,6 +33,8 @@ entity TopServicio  { servicio text  monto number }
 entity PaseadorIng  { id text  nombre text  monto number  paseos number }
 # Salida (grupo) con su paseador asignado (para el ABM de asignación de la empresa).
 entity Salida { id text  nombre text  zona text  hora text  servicio text  cuidadorId text  cuidadorNombre text }
+# Pendiente de cobro: un paseo realizado, cobrable y aún no cobrado.
+entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
 
 state {
   paseadores  = [] : list<PaseadorRow>
@@ -53,7 +55,11 @@ state {
   topServicios = [] : list<TopServicio>
   porPaseador  = [] : list<PaseadorIng>
   salidas      = [] : list<Salida>
+  pendientes   = [] : list<Pendiente>
 }
+
+get pendienteTotal = pendientes.sum by monto
+get nPendientes    = pendientes.length
 
 get nPaseadores = paseadores.length
 get nClientes   = clientes.length
@@ -73,6 +79,9 @@ action setIngresosDia(rows: list<IngresoDia>) mutates ingresosDia { ingresosDia.
 action setTopServicios(rows: list<TopServicio>) mutates topServicios { topServicios.set(rows) }
 action setPorPaseador(rows: list<PaseadorIng>) mutates porPaseador { porPaseador.set(rows) }
 action setSalidas(rows: list<Salida>) mutates salidas { salidas.set(rows) }
+action setPendientes(rows: list<Pendiente>) mutates pendientes { pendientes.set(rows) }
+# Optimista: marcar cobrado saca el pendiente de la lista al instante.
+action cobroDel(pid: text) mutates pendientes { pendientes.remove where id == pid }
 # Optimista: reasignar paseador a una salida se refleja al instante.
 action asignarSet(sid: text, cid: text, cnom: text) mutates salidas { salidas.patch where id == sid with { cuidadorId: cid, cuidadorNombre: cnom } }
 action setStats(hoy: number, prog: number, curso: number, fin: number) mutates paseosHoy, programados, enCurso, finalizados {
