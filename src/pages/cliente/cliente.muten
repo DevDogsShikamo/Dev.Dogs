@@ -59,6 +59,8 @@ action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombr
 Stack class("dd-app") {
 
   Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, salidas: cliente.setSalidas, servicios: cliente.setServicios)
+  # Vigía de red (O4): alimenta el aviso offline del shell.
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
   # ---------- SIDEBAR ----------
   Sidebar class("dd-side") {

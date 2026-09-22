@@ -132,6 +132,8 @@ Stack class("dd-app") {
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
+  # Vigía de red (O4): alimenta el aviso offline del shell.
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
   # ---------- SIDEBAR (escritorio) ----------
   Sidebar class("dd-side") {

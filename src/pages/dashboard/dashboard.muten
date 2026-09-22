@@ -187,6 +187,8 @@ Stack class("dd-app") {
   Custom HorarioBridge on(dias: hsetDias, franjas: hsetFranjas)
   # Toast de avisos (errores de escritura optimista).
   Custom Toast
+  # Vigía de red (O4): alimenta el aviso offline del shell.
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
   # ---------- TOGGLE DE IDIOMA (flotante) ----------
   Button -> i18n.toggle class("dd-langtoggle") aria(label: "Cambiar idioma / Switch language") { Icon "lucide:languages"  Span "{upper(i18n.lang)}" }

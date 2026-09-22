@@ -1445,6 +1445,15 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-toast-host.on{opacity:1;transform:translate(-50%,0)}
 @media (min-width:760px){ .dd-app .dd-toast-host{bottom:1.5rem} }
 
+/* Aviso de red (O4). Barra fina y pegajosa arriba de todo el portal. */
+.dd-netbar{position:sticky;top:0;z-index:90;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap;padding:0.5rem 1rem;font-size:0.85rem;font-weight:700;line-height:1.25}
+.dd-netbar svg{width:1.05rem;height:1.05rem;flex-shrink:0}
+.dd-netbar-off{background:#7c2d12;color:#ffedd5}
+.dd-netbar-sync{background:#1e293b;color:#e0f2fe}
+.dd-netbar-sync svg{animation:dd-spin 1s linear infinite}
+.dd-netbar-n{opacity:.85;font-weight:600}
+@keyframes dd-spin{to{transform:rotate(360deg)}}
+
 /* ===================== PORTAL PLACEHOLDER (empresa / cliente) ===================== */
 .frame .dd-portal{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg,#f4f2fb);padding:1.5rem;font-family:"Plus Jakarta Sans",system-ui,sans-serif}
 .frame .dd-portal-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.7rem;max-width:26rem;background:#fff;border:0.0625rem solid var(--line,#e7e3f2);border-radius:1.6rem;padding:2.6rem 2rem;box-shadow:0 1.2rem 2.6rem -1rem rgba(60,30,120,.22)}

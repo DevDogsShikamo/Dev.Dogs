@@ -23,6 +23,13 @@ function write(ops: Op[]): void {
   } catch {
     /* noop */
   }
+  // Punto ÚNICO de cambio de la cola → avisá a la UI (NetWatch pinta el conteo)
+  // sin sondeo. El evento "storage" no dispara en la misma pestaña, este sí.
+  try {
+    window.dispatchEvent(new CustomEvent("dd:outbox", { detail: ops.length }));
+  } catch {
+    /* noop */
+  }
 }
 function toast(msg: string): void {
   try {

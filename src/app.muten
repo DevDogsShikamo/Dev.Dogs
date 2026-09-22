@@ -16,6 +16,21 @@ routes {
 
 shell {
   Stack class("frame") {
+    # Aviso de red (O4). Lo alimenta el Custom NetWatch montado en cada portal;
+    # acá el shell solo lo pinta desde net.store (los Custom del shell no montan).
+    when not net.online {
+      Stack class("dd-netbar dd-netbar-off") {
+        Icon "lucide:wifi-off"
+        Span "Sin conexión — los cambios se guardan y se sincronizan al volver"
+        when net.pending > 0 { Span "· {net.pending} sin enviar" class("dd-netbar-n") }
+      }
+    }
+    when net.online and net.pending > 0 {
+      Stack class("dd-netbar dd-netbar-sync") {
+        Icon "lucide:refresh-cw"
+        Span "Sincronizando {net.pending} cambio(s)…"
+      }
+    }
     slot
   }
 }
