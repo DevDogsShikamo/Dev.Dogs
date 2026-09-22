@@ -74,7 +74,7 @@ action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombr
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, salidas: cliente.setSalidas, servicios: cliente.setServicios)
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, salidas: cliente.setSalidas, servicios: cliente.setServicios)
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
@@ -261,11 +261,19 @@ Stack class("dd-app") {
           }
           Stack class("dd-cat-list") {
             each cliente.misPaseos as p {
-              Stack class("dd-cat-item") class("dd-cli-past" when not p.futuro) {
-                Stack class("dd-sv-ic") { Icon "lucide:paw-print" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
-                  Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") class("dd-cli-past" when not p.futuro) {
+                  Stack class("dd-sv-ic") { Icon "lucide:paw-print" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                    Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+                  }
+                }
+                # Fotos del paseo (si el paseador subió alguna).
+                Stack class("dd-paseo-fotos-grid") {
+                  each cliente.misFotos as ft where ft.paseoId == p.id {
+                    Image "{ft.url}" alt("Foto del paseo de {p.perro}") class("dd-paseo-foto")
+                  }
                 }
               }
             }

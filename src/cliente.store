@@ -6,10 +6,13 @@ entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  p
 entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  cuidadorId text  tipo text }
 # Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
+# Foto de un paseo (plano: paseoId + url) — para mostrarla en la Agenda por paseo.
+entity Foto { paseoId text  url text }
 
 state {
   misPerros = [] : list<PerroMio> persist
   misPaseos = [] : list<PaseoMio> persist
+  misFotos  = [] : list<Foto> persist
   salidas   = [] : list<SalidaDisp> persist
   servicios = [] : list<ServicioCat> persist
   # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
@@ -31,9 +34,10 @@ get facturaCount = facturaRows.length
 
 action setMisPerros(rows: list<PerroMio>) mutates misPerros { misPerros.set(rows) }
 action setMisPaseos(rows: list<PaseoMio>) mutates misPaseos { misPaseos.set(rows) }
+action setMisFotos(rows: list<Foto>) mutates misFotos { misFotos.set(rows) }
 action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
 action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
 # Limpia los datos del cliente al hacer logout (dispositivo compartido).
-action limpiar mutates misPerros, misPaseos, salidas, servicios { misPerros.reset()  misPaseos.reset()  salidas.reset()  servicios.reset() }
+action limpiar mutates misPerros, misPaseos, misFotos, salidas, servicios { misPerros.reset()  misPaseos.reset()  misFotos.reset()  salidas.reset()  servicios.reset() }

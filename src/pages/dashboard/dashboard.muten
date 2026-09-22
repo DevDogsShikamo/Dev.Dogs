@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, paseoAgregarFoto from "~/lib/data.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -33,6 +33,7 @@ entity ServicioDraft {
 
 state {
   section = "dashboard" : text
+  fotosPaseo = [] : list<text>
   pdraft  = {} : PerroDraft
   pedit   = "" : text
   pform   = false : bool
@@ -81,9 +82,16 @@ action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fec
 action reprogramarBloqueAction(m: ReprogPayload) { reprogramarBloque(m.grupo, m.fechaOld, m.fechaNew, m.hora, m.modo) }
 
 # ---- Modo paseo: el paseador ejecuta el paseo (store optimista + data.ts persiste) ----
+# Abre el modo paseo limpiando la galería de fotos de la sesión anterior.
+action abrirPaseo(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates fotosPaseo {
+  fotosPaseo.reset()  grupos.modoAbrir(id, gkey, titulo, estado, presIds)
+}
 action pIniciar { grupos.modoIniciarLocal()  paseoIniciar(grupos.modoPresIds) }
 action pFinalizar { paseoFinalizar(grupos.modoPresIds, "")  grupos.modoFinalizarLocal() }
 action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noSalLocal(motivo) }
+# Foto subida (por FotoUpload) → se ve al instante en la galería y se anexa a las
+# prestaciones del grupo para que el dueño la vea en su Agenda.
+action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url)  paseoAgregarFoto(grupos.modoPresIds, url) }
 
 # ---- Horario laboral (editor) ----
 action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
@@ -255,6 +263,23 @@ Stack class("dd-app") {
               }
             }
 
+            # Fotos del paseo: subir (en curso o ya finalizado) + galería de la sesión.
+            when grupos.modoEstado != "programado" {
+              Stack class("dd-paseo-fotos") {
+                Stack class("dd-paseo-fotos-head") {
+                  Span "Fotos del paseo" class("dd-paseo-fotos-t")
+                  Custom FotoUpload on(uploaded: fotoSubir)
+                }
+                when fotosPaseo.length > 0 {
+                  Stack class("dd-paseo-fotos-grid") {
+                    each fotosPaseo as f {
+                      Image "{f}" alt("Foto del paseo") class("dd-paseo-foto")
+                    }
+                  }
+                }
+              }
+            }
+
             # Acción primaria según el estado del paseo.
             when grupos.modoEstado == "programado" {
               Button "Iniciar paseo" -> pIniciar class("dd-cat-add dd-hor-save")
@@ -335,7 +360,7 @@ Stack class("dd-app") {
                   }
                   Stack class("dd-c-foot") {
                     Stack class("dd-c-illus") { Span "🐾" }
-                    Button -> grupos.modoAbrir(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-c-go") aria(label: "Abrir modo paseo") { Icon "lucide:arrow-right" }
+                    Button -> abrirPaseo(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-c-go") aria(label: "Abrir modo paseo") { Icon "lucide:arrow-right" }
                   }
                 }
               }
@@ -640,7 +665,7 @@ Stack class("dd-app") {
                   Stack class("dd-gr-stop") {
                     Span "{g.desde}" class("dd-gr-hour")
                     Span "" class("dd-gr-node")
-                    Button -> grupos.modoAbrir(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-gr-block") class("est-{g.estado}") aria(label: "Abrir modo paseo de {g.titulo}") {
+                    Button -> abrirPaseo(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-gr-block") class("est-{g.estado}") aria(label: "Abrir modo paseo de {g.titulo}") {
                       Stack class("dd-gr-block-top") {
                         Stack class("dd-gr-titwrap") {
                           Span "{g.titulo}" class("dd-gr-title")

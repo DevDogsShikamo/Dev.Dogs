@@ -35,11 +35,14 @@ function mount(el, inputs, on) {
           supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,precio_aplicado,cobrable,cobrado,perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
             if (pr && pr.error) return;
             var t = today();
+            var fotos = [];
             var paseos = (pr.data || []).map(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
               var cobrable = r.cobrable !== false;
               var estado = r.estado || "programado";
               var precio = cobrable ? (r.precio_aplicado || 0) : 0;
+              // Fotos del paseo (detalle.fotos) → lista plana {paseoId, url} para la Agenda.
+              (det.fotos || []).forEach(function (u) { if (u) fotos.push({ paseoId: r.id, url: u }); });
               return {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
@@ -48,8 +51,9 @@ function mount(el, inputs, on) {
               };
             });
             on.misPaseos(paseos);
+            if (on.misFotos) on.misFotos(fotos);
           });
-        } else if (on.misPaseos) { on.misPaseos([]); }
+        } else if (on.misPaseos) { on.misPaseos([]); if (on.misFotos) on.misFotos([]); }
       });
 
       // Salidas disponibles del negocio (para reservar).

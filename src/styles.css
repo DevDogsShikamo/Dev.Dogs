@@ -1180,6 +1180,16 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-gchip-x{display:flex;align-items:center;padding:0.4rem}
 .dd-app .dd-paseo-done{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;color:#1f7a4d;font-weight:800;padding:0.6rem}
 .dd-app .dd-paseo-done svg{width:1.3rem;height:1.3rem}
+/* Fotos del paseo (#2) */
+.dd-app .dd-paseo-fotos{margin:0.4rem 0 0.9rem;padding:0.7rem;border:0.0625rem solid var(--line,#e6e2ee);border-radius:0.8rem;background:#faf9fc}
+.dd-app .dd-paseo-fotos-head{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:0.6rem;margin-bottom:0.5rem}
+.dd-app .dd-paseo-fotos-t{font-weight:800;font-size:0.9rem}
+.dd-app .dd-fotoup-btn{border:0;background:#2b2536;color:#fff;font-weight:700;font-size:0.82rem;padding:0.45rem 0.8rem;border-radius:0.7rem;cursor:pointer}
+.dd-app .dd-fotoup-btn:disabled{opacity:.6;cursor:default}
+.dd-app .dd-paseo-fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr));gap:0.4rem}
+.dd-app .dd-paseo-foto{width:100%;aspect-ratio:1;object-fit:cover;border-radius:0.6rem;background:#eee}
+.dd-app .dd-cli-paseo{display:flex;flex-direction:column;gap:0.4rem}
+.dd-app .dd-cli-paseo .dd-paseo-fotos-grid:empty{display:none}
 .dd-app .dd-gr-dogs{display:flex;flex-direction:row;align-items:center}
 .dd-app .dd-gr-dogs span{width:2.15rem;height:2.15rem;border-radius:999px;border:0.15rem solid var(--panel);margin-left:-0.55rem;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.05rem;box-shadow:0 0.3rem 0.7rem -0.4rem rgba(30,20,60,.22)}
 .dd-app .dd-gr-dogs span:first-child{margin-left:0}
