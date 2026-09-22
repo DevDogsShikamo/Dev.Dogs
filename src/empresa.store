@@ -37,25 +37,26 @@ entity Salida { id text  nombre text  zona text  hora text  horaNum number  dura
 entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
 
 state {
-  paseadores  = [] : list<PaseadorRow>
-  clientes    = [] : list<ClienteRow>
-  gestion     = [] : list<GestionRow>
+  # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.
+  paseadores  = [] : list<PaseadorRow> persist
+  clientes    = [] : list<ClienteRow> persist
+  gestion     = [] : list<GestionRow> persist
   # Métricas de hoy (todos los paseadores del negocio).
-  paseosHoy   = 0 : number
-  programados = 0 : number
-  enCurso     = 0 : number
-  finalizados = 0 : number
-  perrosTot   = 0 : number
-  invitaciones = [] : list<Invitacion>
+  paseosHoy   = 0 : number persist
+  programados = 0 : number persist
+  enCurso     = 0 : number persist
+  finalizados = 0 : number persist
+  perrosTot   = 0 : number persist
+  invitaciones = [] : list<Invitacion> persist
   # Finanzas del período (últimos 30 días).
-  facturado    = 0 : number
-  cobrado      = 0 : number
-  pendiente    = 0 : number
-  ingresosDia  = [] : list<IngresoDia>
-  topServicios = [] : list<TopServicio>
-  porPaseador  = [] : list<PaseadorIng>
-  salidas      = [] : list<Salida>
-  pendientes   = [] : list<Pendiente>
+  facturado    = 0 : number persist
+  cobrado      = 0 : number persist
+  pendiente    = 0 : number persist
+  ingresosDia  = [] : list<IngresoDia> persist
+  topServicios = [] : list<TopServicio> persist
+  porPaseador  = [] : list<PaseadorIng> persist
+  salidas      = [] : list<Salida> persist
+  pendientes   = [] : list<Pendiente> persist
 }
 
 get pendienteTotal = pendientes.sum by monto
@@ -90,6 +91,7 @@ action setStats(hoy: number, prog: number, curso: number, fin: number) mutates p
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, ingresosDia, topServicios, porPaseador {
+action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot {
   paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+  facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)
 }

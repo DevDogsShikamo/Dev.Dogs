@@ -8,10 +8,10 @@ entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId tex
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
 
 state {
-  misPerros = [] : list<PerroMio>
-  misPaseos = [] : list<PaseoMio>
-  salidas   = [] : list<SalidaDisp>
-  servicios = [] : list<ServicioCat>
+  misPerros = [] : list<PerroMio> persist
+  misPaseos = [] : list<PaseoMio> persist
+  salidas   = [] : list<SalidaDisp> persist
+  servicios = [] : list<ServicioCat> persist
   # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
