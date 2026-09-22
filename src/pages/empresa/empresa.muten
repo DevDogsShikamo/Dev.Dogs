@@ -364,6 +364,7 @@ Stack class("dd-app") {
               Span "{day.label}" class("dd-agrp-h")
               each empresa.agenda as e where e.fecha == day.fecha {
                 Stack class("dd-agrp-item") {
+                  Span "" class("dd-cal-dot-{e.color} dd-agrp-dot")
                   Span "{e.hora}" class("dd-agrp-hora")
                   Stack class("dd-agrp-info") {
                     Span "{e.servicio}" class("nm")

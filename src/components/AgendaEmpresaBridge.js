@@ -20,6 +20,16 @@ function mount(el, inputs, on) {
     if (i === 1) return "Mañana";
     return ES.DIASC[d.getDay()] + " " + d.getDate() + " " + ES.MESC[d.getMonth()];
   }
+  // Color por tipo de servicio (espeja AgendaCalendario.colorFor).
+  function colorFor(tipo) {
+    if (tipo === "paseo") return "purple";
+    if (tipo === "guarderia") return "blue";
+    if (tipo === "veterinaria") return "green";
+    if (tipo === "bano") return "teal";
+    if (tipo === "corte") return "orange";
+    if (tipo === "adiestramiento") return "pink";
+    return "yellow";
+  }
   // Estado agregado de la salida: en_curso > programado > finalizado (lo relevante arriba).
   function rollup(estados) {
     if (estados.indexOf("en_curso") >= 0) return "en_curso";
@@ -68,7 +78,7 @@ function mount(el, inputs, on) {
             });
             var rows = order.map(function (k) {
               var g = groups[k];
-              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, estado: rollup(g.estados) };
+              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, estado: rollup(g.estados), color: colorFor(g.tipo) };
             }).sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
             // Contar salidas por día para mostrar solo los días con actividad.
             var cnt = {};

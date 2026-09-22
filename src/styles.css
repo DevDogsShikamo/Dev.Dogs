@@ -1060,6 +1060,9 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-cal-ev-blue{background:#e9f0fe}.dd-app .dd-cal-ev-blue::before{background:#3b6ef6}
 .dd-app .dd-cal-ev-green{background:#e7f6ec}.dd-app .dd-cal-ev-green::before{background:#2f9e5f}
 .dd-app .dd-cal-ev-yellow{background:#fdf3d7}.dd-app .dd-cal-ev-yellow::before{background:#d99a2b}
+.dd-app .dd-cal-ev-teal{background:#dff5f3}.dd-app .dd-cal-ev-teal::before{background:#0e9488}
+.dd-app .dd-cal-ev-orange{background:#fdeadb}.dd-app .dd-cal-ev-orange::before{background:#e07a1b}
+.dd-app .dd-cal-ev-pink{background:#fbe6f1}.dd-app .dd-cal-ev-pink::before{background:#d6428f}
 
 /* Vista MES */
 .dd-app .dd-cal-mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:0.4rem}
@@ -1091,6 +1094,9 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-cal-dot-blue{background:#3b6ef6}
 .dd-app .dd-cal-dot-green{background:#2f9e5f}
 .dd-app .dd-cal-dot-yellow{background:#d99a2b}
+.dd-app .dd-cal-dot-teal{background:#0e9488}
+.dd-app .dd-cal-dot-orange{background:#e07a1b}
+.dd-app .dd-cal-dot-pink{background:#d6428f}
 .dd-app .dd-cal-sheet-h{display:flex;flex-direction:column;gap:0.15rem;flex:1 1 auto;min-width:0}
 .dd-app .dd-cal-sheet-h h3{margin:0;font-size:1.2rem;font-weight:800;letter-spacing:-.01em}
 .dd-app .dd-cal-sheet-sub{font-size:0.8rem;color:var(--dim);font-weight:600}
@@ -1222,6 +1228,7 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-agrp{margin-bottom:1.2rem}
 .dd-app .dd-agrp-h{display:block;font-weight:800;font-size:0.95rem;text-transform:capitalize;margin:0 0 0.5rem;color:var(--ink,#2b2536)}
 .dd-app .dd-agrp-item{display:flex;flex-direction:row;align-items:center;gap:0.8rem;padding:0.7rem 0.9rem;border:0.0625rem solid var(--line,#e6e2ee);border-radius:0.8rem;margin-bottom:0.5rem;background:#fff}
+.dd-app .dd-agrp-dot{width:0.6rem;height:0.6rem;border-radius:999px;flex:0 0 auto}
 .dd-app .dd-agrp-hora{font-weight:800;font-size:0.9rem;min-width:3rem;color:var(--purple)}
 .dd-app .dd-agrp-info{flex:1;display:flex;flex-direction:column;min-width:0}
 .dd-app .dd-agrp-info .nm{font-weight:700;font-size:0.92rem}

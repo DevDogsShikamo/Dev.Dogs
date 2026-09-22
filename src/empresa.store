@@ -37,7 +37,7 @@ entity Salida { id text  nombre text  zona text  hora text  horaNum number  dura
 entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
 # Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
 entity AgendaDia  { fecha text  label text  count number }
-entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text }
+entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text  color text }
 
 state {
   # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.

@@ -49,7 +49,10 @@ function mount(el, inputs, on) {
     if (tipo === "paseo") return "purple";
     if (tipo === "guarderia") return "blue";
     if (tipo === "veterinaria") return "green";
-    return "yellow";
+    if (tipo === "bano") return "teal";
+    if (tipo === "corte") return "orange";
+    if (tipo === "adiestramiento") return "pink";
+    return "yellow";   // comida / accesorio / otros
   }
 
   function dayCol(d, sel) {
