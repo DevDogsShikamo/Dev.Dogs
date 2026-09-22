@@ -87,6 +87,14 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Zonas del negocio (para el picker de zona al crear/editar una salida/grupo).
+      if (on.zonas) {
+        supa.from("negocios").select("zonas").eq("id", neg).single().then(function (nr) {
+          if (nr && nr.error) return;
+          on.zonas((nr.data && nr.data.zonas) || []);
+        });
+      }
+
       // Catálogo de servicios del negocio (ABM del jefe: crear/editar/borrar).
       if (on.servicios) {
         supa.from("servicios").select("id,nombre,tipo,duracion_min,precio,precio_mensual,modelo_cobro").eq("negocio_id", neg).eq("activo", true).order("tipo").then(function (sr) {

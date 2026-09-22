@@ -32,7 +32,7 @@ entity IngresoDia   { dia text  monto number }
 entity TopServicio  { servicio text  monto number }
 entity PaseadorIng  { id text  nombre text  monto number  paseos number }
 # Salida (grupo) con su paseador asignado (para el ABM de asignación de la empresa).
-entity Salida { id text  nombre text  zona text  hora text  servicio text  cuidadorId text  cuidadorNombre text }
+entity Salida { id text  nombre text  zona text  hora text  horaNum number  duracion number  color text  servicioId text  servicio text  cuidadorId text  cuidadorNombre text }
 # Pendiente de cobro: un paseo realizado, cobrable y aún no cobrado.
 entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
 
@@ -79,6 +79,8 @@ action setIngresosDia(rows: list<IngresoDia>) mutates ingresosDia { ingresosDia.
 action setTopServicios(rows: list<TopServicio>) mutates topServicios { topServicios.set(rows) }
 action setPorPaseador(rows: list<PaseadorIng>) mutates porPaseador { porPaseador.set(rows) }
 action setSalidas(rows: list<Salida>) mutates salidas { salidas.set(rows) }
+# Optimista: borrar una salida desaparece al instante (grupoEliminar no refresca).
+action salidaDel(sid: text) mutates salidas { salidas.remove where id == sid }
 action setPendientes(rows: list<Pendiente>) mutates pendientes { pendientes.set(rows) }
 # Optimista: marcar cobrado saca el pendiente de la lista al instante.
 action cobroDel(pid: text) mutates pendientes { pendientes.remove where id == pid }

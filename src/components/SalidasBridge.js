@@ -18,13 +18,15 @@ function mount(el, inputs, on) {
       supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
         supa.from("grupos")
-          .select("id,nombre,zona,hora,cuidador_id,servicios(nombre)")
+          .select("id,nombre,zona,hora,duracion_min,color,servicio_id,cuidador_id,servicios(nombre)")
           .eq("negocio_id", neg).eq("activo", true).order("hora")
           .then(function (res) {
             if (res && res.error) return;
             var rows = (res.data || []).map(function (g) {
               return {
                 id: g.id, nombre: g.nombre || "", zona: g.zona || "", hora: g.hora || "08:00",
+                horaNum: parseInt(String(g.hora || "8"), 10) || 8, duracion: g.duracion_min || 60,
+                color: g.color || "purple", servicioId: g.servicio_id || "",
                 servicio: (g.servicios && g.servicios.nombre) || "",
                 cuidadorId: g.cuidador_id || "", cuidadorNombre: (g.cuidador_id && nombres[g.cuidador_id]) || ""
               };
