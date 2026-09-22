@@ -24,6 +24,14 @@
       }
     }, true);
   </script>
+  <script>
+    // PWA: registra el Service Worker (usar sin conexión). network-first, seguro para dev.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js").catch(function () { /* noop */ });
+      });
+    }
+  </script>
   <!-- Boot splash (lazy-load screen): painted instantly from HTML, before the app JS boots,
        then fades out on its own via CSS. No bootstrap script. -->
   <style>
