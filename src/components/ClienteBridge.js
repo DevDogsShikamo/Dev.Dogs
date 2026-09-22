@@ -9,6 +9,7 @@ function mount(el, inputs, on) {
   }
   function p(n) { return String(n).padStart(2, "0"); }
   function iso(d) { return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+  function addDaysD(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
   function today() { return iso(new Date()); }
 
   function load() {
@@ -52,8 +53,30 @@ function mount(el, inputs, on) {
             });
             on.misPaseos(paseos);
             if (on.misFotos) on.misFotos(fotos);
+
+            // Novedades (notificaciones in-app): paseos de HOY + paseos finalizados
+            // recientes (≤3 días) que ya tienen fotos para ver. Sin estado "leído":
+            // es un panel de lo relevante ahora.
+            if (on.novedades) {
+              var conFotos = {};
+              fotos.forEach(function (f) { conFotos[f.paseoId] = true; });
+              var cut = iso(addDaysD(new Date(), -3));
+              var nov = [];
+              paseos.forEach(function (p) {
+                if (p.fecha === t && p.estado !== "finalizado" && p.estado !== "no_asistio") {
+                  nov.push({ kind: "hoy", perro: p.perro, servicio: p.servicio, hora: p.hora, fecha: p.fecha, fotos: false });
+                }
+              });
+              paseos.forEach(function (p) {
+                if (p.estado === "finalizado" && conFotos[p.id] && p.fecha >= cut) {
+                  nov.push({ kind: "foto", perro: p.perro, servicio: p.servicio, hora: p.hora, fecha: p.fecha, fotos: true });
+                }
+              });
+              nov.sort(function (a, b) { return (b.fecha + b.hora).localeCompare(a.fecha + a.hora); });
+              on.novedades(nov);
+            }
           });
-        } else if (on.misPaseos) { on.misPaseos([]); if (on.misFotos) on.misFotos([]); }
+        } else if (on.misPaseos) { on.misPaseos([]); if (on.misFotos) on.misFotos([]); if (on.novedades) on.novedades([]); }
       });
 
       // Salidas disponibles del negocio (para reservar).

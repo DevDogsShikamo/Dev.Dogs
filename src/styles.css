@@ -904,6 +904,14 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-bell{position:relative;width:2.75rem;height:2.75rem;border-radius:0.9rem;background:var(--panel);border:0.0625rem solid var(--line);display:flex;align-items:center;justify-content:center}
 .dd-bell svg{width:1.25rem;height:1.25rem}
 .dd-bell::after{content:"";position:absolute;top:0.7rem;right:0.75rem;width:0.5rem;height:0.5rem;border-radius:999px;background:#f43f5e;border:0.125rem solid var(--panel)}
+/* Bell con contador numérico (#4): sin el punto decorativo, badge con nº. */
+.dd-app .dd-bell-count::after{display:none}
+.dd-app .dd-bell-badge{position:absolute;top:-0.3rem;right:-0.3rem;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:#f43f5e;color:#fff;font-size:0.68rem;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;border:0.125rem solid var(--panel)}
+/* Item de novedad en el panel */
+.dd-app .dd-notif{display:flex;flex-direction:row;align-items:center;gap:0.7rem;width:100%;text-align:left;padding:0.6rem 0.7rem;border-radius:0.8rem;background:var(--panel)}
+.dd-app .dd-notif:hover{background:var(--purple-soft)}
+.dd-app .dd-notif-ic{width:2.2rem;height:2.2rem;border-radius:0.7rem;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dd-app .dd-notif-ic svg{width:1.1rem;height:1.1rem}
 
 .dd-h1{font-size:clamp(1.9rem,7vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:0;display:flex;flex-direction:column}
 
