@@ -912,6 +912,13 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-notif:hover{background:var(--purple-soft)}
 .dd-app .dd-notif-ic{width:2.2rem;height:2.2rem;border-radius:0.7rem;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .dd-app .dd-notif-ic svg{width:1.1rem;height:1.1rem}
+/* Saldo pendiente del cliente (#3) */
+.dd-app .dd-saldo{display:flex;flex-direction:row;align-items:center;gap:0.8rem;width:100%;text-align:left;padding:0.9rem 1rem;border-radius:1rem;background:#fef3c7;border:0.0625rem solid #f4d488;margin:0.2rem 0 1rem}
+.dd-app .dd-saldo-ic{width:2.6rem;height:2.6rem;border-radius:0.8rem;background:#fff;color:#92620e;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dd-app .dd-saldo-info{flex:1;display:flex;flex-direction:column;min-width:0}
+.dd-app .dd-saldo-l{font-size:0.8rem;color:#92620e;font-weight:700}
+.dd-app .dd-saldo-v{font-size:1.3rem;font-weight:800;color:#7a4e0a}
+.dd-app .dd-saldo .chev{width:1.1rem;height:1.1rem;color:#b98a2e;flex:0 0 auto}
 
 .dd-h1{font-size:clamp(1.9rem,7vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:0;display:flex;flex-direction:column}
 

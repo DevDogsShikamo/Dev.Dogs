@@ -163,6 +163,18 @@ Stack class("dd-app") {
               when cliente.nPerros == 0 { Span "Sin perros aún" class("dd-dt-empty") }
             }
           }
+          # Estado de cuenta: saldo pendiente (paseos realizados sin cobrar).
+          when cliente.saldoPendiente > 0 {
+            Button -> go("perros") class("dd-saldo") aria(label: "Ver facturas") {
+              Stack class("dd-saldo-ic") { Icon "lucide:wallet" }
+              Stack class("dd-saldo-info") {
+                Span "Saldo pendiente" class("dd-saldo-l")
+                Span "{cop(cliente.saldoPendiente)}" class("dd-saldo-v")
+              }
+              Icon "lucide:chevron-right" class("chev")
+            }
+          }
+
           Span "Próximos paseos" class("dd-emp-lbl")
           when cliente.proximos == 0 { Text "No tenés paseos próximos. Reservá uno." class("dd-cli-empty") }
           Stack class("dd-cat-list") {

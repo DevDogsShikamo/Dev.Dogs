@@ -26,6 +26,10 @@ state {
 get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
 get nNovedades = novedades.length
+# Saldo pendiente = paseos realizados y cobrables aún no cobrados (facturable ya trae
+# 0 en los no-finalizados/no-cobrables). Estado de cuenta del cliente.
+get paseosImpagos  = misPaseos where not cobrado
+get saldoPendiente = paseosImpagos.sum by facturable
 # Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.
 get nOtrosServicios = servicios.count where tipo != "paseo"
 # Productos (comida/snacks) — para la Tienda.
