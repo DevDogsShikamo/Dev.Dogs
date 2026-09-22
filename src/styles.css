@@ -1218,6 +1218,18 @@ html{ scroll-padding-top:88px; }
 .dd-app .dd-cat-head{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:1rem;margin:0.3rem 0 1.3rem}
 .dd-app .dd-cat-head h2{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;margin:0}
 .dd-app .dd-cat-add{display:flex;flex-direction:row;align-items:center;gap:0.4rem;padding:0.55rem 0.95rem;border-radius:0.8rem;background:var(--purple);color:#fff;font-weight:800;font-size:0.9rem;box-shadow:0 0.5rem 1.1rem -0.4rem var(--purple)}
+/* Agenda semanal empresa (#5) */
+.dd-app .dd-agrp{margin-bottom:1.2rem}
+.dd-app .dd-agrp-h{display:block;font-weight:800;font-size:0.95rem;text-transform:capitalize;margin:0 0 0.5rem;color:var(--ink,#2b2536)}
+.dd-app .dd-agrp-item{display:flex;flex-direction:row;align-items:center;gap:0.8rem;padding:0.7rem 0.9rem;border:0.0625rem solid var(--line,#e6e2ee);border-radius:0.8rem;margin-bottom:0.5rem;background:#fff}
+.dd-app .dd-agrp-hora{font-weight:800;font-size:0.9rem;min-width:3rem;color:var(--purple)}
+.dd-app .dd-agrp-info{flex:1;display:flex;flex-direction:column;min-width:0}
+.dd-app .dd-agrp-info .nm{font-weight:700;font-size:0.92rem}
+.dd-app .dd-agrp-info .meta{font-size:0.8rem;color:#78717f}
+.dd-app .dd-agrp-badge{font-size:0.72rem;font-weight:800;padding:0.25rem 0.55rem;border-radius:0.6rem;text-transform:capitalize;white-space:nowrap}
+.dd-app .dd-agrp-badge.b-programado{background:#eef;color:#4338ca}
+.dd-app .dd-agrp-badge.b-en_curso{background:#fef3c7;color:#92620e}
+.dd-app .dd-agrp-badge.b-finalizado{background:#dcfce7;color:#166534}
 .dd-app .dd-cat-add svg{width:1.05rem;height:1.05rem}
 .dd-app .dd-cat-list{display:flex;flex-direction:column;gap:0.6rem;max-width:40rem}
 .dd-app .dd-cat-item{display:flex;flex-direction:row;align-items:center;gap:0.9rem;background:var(--panel);border:0.0625rem solid var(--line);border-radius:1.1rem;padding:0.7rem 0.85rem}

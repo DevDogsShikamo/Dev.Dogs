@@ -132,6 +132,8 @@ Stack class("dd-app") {
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
+  # Agenda semanal multi-paseador (#5).
+  Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda)
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
@@ -145,6 +147,7 @@ Stack class("dd-app") {
       Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
     }
     Button -> go("salidas")    class("dd-lnk") class("dd-on" when section == "salidas")    { Icon "lucide:map-pin"     Span "Salidas" }
+    Button -> go("agenda")     class("dd-lnk") class("dd-on" when section == "agenda")     { Icon "lucide:calendar"    Span "Agenda" }
     when auth.isOwner {
       Button -> go("servicios") class("dd-lnk") class("dd-on" when section == "servicios") { Icon "lucide:tag" Span "Servicios" }
     }
@@ -342,6 +345,31 @@ Stack class("dd-app") {
                     Button -> gpickColor("yellow") class("dd-gcolor dd-gc-yellow") class("on" when gcolor == "yellow") { Span "" class("sw") }
                   }
                   Button "Guardar salida" -> grupoGuardar class("dd-cat-add dd-hor-save")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== AGENDA (semana, multi-paseador) ====
+      when section == "agenda" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Agenda de la semana" h2 }
+          when empresa.nAgenda == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar" }  Title "Sin salidas" h2  Text "No hay salidas programadas esta semana." }
+          }
+          each empresa.agendaDias as day where day.count > 0 {
+            Stack class("dd-agrp") {
+              Span "{day.label}" class("dd-agrp-h")
+              each empresa.agenda as e where e.fecha == day.fecha {
+                Stack class("dd-agrp-item") {
+                  Span "{e.hora}" class("dd-agrp-hora")
+                  Stack class("dd-agrp-info") {
+                    Span "{e.servicio}" class("nm")
+                    Span "{e.cuidador} · {e.dogs} 🐕" class("meta")
+                  }
+                  Span "{e.estado}" class("dd-agrp-badge b-{e.estado}")
                 }
               }
             }
@@ -599,6 +627,7 @@ Stack class("dd-app") {
       Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
     }
     Button -> go("salidas")    class("dd-on" when section == "salidas")    aria(label: "Salidas") { Icon "lucide:map-pin" }
+    Button -> go("agenda")     class("dd-on" when section == "agenda")     aria(label: "Agenda") { Icon "lucide:calendar" }
     when auth.isOwner {
       Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
     }

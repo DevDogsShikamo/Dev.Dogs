@@ -35,6 +35,9 @@ entity PaseadorIng  { id text  nombre text  monto number  paseos number }
 entity Salida { id text  nombre text  zona text  hora text  horaNum number  duracion number  color text  servicioId text  servicio text  cuidadorId text  cuidadorNombre text }
 # Pendiente de cobro: un paseo realizado, cobrable y aún no cobrado.
 entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
+# Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
+entity AgendaDia  { fecha text  label text  count number }
+entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text }
 
 state {
   # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.
@@ -57,10 +60,13 @@ state {
   porPaseador  = [] : list<PaseadorIng> persist
   salidas      = [] : list<Salida> persist
   pendientes   = [] : list<Pendiente> persist
+  agendaDias   = [] : list<AgendaDia> persist
+  agenda       = [] : list<AgendaItem> persist
 }
 
 get pendienteTotal = pendientes.sum by monto
 get nPendientes    = pendientes.length
+get nAgenda        = agenda.length
 
 get nPaseadores = paseadores.length
 get nClientes   = clientes.length
@@ -83,6 +89,8 @@ action setSalidas(rows: list<Salida>) mutates salidas { salidas.set(rows) }
 # Optimista: borrar una salida desaparece al instante (grupoEliminar no refresca).
 action salidaDel(sid: text) mutates salidas { salidas.remove where id == sid }
 action setPendientes(rows: list<Pendiente>) mutates pendientes { pendientes.set(rows) }
+action setAgendaDias(rows: list<AgendaDia>) mutates agendaDias { agendaDias.set(rows) }
+action setAgenda(rows: list<AgendaItem>) mutates agenda { agenda.set(rows) }
 # Optimista: marcar cobrado saca el pendiente de la lista al instante.
 action cobroDel(pid: text) mutates pendientes { pendientes.remove where id == pid }
 # Optimista: reasignar paseador a una salida se refleja al instante.
@@ -91,7 +99,7 @@ action setStats(hoy: number, prog: number, curso: number, fin: number) mutates p
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot {
-  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot {
+  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
   facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)
 }
