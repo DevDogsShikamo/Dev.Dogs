@@ -2,6 +2,7 @@
 // Each persists to Supabase, then dispatches "supa:refresh" so the read bridges
 // (DataBootstrap, etc.) re-read and update the stores reactively.
 import { supa } from "./authActions";
+import { rpcOrQueue } from "./outbox";
 
 function refresh(): void {
   if (typeof window !== "undefined") {
@@ -286,19 +287,21 @@ export function reprogramarBloque(grupo: string, fechaOld: string, fechaNew: str
 function idsArr(ids: string): string[] {
   return (ids || "").split(",").filter(Boolean);
 }
+// Modo paseo: vía rpcOrQueue → si estás offline, se encola y sincroniza al volver
+// la conexión (el store ya mostró el cambio optimista y persiste). Ver outbox.ts.
 export function paseoIniciar(ids: string): void {
   const arr = idsArr(ids);
   if (!arr.length) return;
-  supa.rpc("paseo_marcar", { p_ids: arr, p_estado: "en_curso" }).then(done("No se pudo iniciar el paseo"));
+  rpcOrQueue("paseo_marcar", { p_ids: arr, p_estado: "en_curso" });
 }
 export function paseoFinalizar(ids: string, nota: string): void {
   const arr = idsArr(ids);
   if (!arr.length) return;
-  supa.rpc("paseo_marcar", { p_ids: arr, p_estado: "finalizado", p_nota: nota || null }).then(done("No se pudo finalizar el paseo"));
+  rpcOrQueue("paseo_marcar", { p_ids: arr, p_estado: "finalizado", p_nota: nota || null });
 }
 export function perroNoSalio(presId: string, motivo: string): void {
   if (!presId) return;
-  supa.rpc("paseo_no_salio", { p_id: presId, p_motivo: motivo || "" }).then(done("No se pudo marcar"));
+  rpcOrQueue("paseo_no_salio", { p_id: presId, p_motivo: motivo || "" });
 }
 
 // ---- Gestión del negocio (portal EMPRESA) --------------------------------
