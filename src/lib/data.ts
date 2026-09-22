@@ -374,6 +374,22 @@ function insertarPrestacion(neg: string, base: Record<string, unknown>, servicio
   }
 }
 
+// ---- El CLIENTE registra su propio perro (RPC crear_mi_perro, SECURITY DEFINER)
+// El cliente no puede crear la primera fila de perro_duenos por RLS (huevo-y-gallina),
+// así que el server crea el perro bajo su negocio + lo enlaza como dueño principal,
+// atómico. No es optimista (el id lo genera el server): en éxito refrescamos.
+export function crearMiPerro(p: PerroInput): void {
+  if (!p || !p.nombre || !p.nombre.trim()) { toast("El perro necesita un nombre"); return; }
+  supa.rpc("crear_mi_perro", {
+    p_nombre: p.nombre,
+    p_raza: p.raza || null,
+    p_tamano: p.tamano || null,
+    p_conducta: p.conducta || null,
+    p_tips: p.tips || null,
+    p_sociabilidad: p.sociabilidad || null,
+  }).then(done("No se pudo registrar el perro", refresh));
+}
+
 // ---- Reserva del CLIENTE: acopla su perro a una salida de paseo -------------
 export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }

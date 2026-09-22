@@ -1,8 +1,18 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro from "~/lib/data.ts"
 use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
+
+# Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro).
+entity PerroDraft {
+  nombre       text required
+  raza         text
+  tamano       pequeno | mediano | grande
+  conducta     tranquilo | energico | reactivo | sociable | jalador
+  sociabilidad excelente | bueno | cuidado | selectivo
+  tips         text
+}
 
 # Portal CLIENTE (dueño del perro). Reutiliza la estética .dd-* del paseador.
 # Datos: ClienteBridge (root) + store `cliente`. Inicio · Mis perros · Reservar
@@ -32,8 +42,14 @@ state {
   prodCantidad = 1  : number
   prodFecha    = "" : text
   prodForm     = false : bool
+  pdraft       = {} : PerroDraft
+  pform        = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
+# Registrar un perro propio (el server lo crea y me enlaza como dueño principal).
+action perroNuevo mutates pdraft, pform { pdraft.reset()  pform.set(true) }
+action perroCerrar mutates pform { pform.set(false) }
+action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
 action salir { cliente.limpiar()  auth.logout() }
 action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
@@ -128,9 +144,12 @@ Stack class("dd-app") {
       # ==== MIS PERROS ====
       when section == "perros" {
         Stack class("dd-sec") {
-          Stack class("dd-cat-head") { Title "Mis perros" h2 }
+          Stack class("dd-cat-head") {
+            Title "Mis perros" h2
+            Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Registrar perro" }
+          }
           when cliente.nPerros == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Todavía no tenés perros asociados." }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registrá tu perro para reservar sus salidas y servicios." }
           }
           Stack class("dd-cat-list") {
             each cliente.misPerros as p {
@@ -146,6 +165,18 @@ Stack class("dd-app") {
                 Stack class("acts") {
                   Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Factura" }
                 }
+              }
+            }
+          }
+          when pform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: perroCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Registrar perro" h3
+                  Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Form bind(pdraft) submit(miPerroGuardar) "Guardar perro"
               }
             }
           }
