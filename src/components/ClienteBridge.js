@@ -3,19 +3,14 @@
 // negocioId) del auth store persistido.
 function mount(el, inputs, on) {
   el.style.display = "none";
-  // Sesión {uid, negocioId} desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null, negocioId: null }); })();
-  }
-  function p(n) { return String(n).padStart(2, "0"); }
-  function iso(d) { return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
-  function addDaysD(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
-  function today() { return iso(new Date()); }
+  // Date/session helpers: single source of truth on globalThis.__ddUtils / __ddSesion.
+  var U = globalThis.__ddUtils;
+  var iso = U.iso, addDaysD = U.addDays, today = U.today;
 
   function load() {
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.uid) return;
 
       // Mis perros (perro_duenos activos → perros).

@@ -6,15 +6,9 @@ function mount(el, inputs, on) {
   el.style.display = "none";
 
   // Sesión {uid, negocioId} desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null, negocioId: null }); })();
-  }
   function negocio() {
-    return sesion().then(function (s) { return s.negocioId; });
+    return globalThis.__ddSesion().then(function (s) { return s.negocioId; });
   }
-
-  function iso(d) { function p(n) { return String(n).padStart(2, "0"); } return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
-  function today() { return iso(new Date()); }
 
   function load() {
     var supa = globalThis.__supa;
@@ -23,7 +17,7 @@ function mount(el, inputs, on) {
       if (!neg) return;
 
       // Paseos de HOY del negocio → métricas + conteo por paseador.
-      supa.from("prestaciones").select("cuidador_id,estado").eq("negocio_id", neg).eq("fecha", today()).then(function (res) {
+      supa.from("prestaciones").select("cuidador_id,estado").eq("negocio_id", neg).eq("fecha", globalThis.__ddUtils.today()).then(function (res) {
         if (res && res.error) return;
         var rows = res.data || [];
         var prog = 0, curso = 0, fin = 0, porCuidador = {};
@@ -77,7 +71,7 @@ function mount(el, inputs, on) {
       // Empleados de gestión (rol empresa) del negocio — la "oficina". Excluye al
       // propio jefe. Solo el jefe puede leer estos profiles (RLS is_owner).
       if (on.gestion) {
-        sesion().then(function (s) {
+        globalThis.__ddSesion().then(function (s) {
           supa.from("profiles").select("id,nombre,telefono").eq("negocio_id", neg).eq("rol", "empresa").order("nombre").then(function (gr) {
             if (gr && gr.error) return;
             var gs = (gr.data || []).filter(function (g) { return g.id !== s.uid; })

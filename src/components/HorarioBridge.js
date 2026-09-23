@@ -4,15 +4,11 @@
 function mount(el, inputs, on) {
   el.style.display = "none";
 
-  // uid desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null }); })();
-  }
-
   function load() {
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    // uid desde el resolver central (authActions.ts).
+    globalThis.__ddSesion().then(function (s) {
       if (!s.uid) return;
       supa.from("profiles").select("horario").eq("id", s.uid).single().then(function (res) {
         var h = (res.data && res.data.horario) || {};

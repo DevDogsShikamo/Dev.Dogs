@@ -2,17 +2,9 @@
 // desde acciones Muten. Toma la verdad de Supabase (todas las prestaciones del perro),
 // arma la tabla y dispara una descarga del navegador (app real; no en artifacts).
 // El separador es ";" porque en Colombia la coma es decimal (Excel lo parsea bien).
-import { supa } from "./authActions";
+import { supa, toast } from "./authActions";
 
 type Fila = { fecha: string; servicio: string; estado: string; precio: number; cobrable: boolean; cobrado: boolean };
-
-function toast(msg: string): void {
-  try {
-    window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
-  } catch {
-    /* noop */
-  }
-}
 
 function slug(s: string): string {
   return (s || "perro").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "perro";

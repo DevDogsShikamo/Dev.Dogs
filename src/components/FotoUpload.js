@@ -18,13 +18,6 @@ function mount(el, inputs, on) {
   el.appendChild(btn);
   el.appendChild(input);
 
-  function toast(msg) {
-    try { window.dispatchEvent(new CustomEvent("toast", { detail: msg })); } catch (e) {}
-  }
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null }); })();
-  }
-
   var busy = false;
   function setBusy(v) {
     busy = v;
@@ -38,9 +31,9 @@ function mount(el, inputs, on) {
     var file = input.files && input.files[0];
     if (!file) return;
     var supa = globalThis.__supa;
-    if (!supa || !supa.storage) { toast("Storage no disponible"); return; }
+    if (!supa || !supa.storage) { globalThis.__ddUtils.toast("Storage no disponible"); return; }
     setBusy(true);
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       var uid = s.uid || "anon";
       var m = /\.([a-zA-Z0-9]+)$/.exec(file.name || "");
       var ext = (m && m[1]) ? m[1].toLowerCase() : "jpg";
@@ -48,13 +41,13 @@ function mount(el, inputs, on) {
       supa.storage.from("paseos").upload(path, file, { upsert: false, contentType: file.type || undefined })
         .then(function (res) {
           input.value = "";
-          if (res && res.error) { setBusy(false); toast("No se pudo subir la foto"); return; }
+          if (res && res.error) { setBusy(false); globalThis.__ddUtils.toast("No se pudo subir la foto"); return; }
           var pub = supa.storage.from("paseos").getPublicUrl(path);
           var url = pub && pub.data && pub.data.publicUrl;
           setBusy(false);
           if (url && on.uploaded) on.uploaded(url);
         })
-        .catch(function () { input.value = ""; setBusy(false); toast("No se pudo subir la foto"); });
+        .catch(function () { input.value = ""; setBusy(false); globalThis.__ddUtils.toast("No se pudo subir la foto"); });
     });
   });
 }

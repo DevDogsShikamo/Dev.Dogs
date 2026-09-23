@@ -13,12 +13,6 @@
 function mount(el, inputs, on) {
   el.style.display = "none";
 
-  // Sesión {uid, negocioId} desde el resolver central (authActions.ts, memoizado
-  // y compartido entre todos los bridges). Ver globalThis.__ddSesion.
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null, negocioId: null }); })();
-  }
-
   // ---------- helpers de fecha/idioma (grupos de hoy) ----------
   var MESC_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   var MESC_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -26,9 +20,9 @@ function mount(el, inputs, on) {
   var DIAS_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var EMO = ["🐕", "🐩", "🦮", "🐺", "🐶", "🐕‍🦺"];
   function EN() { return globalThis.__lang === "en"; }
-  function p(n) { return String(n).padStart(2, "0"); }
-  function iso(d) { return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
-  function today() { return iso(new Date()); }
+  // Date helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
+  var U = globalThis.__ddUtils;
+  var p = U.pad, today = U.today;
   function nowNum() { var d = new Date(); return d.getHours() + d.getMinutes() / 60; }
   function timeNum(t) { if (!t) return 8; var a = String(t).split(":"); return (+a[0]) + (+a[1] || 0) / 60; }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
@@ -51,7 +45,7 @@ function mount(el, inputs, on) {
   function loadPerros() {
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       supa.from("perros")
         .select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,incompatibles")
@@ -109,7 +103,7 @@ function mount(el, inputs, on) {
   function loadServicios() {
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       if (on.zonas) {
         supa.from("negocios").select("zonas").eq("id", s.negocioId).single().then(function (nr) {
@@ -140,7 +134,7 @@ function mount(el, inputs, on) {
   function loadGruposAdmin() {
     var supa = globalThis.__supa;
     if (!supa || !on.todos) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       supa.from("grupos")
         .select("id,nombre,zona,hora,duracion_min,color,servicio_id,servicios(nombre)")
@@ -163,7 +157,7 @@ function mount(el, inputs, on) {
   function loadGruposHoy() {
     var supa = globalThis.__supa;
     if (!supa || !on.groups) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.uid) return;
       supa.from("prestaciones")
         .select("id,estado,tipo,detalle,perros(id,nombre,foto_url,incompatibles),servicios(nombre,duracion_min)")
@@ -263,7 +257,7 @@ function mount(el, inputs, on) {
   function subscribeRealtime() {
     var supa = globalThis.__supa;
     if (!supa || !supa.channel) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       // Limpia una suscripción previa (p.ej. tras re-login) para no mezclar usuarios.
       if (globalThis.__ddChannel && supa.removeChannel) { try { supa.removeChannel(globalThis.__ddChannel); } catch (e) {} }

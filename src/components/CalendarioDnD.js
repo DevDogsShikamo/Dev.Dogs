@@ -13,13 +13,13 @@ function mount(el, inputs, on) {
   var HB = 8, HMAX = 17;                       // rango horario de la grilla
   var lastDrag = 0;
   var STR = {
-    es: { cambiar: "Cambiar a", hoy: "Solo hoy", siempre: "Siempre (recurrente)", cancelar: "Cancelar" },
-    en: { cambiar: "Change to", hoy: "Only today", siempre: "Always (recurring)", cancelar: "Cancel" }
+    es: { cambiar: "Cambiar a" },
+    en: { cambiar: "Change to" }
   };
   function T(k) { return STR[globalThis.__lang === "en" ? "en" : "es"][k]; }
 
   function rhPx() { return (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 3.5; }
-  function pad(n) { return String(n).padStart(2, "0"); }
+  var pad = globalThis.__ddUtils.pad;
   function elemUnder(x, y, cls) {
     var els = document.elementsFromPoint(x, y) || [];
     for (var i = 0; i < els.length; i++) if (els[i].classList && els[i].classList.contains(cls)) return els[i];
@@ -78,33 +78,14 @@ function mount(el, inputs, on) {
       var diaNew = colDia(col), hora = horaAt(col, ev.clientY);
       if (!diaNew) return;
       var fn = globalThis.__calDnDon && globalThis.__calDnDon.reprogramar;
-      if (diaNew === diaOld) askMode(ev.clientX, ev.clientY, gid, diaOld, hora, fn);
-      else if (fn) fn({ grupo: gid, fechaOld: diaOld, fechaNew: diaNew, hora: hora, modo: "hoy" });
+      if (diaNew === diaOld) {
+        globalThis.__ddUtils.askMode(ev.clientX, ev.clientY, T("cambiar") + " " + hora, function (modo) {
+          if (fn) fn({ grupo: gid, fechaOld: diaOld, fechaNew: diaOld, hora: hora, modo: modo });
+        });
+      } else if (fn) fn({ grupo: gid, fechaOld: diaOld, fechaNew: diaNew, hora: hora, modo: "hoy" });
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
-  }
-
-  function askMode(x, y, gid, dia, hora, fn) {
-    var pop = document.createElement("div");
-    pop.className = "dd-org-pop";
-    pop.innerHTML = '<div class="t">' + T("cambiar") + ' ' + hora + '</div>' +
-      '<button type="button" data-m="hoy">' + T("hoy") + '</button>' +
-      '<button type="button" data-m="siempre">' + T("siempre") + '</button>' +
-      '<button type="button" data-m="cancel" class="c">' + T("cancelar") + '</button>';
-    pop.style.left = Math.max(8, Math.min(x - 90, window.innerWidth - 210)) + "px";
-    pop.style.top = Math.min(y + 8, window.innerHeight - 170) + "px";
-    document.body.appendChild(pop);
-    function close() { pop.remove(); document.removeEventListener("pointerdown", outside, true); }
-    function outside(ev) { if (!pop.contains(ev.target)) close(); }
-    setTimeout(function () { document.addEventListener("pointerdown", outside, true); }, 0);
-    pop.querySelectorAll("button").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var m = b.dataset.m; close();
-        if (m === "cancel" || !fn) return;
-        fn({ grupo: gid, fechaOld: dia, fechaNew: dia, hora: hora, modo: m });
-      });
-    });
   }
 
   function onClickCapture(e) {

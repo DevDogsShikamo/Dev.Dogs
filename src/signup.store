@@ -12,11 +12,9 @@ entity Registro {
 }
 
 state {
-  data       = {} : Registro
-  registrado = false : bool
+  data = {} : Registro
 }
 
-action save(next: Registro) mutates data, registrado {
+action save(next: Registro) mutates data {
   data.set(next)
-  registrado.set(true)
 }

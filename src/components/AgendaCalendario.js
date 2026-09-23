@@ -8,12 +8,6 @@
 function mount(el, inputs, on) {
   el.style.display = "none";
 
-  // Sesión {uid} desde el resolver central (authActions.ts, memoizado): evita un
-  // getUser por cada cal:nav. Ver globalThis.__ddSesion.
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ uid: null }); })();
-  }
-
   var L10N = {
     es: {
       MES: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
@@ -36,24 +30,14 @@ function mount(el, inputs, on) {
   var HBASE = 8;   // grid starts at 08:00
   var RH = 3.5;    // rem per hour row
 
-  function pad(n) { return String(n).padStart(2, "0"); }
-  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  // Date/color helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
+  var U = globalThis.__ddUtils;
+  var pad = U.pad, iso = U.iso, today = U.today, addDays = U.addDays, colorFor = U.colorFor;
   function parse(s) { if (!s) return new Date(); var a = s.split("-"); return new Date(+a[0], +a[1] - 1, +a[2], 12, 0, 0); }
-  function today() { return iso(new Date()); }
   function wdIdx(d) { return (d.getDay() + 6) % 7; }            // Monday-first 0..6
-  function addDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
   function mondayOf(d) { return addDays(d, -wdIdx(d)); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function timeNum(t) { if (!t) return HBASE; var a = String(t).split(":"); return (+a[0]) + (+a[1] || 0) / 60; }
-  function colorFor(tipo) {
-    if (tipo === "paseo") return "purple";
-    if (tipo === "guarderia") return "blue";
-    if (tipo === "veterinaria") return "green";
-    if (tipo === "bano") return "teal";
-    if (tipo === "corte") return "orange";
-    if (tipo === "adiestramiento") return "pink";
-    return "yellow";   // comida / accesorio / otros
-  }
 
   function dayCol(d, sel) {
     var di = iso(d);
@@ -242,7 +226,7 @@ function mount(el, inputs, on) {
     // supa se lee en cada llamada (no se captura en mount): robusto y testeable.
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       var uid = s.uid;
       if (!uid) return;
       // Horario laboral + vacaciones → disponibilidad y bloques de descanso.

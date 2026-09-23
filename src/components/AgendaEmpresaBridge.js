@@ -4,12 +4,9 @@
 // "supa:refresh". Lee __supa en cada llamada. Sin retorno (mount return = updater).
 function mount(el, inputs, on) {
   el.style.display = "none";
-  function sesion() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ negocioId: null }); })();
-  }
-  function pad(n) { return String(n).padStart(2, "0"); }
-  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
-  function addDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+  // Date/color helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
+  var U = globalThis.__ddUtils;
+  var iso = U.iso, addDays = U.addDays, colorFor = U.colorFor;
 
   var ES = {
     DIASC: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
@@ -19,16 +16,6 @@ function mount(el, inputs, on) {
     if (i === 0) return "Hoy";
     if (i === 1) return "Mañana";
     return ES.DIASC[d.getDay()] + " " + d.getDate() + " " + ES.MESC[d.getMonth()];
-  }
-  // Color por tipo de servicio (espeja AgendaCalendario.colorFor).
-  function colorFor(tipo) {
-    if (tipo === "paseo") return "purple";
-    if (tipo === "guarderia") return "blue";
-    if (tipo === "veterinaria") return "green";
-    if (tipo === "bano") return "teal";
-    if (tipo === "corte") return "orange";
-    if (tipo === "adiestramiento") return "pink";
-    return "yellow";
   }
   // Estado agregado de la salida: en_curso > programado > finalizado (lo relevante arriba).
   function rollup(estados) {
@@ -41,7 +28,7 @@ function mount(el, inputs, on) {
   function load() {
     var supa = globalThis.__supa;
     if (!supa) return;
-    sesion().then(function (s) {
+    globalThis.__ddSesion().then(function (s) {
       var neg = s.negocioId;
       if (!neg) return;
       var t0 = new Date(); var start = iso(t0), end = iso(addDays(t0, 6));

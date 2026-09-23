@@ -1,14 +1,7 @@
 // Clipboard + invitation-link helpers. Called as side-effect statements from Muten
 // actions (copiar códigos/links) and a page effect (prefill /unirse from the URL).
 // Feedback reuses the same "toast" window event that Toast.js listens for.
-
-function toast(msg: string): void {
-  try {
-    window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
-  } catch {
-    /* noop */
-  }
-}
+import { toast } from "./authActions";
 
 function write(text: string): void {
   try {

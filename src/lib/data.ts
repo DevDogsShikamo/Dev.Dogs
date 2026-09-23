@@ -1,19 +1,12 @@
 // Data write side-effects (fire-and-forget) callable from Muten actions.
 // Each persists to Supabase, then dispatches "supa:refresh" so the read bridges
 // (DataBootstrap, etc.) re-read and update the stores reactively.
-import { supa } from "./authActions";
+import { supa, toast, resolveSesion } from "./authActions";
 import { rpcOrQueue } from "./outbox";
 
 function refresh(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("supa:refresh"));
-  }
-}
-
-// Aviso liviano (lo muestra el Custom Toast). Para errores de escritura optimista.
-function toast(msg: string): void {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
   }
 }
 
@@ -45,17 +38,12 @@ function perroFields(p: PerroInput): Record<string, unknown> {
 }
 
 export function perroCrear(p: PerroInput): void {
-  supa.auth.getUser().then(function (u) {
-    const uid = u.data.user && u.data.user.id;
-    if (!uid) return;
-    supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (res) {
-      const neg = res.data && (res.data as { negocio_id?: string }).negocio_id;
-      if (!neg) return;
-      supa.from("perros").insert({ negocio_id: neg, ...perroFields(p) }).then(function (res) {
-        // Alta no es optimista (id lo genera el server): éxito → refresh trae la fila real.
-        if (res && (res as { error?: unknown }).error) { toast("No se pudo agregar el perro"); return; }
-        refresh();
-      });
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    supa.from("perros").insert({ negocio_id: s.negocioId, ...perroFields(p) }).then(function (res) {
+      // Alta no es optimista (id lo genera el server): éxito → refresh trae la fila real.
+      if (res && (res as { error?: unknown }).error) { toast("No se pudo agregar el perro"); return; }
+      refresh();
     });
   });
 }
@@ -133,14 +121,9 @@ function servicioFields(s: ServicioInput): Record<string, unknown> {
 }
 
 export function servicioCrear(s: ServicioInput): void {
-  supa.auth.getUser().then(function (u) {
-    const uid = u.data.user && u.data.user.id;
-    if (!uid) return;
-    supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (res) {
-      const neg = res.data && (res.data as { negocio_id?: string }).negocio_id;
-      if (!neg) return;
-      supa.from("servicios").insert({ negocio_id: neg, activo: true, ...servicioFields(s) }).then(done("No se pudo agregar el servicio", refresh));
-    });
+  resolveSesion().then(function (sesion) {
+    if (!sesion.negocioId) return;
+    supa.from("servicios").insert({ negocio_id: sesion.negocioId, activo: true, ...servicioFields(s) }).then(done("No se pudo agregar el servicio", refresh));
   });
 }
 
@@ -155,20 +138,11 @@ export function servicioEliminar(id: string): void {
 }
 
 // ---- Zonas de trabajo del negocio (negocios.zonas jsonb) ------------------
-function conNegocio(fn: (neg: string) => void): void {
-  supa.auth.getUser().then(function (u) {
-    const uid = u.data.user && u.data.user.id;
-    if (!uid) return;
-    supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (pr) {
-      const neg = pr.data && (pr.data as { negocio_id?: string }).negocio_id;
-      if (neg) fn(neg);
-    });
-  });
-}
-
 export function zonaAgregar(nombre: string): void {
   if (!nombre) return;
-  conNegocio(function (neg) {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    const neg = s.negocioId;
     supa.from("negocios").select("zonas").eq("id", neg).single().then(function (res) {
       const zonas: string[] = ((res.data && (res.data as { zonas?: string[] }).zonas) || []).slice();
       if (zonas.indexOf(nombre) < 0) zonas.push(nombre);
@@ -178,7 +152,9 @@ export function zonaAgregar(nombre: string): void {
 }
 
 export function zonaQuitar(nombre: string): void {
-  conNegocio(function (neg) {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    const neg = s.negocioId;
     supa.from("negocios").select("zonas").eq("id", neg).single().then(function (res) {
       const zonas: string[] = ((res.data && (res.data as { zonas?: string[] }).zonas) || []).filter(function (z) { return z !== nombre; });
       supa.from("negocios").update({ zonas }).eq("id", neg).then(done("No se pudo actualizar las zonas"));
@@ -202,14 +178,9 @@ function grupoFields(g: GrupoInput): Record<string, unknown> {
 
 export function grupoCrear(nombre: string, zona: string, hora: number, duracion: number, servicio: string, color: string): void {
   const g: GrupoInput = { nombre, zona, hora, duracion, servicio, color };
-  supa.auth.getUser().then(function (u) {
-    const uid = u.data.user && u.data.user.id;
-    if (!uid) return;
-    supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (res) {
-      const neg = res.data && (res.data as { negocio_id?: string }).negocio_id;
-      if (!neg) return;
-      supa.from("grupos").insert({ negocio_id: neg, cuidador_id: uid, activo: true, ...grupoFields(g) }).then(done("No se pudo crear la salida", refresh));
-    });
+  resolveSesion().then(function (s) {
+    if (!s.uid || !s.negocioId) return;
+    supa.from("grupos").insert({ negocio_id: s.negocioId, cuidador_id: s.uid, activo: true, ...grupoFields(g) }).then(done("No se pudo crear la salida", refresh));
   });
 }
 
@@ -330,16 +301,11 @@ function genCodigo(): string {
 // Crea una invitación (paseador o cliente) con un código único para compartir.
 // La ACEPTACIÓN (signup con código → linkear al negocio) es un flujo aparte, pendiente.
 export function invitarCrear(rol: string, email: string): void {
-  supa.auth.getUser().then(function (u) {
-    const uid = u.data.user && u.data.user.id;
-    if (!uid) return;
-    supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (pr) {
-      const neg = pr.data && (pr.data as { negocio_id?: string }).negocio_id;
-      if (!neg) return;
-      supa.from("invitaciones").insert({
-        negocio_id: neg, rol: rol, email: email || null, codigo: genCodigo(), estado: "pendiente", invitado_por: uid,
-      }).then(done("No se pudo crear la invitación", refresh));
-    });
+  resolveSesion().then(function (s) {
+    if (!s.uid || !s.negocioId) return;
+    supa.from("invitaciones").insert({
+      negocio_id: s.negocioId, rol: rol, email: email || null, codigo: genCodigo(), estado: "pendiente", invitado_por: s.uid,
+    }).then(done("No se pudo crear la invitación", refresh));
   });
 }
 
@@ -402,8 +368,9 @@ export function crearMiPerro(p: PerroInput): void {
 // ---- Reserva del CLIENTE: acopla su perro a una salida de paseo -------------
 export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  conNegocio(function (neg) {
-    insertarPrestacion(neg, {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    insertarPrestacion(s.negocioId, {
       perro_id: perroId, tipo: tipo || "paseo", cuidador_id: cuidadorId || null,
       fecha: fecha, grupo_id: grupoId || null, detalle: { hora: hora || "" },
     }, servicioId, "No se pudo reservar el paseo");
@@ -414,8 +381,9 @@ export function reservarPaseo(perroId: string, servicioId: string, tipo: string,
 // Crea una prestación programada del tipo del servicio; el negocio la asigna/atiende.
 export function reservarServicio(perroId: string, servicioId: string, tipo: string, fecha: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  conNegocio(function (neg) {
-    insertarPrestacion(neg, {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    insertarPrestacion(s.negocioId, {
       perro_id: perroId, tipo: tipo || "paseo", fecha: fecha, detalle: {},
     }, servicioId, "No se pudo agendar el servicio");
   });
@@ -427,7 +395,9 @@ export function reservarServicio(perroId: string, servicioId: string, tipo: stri
 export function venderProducto(perroId: string, servicioId: string, tipo: string, cantidad: number, fecha: string): void {
   if (!perroId || !servicioId || !fecha) { toast("Elegí producto, perro y fecha"); return; }
   const qty = cantidad > 0 ? cantidad : 1;
-  conNegocio(function (neg) {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    const neg = s.negocioId;
     supa.from("servicios").select("precio").eq("id", servicioId).single().then(function (sr) {
       const precio = ((sr.data as { precio?: number }) || {}).precio || 0;
       supa.from("prestaciones").insert({

@@ -7,13 +7,13 @@ function mount(el, inputs, on) {
 
   // negocioId desde el resolver central (authActions.ts). Ver globalThis.__ddSesion.
   function negocio() {
-    return (globalThis.__ddSesion || function () { return Promise.resolve({ negocioId: null }); })()
-      .then(function (s) { return s.negocioId; });
+    return globalThis.__ddSesion().then(function (s) { return s.negocioId; });
   }
 
-  function p(n) { return String(n).padStart(2, "0"); }
-  function iso(d) { return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
-  function shiftDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return d; }
+  // Date helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
+  var U = globalThis.__ddUtils;
+  var p = U.pad, iso = U.iso;
+  function shiftDays(n) { return U.addDays(new Date(), n); }
 
   function load() {
     var supa = globalThis.__supa;

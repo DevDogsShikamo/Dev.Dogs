@@ -5,7 +5,7 @@
 //
 // Hoy encola RPCs (modo paseo: paseo_marcar / paseo_no_salio). Extender a inserts/
 // updates es sumar tipos de op acá.
-import { supa } from "./authActions";
+import { supa, toast } from "./authActions";
 
 type Op = { kind: "rpc"; name: string; params: Record<string, unknown> };
 const KEY = "dd:outbox";
@@ -27,13 +27,6 @@ function write(ops: Op[]): void {
   // sin sondeo. El evento "storage" no dispara en la misma pestaña, este sí.
   try {
     window.dispatchEvent(new CustomEvent("dd:outbox", { detail: ops.length }));
-  } catch {
-    /* noop */
-  }
-}
-function toast(msg: string): void {
-  try {
-    window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
   } catch {
     /* noop */
   }

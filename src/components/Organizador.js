@@ -9,15 +9,13 @@ function mount(el, inputs, on) {
   var HORA_MIN = 6, HORA_MAX = 19;
   var lastX = 0, lastY = 0;
   var STR = {
-    es: { sinPerros: "Sin perros", mover: "Mover perro a este grupo", hoy: "Solo hoy", siempre: "Siempre (recurrente)", cancelar: "Cancelar" },
-    en: { sinPerros: "No dogs", mover: "Move dog to this group", hoy: "Only today", siempre: "Always (recurring)", cancelar: "Cancel" }
+    es: { sinPerros: "Sin perros", mover: "Mover perro a este grupo" },
+    en: { sinPerros: "No dogs", mover: "Move dog to this group" }
   };
   function T(k) { return STR[globalThis.__lang === "en" ? "en" : "es"][k]; }
 
-  function today() {
-    var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-  }
+  // Fecha de hoy: single source of truth on globalThis.__ddUtils (authActions.ts).
+  var today = globalThis.__ddUtils.today;
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -166,7 +164,11 @@ function mount(el, inputs, on) {
     var from = chip.dataset.grupo, perroId = chip.dataset.perro;
     startDrag(e, chip, chip, "dd-org-drop", false, function (target) {
       var to = target && target.dataset.grupo;
-      if (to && to !== from) askMode(lastX, lastY, perroId, from, to);
+      if (to && to !== from) {
+        globalThis.__ddUtils.askMode(lastX, lastY, T("mover"), function (modo) {
+          if (on && on.mover) on.mover({ perro: perroId, desde: from, hacia: to, modo: modo, fecha: today() });
+        });
+      }
     });
   }
 
@@ -179,30 +181,6 @@ function mount(el, inputs, on) {
       if (hora && hora !== laneHora(grupoHora(gid))) {
         if (on && on.moverGrupo) on.moverGrupo({ grupo: gid, hora: hora, fecha: today() });
       }
-    });
-  }
-
-  // Mini-menú: solo hoy / siempre (para mover un perro de grupo).
-  function askMode(x, y, perroId, fromGrupo, toGrupo) {
-    var pop = document.createElement("div");
-    pop.className = "dd-org-pop";
-    pop.innerHTML = '<div class="t">' + T("mover") + '</div>' +
-      '<button type="button" data-m="hoy">' + T("hoy") + '</button>' +
-      '<button type="button" data-m="siempre">' + T("siempre") + '</button>' +
-      '<button type="button" data-m="cancel" class="c">' + T("cancelar") + '</button>';
-    pop.style.left = Math.max(8, Math.min(x - 90, window.innerWidth - 210)) + "px";
-    pop.style.top = Math.min(y + 8, window.innerHeight - 170) + "px";
-    document.body.appendChild(pop);
-    function close() { pop.remove(); document.removeEventListener("pointerdown", outside, true); }
-    function outside(ev) { if (!pop.contains(ev.target)) close(); }
-    setTimeout(function () { document.addEventListener("pointerdown", outside, true); }, 0);
-    pop.querySelectorAll("button").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var m = b.dataset.m;
-        close();
-        if (m === "cancel") return;
-        if (on && on.mover) on.mover({ perro: perroId, desde: fromGrupo, hacia: toGrupo, modo: m, fecha: today() });
-      });
     });
   }
 
