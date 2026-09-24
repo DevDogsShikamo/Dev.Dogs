@@ -8,10 +8,11 @@ entity Review {
 }
 
 state {
-  slug    = "" : text
-  mail    = "" : text
-  reviews = query reviews : list<Review>
-  skel    = [ { n: 1 }, { n: 2 }, { n: 3 }, { n: 4 } ] : list
+  mail     = "" : text
+  nombre   = "" : text
+  contacto = "" : text
+  reviews  = query reviews : list<Review>
+  skel     = [ { n: 1 }, { n: 2 }, { n: 3 }, { n: 4 } ] : list
 }
 
 # Las 4 mejores reseñas (ordenadas por rating).
@@ -43,15 +44,9 @@ Page class("lp2") {
           Span "paseos." class("dc-acc")
         }
         Text "Agenda tus salidas, llevá la ficha de cada perro y cerrá las cuentas del mes." class("dc-sub")
-        Stack class("dc-link") {
-          Stack class("dc-linkrow") {
-            Stack class("dc-linkbox") {
-              Span "devdogs.co/" class("dc-linkpre")
-              SearchField bind(slug) "tu-negocio" class("dc-linkinput")
-            }
-            Link "Crear mi link" -> "/signup" class("dc-linkbtn")
-          }
-          Text "Gratis y sin tarjeta — tu link queda listo en segundos." class("dc-linknote")
+        Stack class("dc-cta") {
+          Link "Empezar gratis" -> "/signup" class("dc-ctabtn")
+          Text "Sin tarjeta — tu cuenta queda lista en segundos." class("dc-ctanote")
         }
         Stack class("dc-stats") {
           Stack class("dc-stat") { Span "+1.200" class("dc-statn")  Span "paseos" class("dc-statk") }
@@ -182,7 +177,7 @@ Page class("lp2") {
           Stack class("ag-row") {
             Span "8:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Ana Rondón" class("ag-nm")  Span "Corte" class("ag-sv") }
+              Stack class("ag-who") { Span "Rocky — Val. Ríos" class("ag-nm")  Span "Paseo" class("ag-sv") }
               Span "$8.000" class("ag-pr")
             }
           }
@@ -196,22 +191,22 @@ Page class("lp2") {
           Stack class("ag-row") {
             Span "10:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Luis Peña" class("ag-nm")  Span "Corte + barba" class("ag-sv") }
-              Span "$12.000" class("ag-pr")
+              Stack class("ag-who") { Span "Luna & Toby — M. Aguirre" class("ag-nm")  Span "Guardería" class("ag-sv") }
+              Span "$18.000" class("ag-pr")
             }
           }
           Stack class("ag-row") {
             Span "12:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Karla Méndez" class("ag-nm")  Span "Cejas" class("ag-sv") }
+              Stack class("ag-who") { Span "Pelusa — C. Duarte" class("ag-nm")  Span "Baño" class("ag-sv") }
               Span "sin cobrar" class("ag-pr ag-pr-soft")
             }
           }
           Stack class("ag-row") {
             Span "2:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "José Villalobos" class("ag-nm")  Span "Corte" class("ag-sv") }
-              Span "$8.000" class("ag-pr")
+              Stack class("ag-who") { Span "Thor — J. Ortega" class("ag-nm")  Span "Adiestramiento" class("ag-sv") }
+              Span "$15.000" class("ag-pr")
             }
           }
         }
@@ -219,7 +214,7 @@ Page class("lp2") {
         Stack class("ag-stats") {
           Stack class("ag-stat") { Span "$430.000" class("ag-sn")  Span "Cobrado este mes" class("ag-sk") }
           Stack class("ag-stat") { Span "$48.000" class("ag-sn")  Span "Sin cobrar" class("ag-sk") }
-          Stack class("ag-stat") { Span "Corte + barba" class("ag-sn ag-sn-sm")  Span "Lo que más se vende" class("ag-sk") }
+          Stack class("ag-stat") { Span "Paseo grupal" class("ag-sn ag-sn-sm")  Span "Lo más pedido" class("ag-sk") }
         }
       }
 
@@ -230,7 +225,55 @@ Page class("lp2") {
           Span "Tu día, sin tener que "
           Span "armarlo" class("ag-acc")
         }
-        Text "Abrís la app y ya está hecho: quién viene, a qué hora, cuánto y qué falta cobrar. Los números salen de las citas que hiciste, no hay nada que cargar." class("ag-sub")
+        Text "Abrís la app y ya está hecho: qué perro sale, a qué hora, cuánto y qué falta cobrar. Los números salen de los servicios que hiciste, no hay nada que cargar." class("ag-sub")
+      }
+    }
+  }
+
+  # ===== Por qué DevDogs (imagen recortada + 3 pilares) =====
+  Section class("pq") {
+    Stack class("pq-grid") {
+
+      Stack class("pq-img") {
+        Stack class("pq-blob") {}
+        Stack class("pq-deco pq-deco1") { Icon "lucide:paw-print" }
+        Stack class("pq-deco pq-deco2") { Icon "lucide:heart" }
+      }
+
+      Stack class("pq-copy") {
+        Stack class("pq-head") {
+          Span "Sobre nosotros" class("pq-eye")
+          Stack class("pq-h") {
+            Span "¿Por qué "
+            Span "DevDogs" class("pq-acc")
+            Span "?"
+          }
+          Text "Todo lo que necesitás para gestionar tus paseos, clientes y cobros — en un solo lugar." class("pq-sub")
+        }
+
+        Stack class("pq-items") {
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:camera" }
+            Stack class("pq-txt") {
+              Span "Control total" class("pq-it")
+              Text "Check-in en vivo, foto de entrega y reporte diario. El dueño sabe exactamente qué pasa con su perro." class("pq-id")
+            }
+          }
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:calendar-check" }
+            Stack class("pq-txt") {
+              Span "Agenda automática" class("pq-it")
+              Text "Abrís la app y ya está: quién viene, a qué hora, qué servicio. Sin armar nada a mano." class("pq-id")
+            }
+          }
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:wallet" }
+            Stack class("pq-txt") {
+              Span "Cuentas claras" class("pq-it")
+              Text "Cobros por servicio, estado de cuenta por cliente y cierre de mes. Sin planillas ni WhatsApp." class("pq-id")
+            }
+          }
+        }
       }
     }
   }
@@ -339,60 +382,59 @@ Page class("lp2") {
     Stack class("bs-wave-b") {}
   }
 
-  # ===== Footer (azul profundo · shader WebGL reactivo) =====
-  Footer class("gf") {
-    Custom Aurora
-    Stack class("gf-veil") {}
+  # ===== Pre-footer (CTA + perro que sobresale — ref Pet Shop) =====
+  Section class("pf") {
 
-    Stack class("gf-in") {
-      Stack class("gf-head") {
-        Stack class("gf-headl") {
-          Span "Y del otro lado" class("gf-eye")
-          Text "Tu agenda, en piloto automático." class("gf-lead")
+    Stack class("pf-grid") {
+      # ---- izquierda: título + form ----
+      Stack class("pf-copy") {
+        Stack class("pf-h") {
+          Span "¿Tenés "
+          Span "preguntas?" class("pf-acc")
         }
-        Stack class("gf-news") {
-          SearchField bind(mail) "tu@correo.com" class("gf-input")
-          Link "Suscribirme" -> "/signup" class("gf-newsbtn")
+        Text "Escribinos y te respondemos en minutos. También podés dejarnos tu reseña — nos ayuda a mejorar." class("pf-sub")
+
+        Stack class("pf-form") {
+          Stack class("pf-field") {
+            Span "Tu nombre" class("pf-label")
+            SearchField bind(nombre) "Juan Pérez" class("pf-input")
+          }
+          Stack class("pf-field") {
+            Span "Tu WhatsApp" class("pf-label")
+            SearchField bind(contacto) "+57 300 123 4567" class("pf-input")
+          }
+          Link "Contactanos" -> "/signup" class("pf-btn")
         }
       }
 
-      Nav class("gf-cols") {
-        Stack class("gf-col") {
-          Span "Servicios" class("gf-ctitle")
-          Link "Paseos" -> "/signup" class("gf-link")
-          Link "Hospedaje" -> "/signup" class("gf-link")
-          Link "Adiestramiento" -> "/signup" class("gf-link")
-          Link "Daycare" -> "/signup" class("gf-link")
-        }
-        Stack class("gf-col") {
-          Span "Empresa" class("gf-ctitle")
-          Link "Nosotros" -> "/signup" class("gf-link")
-          Link "Precios" -> "/signup" class("gf-link")
-          Link "Blog" -> "/signup" class("gf-link")
-        }
-        Stack class("gf-col") {
-          Span "Recursos" class("gf-ctitle")
-          Link "Ayuda" -> "/signup" class("gf-link")
-          Link "Términos" -> "/signup" class("gf-link")
-          Link "Privacidad" -> "/signup" class("gf-link")
-        }
-        Stack class("gf-col") {
-          Span "Social" class("gf-ctitle")
-          Link "Instagram" -> "/signup" class("gf-link")
-          Link "TikTok" -> "/signup" class("gf-link")
-          Link "WhatsApp" -> "/signup" class("gf-link")
-        }
-      }
-
-      Stack class("gf-brand") {
-        Image "/devdogs-wordmark.png" alt("DevDogs") class("gf-wordmark mark-white")
-        Image "/devdogs-mark.png" alt("DevDogs") class("gf-mark mark-white")
+      # ---- derecha: perro que sobresale ----
+      Stack class("pf-dog") {
+        Image "/footer-dog.png" alt("") class("pf-dogimg")
       }
     }
+  }
 
-    Stack class("gf-bottom") {
-      Span "© 2026 DevDogs · Hecho con 🐾 en LatAm" class("gf-copy")
-      Span "devdogs.co" class("gf-copy")
+  # ===== Footer (dos columnas: marca | info) =====
+  Footer class("gf") {
+    Stack class("gf-in") {
+      Stack class("gf-brand") {
+        Image "/devdogs-mark.png" alt("DevDogs") class("gf-mark")
+        Stack class("gf-brandtx") {
+          Image "/devdogs-wordmark.png" alt("DevDogs") class("gf-wordmark")
+          Span "Tu socio en paseos" class("gf-brandtag")
+        }
+      }
+      Stack class("gf-right") {
+        Nav class("gf-nav") {
+          Link "Servicios" -> "/signup" class("gf-link")
+          Link "Nosotros" -> "/signup" class("gf-link")
+          Link "Precios" -> "/signup" class("gf-link")
+          Link "Reseñas" -> "/signup" class("gf-link")
+          Link "Contacto" -> "/signup" class("gf-link")
+        }
+        Span "+57 300 123 4567" class("gf-cphone")
+        Link "Contáctanos" -> "/signup" class("gf-clink")
+      }
     }
   }
 }
