@@ -3,14 +3,23 @@
 // The publishable key is public by design; RLS on the DB is what protects data.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://agutaluxzruuthbbagkh.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj";
+// Test hook: the E2E harness sets window.__DD_CFG = { url, key } to point the app at
+// STAGING. It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
+// constants below are used, whatever the page sets.
+type Cfg = { url: string; key: string };
+const isLocal = typeof location !== "undefined" && (location.hostname === "localhost" || location.hostname === "127.0.0.1");
+const override = isLocal ? (window as unknown as { __DD_CFG?: Partial<Cfg> }).__DD_CFG : undefined;
+const cfg: Cfg = {
+  url: (override && override.url) || "https://agutaluxzruuthbbagkh.supabase.co",
+  key: (override && override.key) || "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj",
+};
 
-export const supa: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supa: SupabaseClient = createClient(cfg.url, cfg.key);
 
 // Bridge to the Custom (.js) files, which run inlined and cannot import.
 const g = globalThis as Record<string, unknown>;
 g.__supa = supa;
+g.__ddCfg = cfg; // Custom files read the effective url/key here instead of duplicating them
 
 // ---- Shared session resolver (single source of truth for identity) ----------
 // Every data bridge (DataBootstrap, Empresa/Reportes/Salidas, Cliente, Horario)
