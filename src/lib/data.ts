@@ -314,10 +314,11 @@ export function invitacionQuitar(id: string): void {
   supa.from("invitaciones").update({ estado: "expirada" }).eq("id", id).then(done("No se pudo quitar la invitación"));
 }
 
-// Asigna un paseador a una salida (grupos.cuidador_id). Las prestaciones FUTURAS
+// Asigna un paseador a una salida (grupos.cuidador_id) vía el RPC grupo_asignar: dueño u
+// oficina, y el cuidador debe ser paseador del negocio o el dueño. Las prestaciones FUTURAS
 // que genere el grupo usarán este cuidador; las ya materializadas no se retro-cambian.
 export function grupoAsignar(grupoId: string, cuidadorId: string): void {
-  supa.from("grupos").update({ cuidador_id: cuidadorId || null }).eq("id", grupoId).then(done("No se pudo asignar el paseador"));
+  supa.rpc("grupo_asignar", { p_grupo: grupoId, p_cuidador: cuidadorId || null }).then(done("No se pudo asignar el paseador"));
 }
 
 // ---- Cobros (empresa/jefe): marcar una prestación como cobrada (optimista) ----

@@ -103,6 +103,10 @@ S1 rollback (identity): revert the S1 commits (migrations `20261013100001..03`, 
 `signup.muten`, `authActions.ts`) and reset staging. Signup depends on `provision_negocio`, so the app
 and the migrations must be reverted together. `supabase/rollback/20261013100001_s1_identity.down.sql`
 only re-adds the four dropped columns; it never reopens the policies or the anonymous grants.
+S2a rollback (RPC guards): revert the S2a commits (migrations `20261013110001..02`, `src/lib/data.ts`) and
+reset staging. `supabase/rollback/20261013110001_s2a_guards.down.sql` only drops `grupo_asignar`; it never
+recreates the `grupos write office` policy or the unguarded RPC bodies. `data.ts` and the migrations go
+together: without `grupo_asignar` an office member cannot reassign a walker.
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 
