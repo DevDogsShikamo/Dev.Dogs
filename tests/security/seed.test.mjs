@@ -23,10 +23,12 @@ test('every non-anonymous actor signs in as the right user', async () => {
   }
 })
 
-test('ANON has no session and reads no tenant data', async () => {
+test('ANON has no session and is denied any tenant table (S1 revokes anon)', async () => {
   const anon = await as('ANON')
   assert.equal((await anon.auth.getSession()).data.session, null)
-  assert.deepEqual(await rows(anon, 'negocios'), [])
+  const res = await anon.from('negocios').select('id')
+  assert.equal(res.error?.code, '42501')
+  assert.equal(res.data, null)
 })
 
 // What NOPROFILE may read in negocios is the C2 exploit (baseline-identity), not baseline data.

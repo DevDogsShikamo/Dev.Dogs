@@ -1,7 +1,7 @@
 // Idempotent staging fixtures (service role) and one signed-in client per actor.
 // Import-safe: nothing runs until seed()/as()/admin() is called, so the test
 // runner can load this file without .env.test present.
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { loadConfig } from './_env.mjs'
 
@@ -70,7 +70,18 @@ export function as(name) {
   return sessions.get(name)
 }
 
-const noneOf = (col, list) => ({ col, list: `(${list.join(',')})` })
+// A throwaway confirmed auth user with a session and no profile. `drop()` deletes
+// it; profiles and negocios it owns cascade away with the auth row.
+export async function tempUser() {
+  const name = `tmp-${randomUUID().slice(0, 8)}`
+  const created = await admin().auth.admin.createUser({ email: email(name), password: password(name), email_confirm: true })
+  ok(created, `create ${name}`)
+  const client = createClient(cfg().url, cfg().publishableKey, quiet)
+  ok(await client.auth.signInWithPassword({ email: email(name), password: password(name) }), `sign in ${name}`)
+  return { id: created.data.user.id, client, drop: () => admin().auth.admin.deleteUser(created.data.user.id) }
+}
+
+const noneOf = (col, list) =>({ col, list: `(${list.join(',')})` })
 
 async function users() {
   for (const name of Object.keys(ACTORS)) {

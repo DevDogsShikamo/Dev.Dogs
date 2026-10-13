@@ -1,6 +1,5 @@
-// SR-2a baseline: identity and tenancy exploits that SUCCEED on the legacy schema.
-// Each test asserts the DESIRED behaviour (denial) and is marked `todo`, so it is
-// listed as failing while the suite exits 0. The fixing slice removes the flag.
+// SR-2a baseline: identity and tenancy exploits (C1, C2, N2 anon half). They SUCCEEDED on
+// the legacy schema (recorded as `todo` in S0); S1 closes them, so they now assert denial.
 import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, as, ids, seed } from './_actors.mjs'
@@ -14,7 +13,7 @@ const restore = (name) =>
   admin().from('profiles').update({ rol: 'cliente', negocio_id: ids.negocios.A }).eq('id', ids.users[name])
 
 // C1 / TI-2a: a registered user rewrites rol + negocio_id and joins another tenant.
-test('C1 TI-2a: OTHER cannot move itself into tenant A', { todo: 'fixed in S1' }, async () => {
+test('C1 TI-2a: OTHER cannot move itself into tenant A', async () => {
   const other = await as('OTHER')
   try {
     await other.from('profiles').update({ rol: 'empresa', negocio_id: ids.negocios.A }).eq('id', ids.users.OTHER)
@@ -27,7 +26,7 @@ test('C1 TI-2a: OTHER cannot move itself into tenant A', { todo: 'fixed in S1' }
 })
 
 // C1 / TI-2b: a client promotes itself to staff.
-test('C1 TI-2b: CLIENT cannot change its own rol', { todo: 'fixed in S1' }, async () => {
+test('C1 TI-2b: CLIENT cannot change its own rol', async () => {
   const client = await as('CLIENT')
   try {
     for (const rol of ['paseador', 'empresa']) {
@@ -40,7 +39,7 @@ test('C1 TI-2b: CLIENT cannot change its own rol', { todo: 'fixed in S1' }, asyn
 })
 
 // C2 / TI-3a: any authenticated user lists every tenant.
-test('C2 TI-3a: OTHER reads only its own negocio', { todo: 'fixed in S1' }, async () => {
+test('C2 TI-3a: OTHER reads only its own negocio', async () => {
   const { data, error } = await (await as('OTHER')).from('negocios').select('id, nombre, slug, owner_id')
   assert.equal(error, null)
   assert.deepEqual(
@@ -58,7 +57,7 @@ const ANON_ONLY = [
 ].map((a) => ({ ...a, damage: async () => null, undo: async () => {} }))
 
 for (const rpc of [...GUARDED_RPCS, ...ANON_ONLY]) {
-  test(`N2 TI-6a: ANON cannot execute ${rpc.name}`, { todo: 'fixed in S1' }, async () => {
+  test(`N2 TI-6a: ANON cannot execute ${rpc.name}`, async () => {
     const res = await attack(await as('ANON'), rpc)
     assert.equal(res.damage, null, `anonymous call changed data: ${res.damage}`)
     assert.equal(res.error?.code, '42501', `expected permission denied, got ${res.error?.code ?? 'no error'}`)
