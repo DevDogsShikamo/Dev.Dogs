@@ -12,11 +12,13 @@ before(() => seed())
 const one = async (table, match) => (await admin().from(table).select('*').match(match)).data
 
 // C5 / AH-6a: a walker rewrites price and paid flag of its own prestacion.
-test('C5 AH-6a: WALKER_CO cannot edit price or cobrado of p1', { todo: 'fixed in S2b1' }, async () => {
+test('C5 AH-6a: WALKER_CO cannot edit price or cobrado of p1', async () => {
   const p1 = ids.prestaciones.p1
   const before = (await one('prestaciones', { id: p1 }))[0]
   try {
-    await (await as('WALKER_CO')).from('prestaciones').update({ precio_aplicado: 1, cobrado: true }).eq('id', p1)
+    // No UPDATE policy exists for walkers: the statement matches zero rows, with no error.
+    const res = await (await as('WALKER_CO')).from('prestaciones').update({ precio_aplicado: 1, cobrado: true }).eq('id', p1).select('id')
+    assert.deepEqual(res.data, [], 'the update reached the row')
     const after = (await one('prestaciones', { id: p1 }))[0]
     assert.deepEqual(
       { precio: after.precio_aplicado, cobrado: after.cobrado },
