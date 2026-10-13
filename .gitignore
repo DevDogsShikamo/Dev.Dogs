@@ -23,6 +23,9 @@ yarn-error.log*
 # Supabase CLI local state (project link, version cache)
 supabase/.temp/
 
+# SDD planning documents (kept locally and in Engram)
+openspec/
+
 # OS
 .DS_Store
 Thumbs.db
