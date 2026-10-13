@@ -20,6 +20,13 @@ entity GestionRow {
   nombre   text
   telefono text
 }
+# Dueños (principal y co) de cada perro del negocio. Solo el jefe los lee (RLS); no se persiste.
+entity Dueno {
+  id      text
+  perroId text
+  nombre  text
+  rol     text
+}
 entity Invitacion {
   id     text
   rol    text
@@ -51,6 +58,7 @@ state {
   finalizados = 0 : number persist
   perrosTot   = 0 : number persist
   invitaciones = [] : list<Invitacion> persist
+  duenos      = [] : list<Dueno>
   # Finanzas del período (últimos 30 días).
   facturado    = 0 : number persist
   cobrado      = 0 : number persist
@@ -78,6 +86,7 @@ action setClientes(rows: list<ClienteRow>) mutates clientes { clientes.set(rows)
 action setGestion(rows: list<GestionRow>) mutates gestion { gestion.set(rows) }
 action setPerrosTot(n: number) mutates perrosTot { perrosTot.set(n) }
 action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitaciones.set(rows) }
+action setDuenos(rows: list<Dueno>) mutates duenos { duenos.set(rows) }
 # Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
 action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
 action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
@@ -101,7 +110,7 @@ action setStats(hoy: number, prog: number, curso: number, fin: number) mutates p
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, loaded {
-  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+action limpiar mutates paseadores, clientes, gestion, invitaciones, duenos, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, loaded {
+  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  duenos.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
   facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)  loaded.set(false)
 }
