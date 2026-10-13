@@ -81,7 +81,7 @@ test('N1 AH-4c: COOWNER cannot edit its own link', { todo: 'fixed in S2b1' }, as
 // N2 authenticated half / AH-2b: a signed-in user with no profile runs the group
 // RPCs. Their NULL tenant slips through `v_neg <> my_negocio()`.
 for (const rpc of GUARDED_RPCS) {
-  test(`N2 AH-2b: NOPROFILE cannot execute ${rpc.name}`, { todo: 'fixed in S2a' }, async () => {
+  test(`N2 AH-2b: NOPROFILE cannot execute ${rpc.name}`, async () => {
     const res = await attack(await as('NOPROFILE'), rpc)
     assert.equal(res.damage, null, `no-profile call changed data: ${res.damage}`)
     assert.notEqual(res.error, null, 'call was accepted without error')
