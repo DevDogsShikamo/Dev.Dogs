@@ -25,6 +25,7 @@ function mount(el, inputs, on) {
           perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "" });
         });
         if (on.misPerros) on.misPerros(perros);
+        if (on.loaded) on.loaded(true);
 
         // Mis paseos (prestaciones de esos perros).
         if (on.misPaseos && ids.length) {

@@ -1,5 +1,8 @@
 screen signup
 
+use okPhone from "../../components/validate.js"
+use okPw from "../../components/validate.js"
+
 state {
   step      = 0 : number
   rol       = "" : text
@@ -14,9 +17,15 @@ state {
   docNumero = "" : text
   nit       = "" : text
   nonce     = 0  : number
+  menuOpen  = false : boolean
 }
 
-get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and telefono.length > 6 and email.length > 4 and pw.length > 5) or (step == 2 and zona != "Elegir") or (step == 3 and docNumero.length > 3)
+action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
+
+get phoneOk  = okPhone(telefono)
+get pwOk     = okPw(pw)
+
+get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk) or (step == 2 and zona != "Elegir") or (step == 3 and docNumero.length > 3)
 
 action pick(r: text) mutates rol { rol.set(r) }
 action next mutates step { step.set(step + 1) }
@@ -26,162 +35,197 @@ action finish mutates nonce {
   nonce.set(nonce + 1)
 }
 
-Page class("wiz") {
+Page class("su") {
 
-  Stack class("wiz-brand") {
-    Stack class("wb-logo") {
-      Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
-      Span "DevDogs"
-    }
-    Stack class("gap-md") {
-      Title "Tus paseos, en una sola app" h1 class("wb-h")
-      Text "Abrir tu cuenta toma 2 minutos. Esto es lo que te ahorra." class("wb-lead")
-      Stack class("gap-sm") {
-        Stack class("prop") { Stack class("ck") { Icon "lucide:check" }  Span "Gratis para empezar" }
-        Stack class("prop") { Stack class("ck") { Icon "lucide:check" }  Span "Tu agenda del día, lista" }
-        Stack class("prop") { Stack class("ck") { Icon "lucide:check" }  Span "Cuentas sin sacar Excel" }
-        Stack class("prop") { Stack class("ck") { Icon "lucide:check" }  Span "Se arma en 5 minutos" }
+  Stack class("su-scene") {
+    Span "" class("su-photo")
+
+    Stack class("su-topbar") {
+      Button -> toggleMenu class("su-nbtn") {
+        Span "☰" class("su-nbtn-open")
+        Span "✕" class("su-nbtn-close")
       }
     }
-    Stack class("wb-url") { Span "devdogs.co/" class("u1")  Span "tu-negocio" class("u2") }
+
+    when menuOpen {
+      Stack class("su-menu") {
+        Link "Inicio" -> "/" class("su-menu-link")
+        Link "Iniciar sesión" -> "/login" class("su-menu-link")
+        Span "Registrarse" class("su-menu-link su-menu-active")
+      }
+    }
+    Image "/shoes.png" alt("Sneakers") class("su-shoes")
   }
 
-  Stack class("wiz-main") {
-    Stack class("wiz-content") {
+  Stack class("su-content") {
+    Stack class("su-left") {
+      Title "Pasea tu perro" h2 class("su-hero-h")
+      Title "Cuida tu manada" h2 class("su-hero-h su-hero-bold")
+      Text "Cuidado y paseo profesional para tu mascota." class("su-hero-sub")
+    }
 
-      Stack class("wiz-head") {
-        Span "DevDogs" class("lg")
-        when step == 0 { Span "Empecemos" class("muted") }
-        when step > 0 { Span "Paso {step} de 3" class("muted") }
-      }
-
-      when step > 0 {
-        Stack class("steps") {
-          Stack class("seg") class("on" when step >= 1)
-          Stack class("seg") class("on" when step >= 2)
-          Stack class("seg") class("on" when step >= 3)
-        }
-      }
-
+    Stack class("su-right") {
       when step == 0 {
-        Text "EMPECEMOS" class("eyebrow")
-        Title "¿Qué quieres hacer?" h2 class("q")
-        Stack class("q-accent")
-        Text "Con la misma cuenta puedes tener las dos cosas; esto es solo por dónde empiezas." class("q-sub")
-        Stack class("info") { Icon "lucide:info" class("iic")  Text "No te encierra: desde cualquiera abres el otro cuando quieras." }
-        Stack class("pad-sm") {
-          Button -> pick("PASEADOR") class("rolecard") class("is-sel" when rol == "PASEADOR") {
-            Stack class("rc-ic") { Icon "lucide:footprints" }
-            Stack class("field-body") { Text "Soy paseador" class("rc-t")  Text "Ofrezco paseos y quiero organizar mi día" class("rc-d") }
-            when rol == "PASEADOR" { Stack class("rc-check") { Icon "lucide:check" } }
+        Stack class("su-step") {
+          Stack class("su-roles") {
+            Button -> pick("PASEADOR") class("su-role") class("su-role-on" when rol == "PASEADOR") {
+              Stack class("su-role-ic") { Icon "lucide:footprints" }
+              Span "Paseador" class("su-role-name")
+            }
+            Button -> pick("EMPRESA") class("su-role") class("su-role-on" when rol == "EMPRESA") {
+              Stack class("su-role-ic") { Icon "lucide:building-2" }
+              Span "Empresa" class("su-role-name")
+            }
+            Button -> pick("DUENO") class("su-role") class("su-role-on" when rol == "DUENO") {
+              Stack class("su-role-ic") { Icon "lucide:heart" }
+              Span "Dueño" class("su-role-name")
+            }
           }
-          Button -> pick("EMPRESA") class("rolecard") class("is-sel" when rol == "EMPRESA") {
-            Stack class("rc-ic") { Icon "lucide:building-2" }
-            Stack class("field-body") { Text "Tengo una empresa de paseos" class("rc-t")  Text "Gestiono varios paseadores y sus cuentas" class("rc-d") }
-            when rol == "EMPRESA" { Stack class("rc-check") { Icon "lucide:check" } }
-          }
-          Button -> pick("DUENO") class("rolecard") class("is-sel" when rol == "DUENO") {
-            Stack class("rc-ic") { Icon "lucide:heart" }
-            Stack class("field-body") { Text "Busco quién pasee a mi perro" class("rc-t")  Text "Quiero agendar y ver el historial de mi perro" class("rc-d") }
-            when rol == "DUENO" { Stack class("rc-check") { Icon "lucide:check" } }
+          Stack class("su-step-foot") {
+            Stack class("gsignup") {
+              Text "¿Ya tienes cuenta?" class("muted t-sm")
+              Link "Inicia sesión" -> "/login" class("glink t-sm")
+            }
+            Button -> next class("su-cta") disabled when not validStep { Span "Unirme hoy" }
           }
         }
       }
 
       when step == 1 {
-        Text "TU PERFIL" class("eyebrow")
-        Title "¿Cómo te llamas?" h2 class("q")
-        Stack class("q-accent")
-        Text "Es el nombre que verá el cliente cuando le agendes." class("q-sub")
-        Stack class("pad-sm") {
-          Stack class("field") {
-            Stack class("field-ic ic-cyan") { Icon "lucide:camera" }
-            Stack class("field-body") { Text "Tu foto" class("field-label")  Text "Toca y elige una" }
-            Icon "lucide:chevron-right" class("chev")
+        Stack class("su-step") {
+          Stack class("su-fields") {
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:user" }
+              Stack class("gfield-body") {
+                Text "Tu nombre" class("gfield-label")
+                SearchField bind(nombre) "Ana Rondón" class("gfield-input")
+              }
+            }
+            Stack class("gfield") class("gfield-err" when telefono.length > 0 and not phoneOk) {
+              Stack class("gfield-ic") { Icon "lucide:phone" }
+              Stack class("gfield-body") {
+                Text "Tu teléfono" class("gfield-label")
+                SearchField bind(telefono) "+57 300 000 0000" class("gfield-input")
+              }
+              when telefono.length > 0 and not phoneOk {
+                Text "Nº inválido" class("gfield-hint")
+              }
+            }
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:mail" }
+              Stack class("gfield-body") {
+                Text "Tu correo" class("gfield-label")
+                SearchField bind(email) "tu@correo.com" class("gfield-input")
+              }
+            }
+            Stack class("gfield") class("gfield-err" when pw.length > 0 and not pwOk) {
+              Stack class("gfield-ic") { Icon "lucide:lock" }
+              Stack class("gfield-body") {
+                Text "Contraseña" class("gfield-label")
+                Password bind(pw) "••••••••" class("gfield-input")
+              }
+              when pw.length > 0 and not pwOk {
+                Text "Usa mayúscula y número" class("gfield-hint")
+              }
+            }
           }
-          Stack class("field") {
-            Stack class("field-ic ic-cyan") { Icon "lucide:user" }
-            Stack class("field-body") { Text "Tu nombre" class("field-label")  SearchField bind(nombre) "Ana Rondón" class("field-input") }
-          }
-          Stack class("field") {
-            Stack class("field-ic ic-cyan") { Icon "lucide:phone" }
-            Stack class("field-body") { Text "Tu teléfono" class("field-label")  SearchField bind(telefono) "+57 300 000 0000" class("field-input") }
-          }
-          Stack class("field") {
-            Stack class("field-ic ic-cyan") { Icon "lucide:mail" }
-            Stack class("field-body") { Text "Tu correo" class("field-label")  SearchField bind(email) "tu@correo.com" class("field-input") }
-          }
-          Stack class("field") {
-            Stack class("field-ic ic-cyan") { Icon "lucide:lock" }
-            Stack class("field-body") { Text "Contraseña (mín. 6)" class("field-label")  Password bind(pw) "••••••••" class("field-input") }
+          Stack class("su-nav") {
+            Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
+            Button -> next class("su-cta") disabled when not validStep { Span "Seguir" }
           }
         }
       }
 
       when step == 2 {
-        Text "TU ZONA" class("eyebrow")
-        Title "¿Dónde paseas?" h2 class("q")
-        Stack class("q-accent")
-        Text "Para mostrarte cerca y organizar tus rutas." class("q-sub")
-        Stack class("pad-sm") {
-          Stack class("field") {
-            Stack class("field-ic ic-violet") { Icon "lucide:map-pin" }
-            Stack class("field-body") { Text "Ciudad" class("field-label")  Select bind(ciudad) options(Medellin, Bogota, Cali, Otra) class("field-input") }
+        Stack class("su-step") {
+          Stack class("su-fields") {
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:map-pin" }
+              Stack class("gfield-body") {
+                Text "Ciudad" class("gfield-label")
+                Select bind(ciudad) options(Medellin, Bogota, Cali, Otra) class("gfield-input")
+              }
+            }
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:navigation" }
+              Stack class("gfield-body") {
+                Text "Zona / barrio" class("gfield-label")
+                Select bind(zona) options(Elegir, Poblado, Laureles, Envigado, Sabaneta, Belen, Otra) class("gfield-input")
+              }
+            }
+            when rol != "DUENO" {
+              Stack class("gfield") {
+                Stack class("gfield-ic") { Icon "lucide:store" }
+                Stack class("gfield-body") {
+                  Text "Nombre del negocio (opcional)" class("gfield-label")
+                  SearchField bind(negocio) "DevDogs Poblado" class("gfield-input")
+                }
+              }
+            }
           }
-          Stack class("field") {
-            Stack class("field-ic ic-violet") { Icon "lucide:navigation" }
-            Stack class("field-body") { Text "Zona / barrio" class("field-label")  Select bind(zona) options(Elegir, Poblado, Laureles, Envigado, Sabaneta, Belen, Otra) class("field-input") }
-          }
-          Stack class("field") {
-            Stack class("field-ic ic-violet") { Icon "lucide:store" }
-            Stack class("field-body") { Text "Nombre del negocio (opcional)" class("field-label")  SearchField bind(negocio) "DevDogs Poblado" class("field-input") }
+          Stack class("su-nav") {
+            Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
+            Button -> next class("su-cta") disabled when not validStep { Span "Seguir" }
           }
         }
       }
 
       when step == 3 {
-        Text "TUS CUENTAS" class("eyebrow")
-        Title "Datos para facturar" h2 class("q")
-        Stack class("q-accent")
-        Text "Para tus facturas. No salen en tu link ni los ve tu cliente." class("q-sub")
-        Stack class("pad-sm") {
-          Stack class("field") {
-            Stack class("field-ic ic-gold") { Icon "lucide:contact" }
-            Stack class("field-body") { Text "Tipo de documento" class("field-label")  Select bind(docTipo) options(Cedula, NIT, Pasaporte) class("field-input") }
+        Stack class("su-step") {
+          Stack class("su-fields") {
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:contact" }
+              Stack class("gfield-body") {
+                Text "Tipo de documento" class("gfield-label")
+                Select bind(docTipo) options(Cedula, NIT, Pasaporte) class("gfield-input")
+              }
+            }
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:hash" }
+              Stack class("gfield-body") {
+                Text "Número de identificación" class("gfield-label")
+                SearchField bind(docNumero) "1.020.345.678" class("gfield-input")
+              }
+            }
+            when rol != "DUENO" {
+              Stack class("gfield") {
+                Stack class("gfield-ic") { Icon "lucide:receipt" }
+                Stack class("gfield-body") {
+                  Text "NIT (opcional)" class("gfield-label")
+                  SearchField bind(nit) "900.123.456-7" class("gfield-input")
+                }
+              }
+            }
           }
-          Stack class("field") {
-            Stack class("field-ic ic-gold") { Icon "lucide:hash" }
-            Stack class("field-body") { Text "Número de identificación" class("field-label")  SearchField bind(docNumero) "1.020.345.678" class("field-input") }
-          }
-          Stack class("field") {
-            Stack class("field-ic ic-gold") { Icon "lucide:receipt" }
-            Stack class("field-body") { Text "NIT (si tienes empresa)" class("field-label")  SearchField bind(nit) "900.123.456-7" class("field-input") }
+          Stack class("su-nav") {
+            Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
+            Button -> finish class("su-cta") disabled when not validStep { Span "Crear mi cuenta" }
           }
         }
       }
-    }
 
-    when auth.authError.length > 0 { Text "{auth.authError}" class("gerror pad-sm") }
-
-    Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
-
-    Stack class("wiz-nav") {
-      when step > 0 { Button -> back class("nav-back") aria(label: "Atrás") { Icon "lucide:chevron-left" } }
-      when step < 3 { Button -> next class("btn btn-ink nav-next") disabled when not validStep { Span "Seguir"  Icon "lucide:arrow-right" } }
-      when step == 3 { Button -> finish class("btn btn-ink nav-next") disabled when not validStep { Span "Crear mi cuenta"  Icon "lucide:arrow-right" } }
-    }
-
-    when step == 0 {
-      Stack class("gap-xs pad-sm") {
-        Stack class("row jcenter center gap-xs") {
-          Text "¿Ya tienes cuenta?" class("muted t-sm")
-          Link "Inicia sesión" -> "/login" class("link t-sm")
-        }
-        Stack class("row jcenter center gap-xs") {
-          Text "¿Te invitó un negocio?" class("muted t-sm")
-          Link "Usa tu código" -> "/unirse" class("link t-sm")
-        }
-      }
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
     }
   }
+
+  Stack class("su-bottom") {
+    Stack class("su-bot-left") {
+      Span "Registro gratuito" class("su-bot-badge")
+    }
+    Stack class("su-bot-mid") {
+      Stack class("su-avs") {
+        Span "D" class("su-av")
+        Span "M" class("su-av")
+        Span "A" class("su-av")
+        Span "+" class("su-av")
+      }
+      Span "500+ dueños confían"
+    }
+    Stack class("su-bot-right") {
+      Icon "lucide:shield-check"
+      Span "Datos protegidos"
+    }
+  }
+
+  Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
 }

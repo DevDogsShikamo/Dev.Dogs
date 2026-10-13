@@ -29,6 +29,7 @@ function mount(el, inputs, on) {
           if (r.cuidador_id) porCuidador[r.cuidador_id] = (porCuidador[r.cuidador_id] || 0) + 1;
         });
         if (on.stats) on.stats(rows.length, prog, curso, fin);
+        if (on.loaded) on.loaded(true);
 
         // Paseadores del negocio + su carga de hoy.
         if (on.paseadores) {

@@ -21,6 +21,7 @@ state {
   # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
+  loaded        = false : bool persist
 }
 
 get nPerros    = misPerros.length
@@ -48,5 +49,6 @@ action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
 action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
+action setLoaded mutates loaded { loaded.set(true) }
 # Limpia los datos del cliente al hacer logout (dispositivo compartido).
-action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset() }
+action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  loaded.set(false) }

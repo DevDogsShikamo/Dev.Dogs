@@ -188,7 +188,7 @@ Stack class("dd-app") {
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -294,8 +294,27 @@ Stack class("dd-app") {
         }
       }
 
+      # ==== DASHBOARD: skeleton ====
+      when section == "dashboard" and not catalogo.loaded {
+        Stack class("dd-sec skel-col") {
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av")
+            Stack class("skel-col") { Stack class("skel-b skel-text-s")  Stack class("skel-b skel-text") }
+          }
+          Stack class("skel-b skel-heading")
+          Stack class("skel-b skel-heading-sm")
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+          }
+          Stack class("skel-b skel-card")
+          Stack class("skel-b skel-card")
+        }
+      }
       # ==== DASHBOARD ====
-      when section == "dashboard" {
+      when section == "dashboard" and catalogo.loaded {
         Stack class("dd-sec") {
           Stack class("dd-top") {
             Stack class("dd-greet") {

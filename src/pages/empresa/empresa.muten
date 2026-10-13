@@ -129,7 +129,7 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
@@ -168,8 +168,22 @@ Stack class("dd-app") {
   Stack class("dd-content") {
     Stack class("dd-screen") {
 
+      # ==== INICIO: skeleton ====
+      when section == "dashboard" and not empresa.loaded {
+        Stack class("dd-sec skel-col") {
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av")
+            Stack class("skel-col") { Stack class("skel-b skel-text-s")  Stack class("skel-b skel-text") }
+          }
+          Stack class("skel-b skel-heading")
+          Stack class("skel-b skel-heading-sm")
+          Stack class("skel-row") { Stack class("skel-b skel-kpi")  Stack class("skel-b skel-kpi")  Stack class("skel-b skel-kpi") }
+          Stack class("skel-b skel-line")
+          Stack class("skel-row") { Stack class("skel-b skel-kpi")  Stack class("skel-b skel-kpi")  Stack class("skel-b skel-kpi") }
+        }
+      }
       # ==== INICIO (métricas del negocio) ====
-      when section == "dashboard" {
+      when section == "dashboard" and empresa.loaded {
         Stack class("dd-sec") {
           Stack class("dd-top") {
             Stack class("dd-greet") {

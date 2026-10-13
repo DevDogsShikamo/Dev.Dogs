@@ -62,6 +62,7 @@ state {
   pendientes   = [] : list<Pendiente> persist
   agendaDias   = [] : list<AgendaDia> persist
   agenda       = [] : list<AgendaItem> persist
+  loaded       = false : bool persist
 }
 
 get pendienteTotal = pendientes.sum by monto
@@ -95,11 +96,12 @@ action setAgenda(rows: list<AgendaItem>) mutates agenda { agenda.set(rows) }
 action cobroDel(pid: text) mutates pendientes { pendientes.remove where id == pid }
 # Optimista: reasignar paseador a una salida se refleja al instante.
 action asignarSet(sid: text, cid: text, cnom: text) mutates salidas { salidas.patch where id == sid with { cuidadorId: cid, cuidadorNombre: cnom } }
+action setLoaded mutates loaded { loaded.set(true) }
 action setStats(hoy: number, prog: number, curso: number, fin: number) mutates paseosHoy, programados, enCurso, finalizados {
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot {
+action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, loaded {
   paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
-  facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)
+  facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)  loaded.set(false)
 }

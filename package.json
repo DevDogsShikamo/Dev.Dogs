@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.0",
-    "playwright": "^1.62.1"
+    "playwright": "^1.62.1",
+    "sharp": "^0.35.5"
   }
 }

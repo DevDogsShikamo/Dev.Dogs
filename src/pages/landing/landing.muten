@@ -414,27 +414,43 @@ Page class("lp2") {
     }
   }
 
-  # ===== Footer (dos columnas: marca | info) =====
+  # ===== Footer (claro: marca centrada + 3 columnas + foto del parque al pie) =====
   Footer class("gf") {
-    Stack class("gf-in") {
-      Stack class("gf-brand") {
-        Image "/devdogs-mark.png" alt("DevDogs") class("gf-mark")
-        Stack class("gf-brandtx") {
-          Image "/devdogs-wordmark.png" alt("DevDogs") class("gf-wordmark")
-          Span "Tu socio en paseos" class("gf-brandtag")
-        }
+    Span "DEVDOGS" class("gf-giant") aria(hidden: true)
+    Image "/footer-hills.jpg" alt("") class("gf-scene")
+
+    Stack class("gf-logo") {
+      Image "/devdogs-mark.png" alt("") class("gf-mark")
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gf-wordmark")
+    }
+    
+    Span "Medellín, Antioquia, Colombia" class("gf-addr")
+    Span "+57 300 123 4567" class("gf-phone")
+
+    Span "" class("gf-rule")
+
+    Stack class("gf-cols") {
+      Nav class("gf-col") aria(label: "Servicios") {
+        Span "Servicios" class("gf-colh")
+        Link "Paseos" -> "/signup" class("gf-link")
+        Link "Guardería" -> "/signup" class("gf-link")
+        Link "Baño y corte" -> "/signup" class("gf-link")
+        Link "Adiestramiento" -> "/signup" class("gf-link")
       }
-      Stack class("gf-right") {
-        Nav class("gf-nav") {
-          Link "Servicios" -> "/signup" class("gf-link")
-          Link "Nosotros" -> "/signup" class("gf-link")
-          Link "Precios" -> "/signup" class("gf-link")
-          Link "Reseñas" -> "/signup" class("gf-link")
-          Link "Contacto" -> "/signup" class("gf-link")
-        }
-        Span "+57 300 123 4567" class("gf-cphone")
-        Link "Contáctanos" -> "/signup" class("gf-clink")
+      Nav class("gf-col") aria(label: "Cuenta") {
+        Span "Cuenta" class("gf-colh")
+        Link "Iniciar sesión" -> "/login" class("gf-link")
+        Link "Registrarse" -> "/signup" class("gf-link")
+        Link "Unirme con código" -> "/unirse" class("gf-link")
+        Link "Contacto" -> "/signup" class("gf-link")
+      }
+      Nav class("gf-col") aria(label: "DevDogs") {
+        Span "DevDogs" class("gf-colh")
+        Link "Nosotros" -> "/signup" class("gf-link")
+        Link "Reseñas" -> "/signup" class("gf-link")
       }
     }
+
+    Span "© 2026 DevDogs — Todos los derechos reservados" class("gf-copy")
   }
 }

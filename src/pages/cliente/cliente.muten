@@ -78,7 +78,7 @@ action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombr
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios)
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, loaded: cliente.setLoaded)
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
@@ -101,8 +101,27 @@ Stack class("dd-app") {
   Stack class("dd-content") {
     Stack class("dd-screen") {
 
+      # ==== INICIO: skeleton ====
+      when section == "dashboard" and not cliente.loaded {
+        Stack class("dd-sec skel-col") {
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av")
+            Stack class("skel-col") { Stack class("skel-b skel-text-s")  Stack class("skel-b skel-text") }
+          }
+          Stack class("skel-b skel-heading")
+          Stack class("skel-b skel-heading-sm")
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+          }
+          Stack class("skel-b skel-line")
+          Stack class("skel-b skel-line")
+          Stack class("skel-b skel-line")
+        }
+      }
       # ==== INICIO ====
-      when section == "dashboard" {
+      when section == "dashboard" and cliente.loaded {
         Stack class("dd-sec") {
           Stack class("dd-top") {
             Stack class("dd-greet") {

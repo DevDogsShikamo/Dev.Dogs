@@ -15,6 +15,8 @@ theme {
     # section / accent palette (one color per section or category)
     coral "#ff5757"  redbright "#e20e1a"  gold "#b29434"  ink "#12101c"
     mint "#6fdca4"  mango "#ff7a3d"  lavender "#cfc7f8"  violet "#5b3df5"
+    # footer / pre-footer
+    "cherry-tomato" "#eb3c27"  "blueberry-pie" "#3d5385"  "black-sea" "#2b2b2b"
     # semantic states
     success "#22b573"  warning "#ff7a3d"  danger "#ff5757"
     # charts

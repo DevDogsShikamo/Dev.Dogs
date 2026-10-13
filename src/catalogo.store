@@ -36,6 +36,7 @@ state {
   # DataBootstrap revalida contra la red por detrás (Fase 3). Se limpia en logout.
   perros    = [] : list<PerroCat> persist
   relaciones = [] : list<Relacion> persist
+  loaded    = false : bool persist
 }
 
 get total = perros.length
@@ -51,5 +52,6 @@ action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconduct
   perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, foto: nfoto }
 }
 action perroQuitar(pid: text) mutates perros { perros.remove where id == pid }
+action setLoaded mutates loaded { loaded.set(true) }
 # Limpia el cache al hacer logout (in-memory + persist).
-action limpiar mutates perros, relaciones { perros.reset()  relaciones.reset() }
+action limpiar mutates perros, relaciones, loaded { perros.reset()  relaciones.reset()  loaded.set(false) }

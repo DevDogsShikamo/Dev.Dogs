@@ -79,6 +79,7 @@ function mount(el, inputs, on) {
             };
           });
           on.perros(perros);
+          if (on.loaded) on.loaded(true);
           if (on.relaciones) {
             var flat = [];
             raw.forEach(function (r) {
