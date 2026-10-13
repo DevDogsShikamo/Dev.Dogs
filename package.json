@@ -5,7 +5,14 @@
   "scripts": {
     "dev": "muten dev",
     "build": "muten bundle",
-    "lint": "muten lint"
+    "lint": "muten lint",
+    "test": "npm run test:security",
+    "test:security": "node --test --test-concurrency=1 tests/security/",
+    "test:client": "node --test tests/client/",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/",
+    "test:worker": "node --test worker/test/",
+    "staging:push": "node supabase/staging.mjs push",
+    "staging:reset": "node supabase/staging.mjs reset"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
