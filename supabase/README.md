@@ -1,0 +1,114 @@
+# Supabase: migrations, staging and rollback
+
+Production project ref: `agutaluxzruuthbbagkh`. Staging project: `devdogs-staging`.
+
+## Production-link warning
+
+`supabase/.temp/linked-project.json` (gitignored) links the CLI to **production**.
+Therefore:
+
+- Never run `supabase db push`, `db reset`, `db pull`, `link`, `functions deploy` or
+  `--linked` without an explicit target.
+- Every database command in this repo passes `--db-url` (or `--project-ref`) for the
+  project it means to touch. No command here relies on the link.
+- `tests/security/_env.mjs` refuses to run when any configured value (URL, ref, DB host,
+  key claims) contains the production ref, and `supabase/staging.mjs` loads the same guard.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `supabase/migrations/2026010100000N_*.sql` | The 11 legacy SQL files, renamed (pure renames, content unchanged), applied in order 01..11 |
+| `supabase/migrations/<14-digit UTC>_s<N>_<name>.sql` | Slice migrations, forward only |
+| `supabase/rollback/<version>.down.sql` | Data-preserving structural inverse of a slice (see Rollback) |
+| `supabase/seed_*.sql` | Demo seeds, **not** part of any automated path; run by hand in the SQL editor |
+| `supabase/staging.mjs` | Staging-only wrapper around the CLI |
+
+Legacy name to migration map: `schema_v3` 01, `grupos` 02, `zonas_vacaciones` 03,
+`incompatibles` 04, `realtime` 05, `office` 06, `paseo` 07, `precios` 08, `tipos` 09,
+`mi_perro` 10, `fotos` 11 (file names are `20260101000001_schema_v3.sql` ... `20260101000011_fotos.sql`).
+
+## Local configuration (`.env.test`, gitignored)
+
+| Variable | Meaning |
+|---|---|
+| `STAGING_PROJECT_REF` | Staging project ref |
+| `STAGING_SUPABASE_URL` | `https://<staging ref>.supabase.co` |
+| `STAGING_DB_HOST` | Direct host `db.<ref>.supabase.co`, or the session pooler `aws-0-<region>.pooler.supabase.com` if the direct host (IPv6 only on the free plan) is unreachable |
+| `STAGING_DB_PASSWORD` | Staging database password |
+| `SUPABASE_PUBLISHABLE_KEY` | Staging publishable key (`STAGING_PUBLISHABLE_KEY` and `SUPABASE_ANON_KEY` are accepted too) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Staging service-role key, used only by test fixtures (`STAGING_SERVICE_ROLE_KEY` also accepted) |
+| `PRODUCTION_PROJECT_REF` | Extra guard: the ref that must never be touched |
+
+Real environment variables win over the file. The loader also reads a file that mixes
+UTF-8 with UTF-16 (what PowerShell `>>` produces). Never commit `.env.test`.
+
+## Staging procedure
+
+Use the wrapper; it builds `--db-url` from `.env.test` and redacts the password from output:
+
+```
+node supabase/staging.mjs dry-run   # supabase db push --dry-run --db-url <staging>
+node supabase/staging.mjs push      # supabase db push --db-url <staging>
+node supabase/staging.mjs reset     # supabase db reset --no-seed --yes --db-url <staging>
+npm test                            # attack suite against staging
+```
+
+The raw equivalents, if you must run the CLI yourself (`$STAGING_DB_URL` is the
+percent-encoded `postgresql://postgres:<password>@<host>:5432/postgres`; the pooler
+needs the user `postgres.<ref>`):
+
+```
+npx supabase db push  --db-url "$STAGING_DB_URL"
+npx supabase db reset --db-url "$STAGING_DB_URL" --no-seed
+```
+
+Validated in S0 (CLI 2.120.0, no Docker running):
+
+- The direct host `db.<ref>.supabase.co:5432` was reachable from the dev machine; the pooler was not needed.
+- `db push --db-url` applied all 11 legacy files to an empty project without edits.
+- `db reset --db-url ... --yes` works without Docker, drops and re-applies the migrations, and **clears
+  `auth.users`**. It does **not** delete `storage.objects` (a probe object survived a reset).
+  Storage rows cannot be deleted with SQL (Supabase blocks it); remove them with the Storage API
+  (`admin.storage.from('paseos').remove([...])`). Tests that upload create their own paths.
+- Without `--yes` the reset asks for confirmation on stdin; the wrapper passes `--yes` only after
+  the staging guard has accepted the configuration.
+
+### Reset fallback (not needed so far, untested)
+
+If a remote reset ever stops working, run this in the staging SQL editor, then `push`:
+
+```sql
+drop schema public cascade;
+create schema public;
+grant usage, create on schema public to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
+truncate supabase_migrations.schema_migrations;
+```
+
+## Rollback (two modes)
+
+1. **Pre-launch (authoritative):** `git revert` the slice and reset staging to the previous
+   migration set (`node supabase/staging.mjs reset`). Valid while no real users exist.
+2. **Per-slice `supabase/rollback/<version>.down.sql`:** a data-preserving structural inverse
+   only (copy side-table data back, drop new objects). A down script never restores a
+   vulnerable policy or function. After launch, the answer to a bad policy is a forward fix.
+
+S0 rollback: revert the rename commit and the `tests/`, `supabase/staging.mjs`, `package.json`
+script changes. No application code or database object is changed by S0.
+
+## Production reset (human task H6)
+
+Valid only while there are no real users (decision D12). The reset **deletes every auth user**.
+
+1. Confirm the chain of slice PRs is reviewed and merged, and that no real user exists.
+2. Take the production connection string from the Supabase dashboard (Project settings, Database).
+   Do not rely on the CLI link.
+3. `npx supabase db reset --db-url "<production URL>" --no-seed` and answer `y` only after
+   re-reading the ref in the URL. Do not add `--yes`.
+4. Delete leftover test auth users in the dashboard; remove the legacy `paseos` bucket objects.
+5. Deploy functions with an explicit `--project-ref agutaluxzruuthbbagkh`; deploy the production
+   Worker and set the R2 lifecycle rule (see the later slices).
+6. Check production Auth settings (email confirmation, password policy).
