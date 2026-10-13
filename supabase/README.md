@@ -99,6 +99,13 @@ truncate supabase_migrations.schema_migrations;
 S0 rollback: revert the rename commit and the `tests/`, `supabase/staging.mjs`, `package.json`
 script changes. No application code or database object is changed by S0.
 
+S1 rollback (identity): revert the S1 commits (migrations `20261013100001..03`, `SupaAuthForm.js`,
+`signup.muten`, `authActions.ts`) and reset staging. Signup depends on `provision_negocio`, so the app
+and the migrations must be reverted together. `supabase/rollback/20261013100001_s1_identity.down.sql`
+only re-adds the four dropped columns; it never reopens the policies or the anonymous grants.
+Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
+(production has it OFF) and the built-in SMTP quota is a few emails per hour.
+
 ## Production reset (human task H6)
 
 Valid only while there are no real users (decision D12). The reset **deletes every auth user**.
