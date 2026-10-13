@@ -1,0 +1,430 @@
+<title>DevDogs Signup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow-y:auto;overflow-x:hidden}
+body{font-family:'Nunito',system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  background:#111;display:flex;flex-direction:column;align-items:center;gap:20px;padding:20px 16px 32px}
+
+.views{display:flex;flex-direction:column;gap:24px;align-items:center;width:100%}
+.col{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+.lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#777}
+.device{border-radius:22px;overflow:hidden;position:relative;
+  box-shadow:0 8px 40px rgba(0,0,0,.6);border:2px solid #333;flex-shrink:0}
+.dev-mob{width:270px;height:540px}
+.dev-desk{width:100%;max-width:620px;aspect-ratio:16/9}
+
+/* ── Scene ── */
+.world{position:relative;width:100%;height:100%;overflow:hidden}
+
+/* ── Biome backgrounds (illustrated) ── */
+.scene-bg{position:absolute;inset:0;z-index:0;
+  background-size:cover;background-position:center bottom;background-repeat:no-repeat;
+  opacity:0;transition:opacity 1.4s ease}
+.scene-bg.vis{opacity:1}
+
+.bg-bosque{background-image:url('assets/bg-bosque.jpg');background-position:center center}
+.bg-pradera{background-image:url('assets/bg-pradera.jpg');background-position:center 60%}
+.bg-ciudad{background-image:url('assets/bg-ciudad.jpg')}
+.bg-parque{background-image:url('assets/bg-parque.jpg');background-position:center 70%}
+.bg-granja{background-image:url('assets/bg-granja.jpg');background-position:center 50%}
+
+/* Subtle slow pan to sell movement */
+.scene-bg.vis{animation:bgPan 40s linear infinite alternate}
+@keyframes bgPan{0%{background-position:40% bottom}100%{background-position:60% bottom}}
+.bg-bosque.vis{animation-name:bgPanCenter}
+.bg-pradera.vis{animation-name:bgPanMid}
+.bg-parque.vis{animation-name:bgPanMid}
+.bg-granja.vis{animation-name:bgPanMid}
+@keyframes bgPanCenter{0%{background-position:40% center}100%{background-position:60% center}}
+@keyframes bgPanMid{0%{background-position:40% 65%}100%{background-position:60% 65%}}
+
+.cloud{position:absolute;border-radius:40px;z-index:2;pointer-events:none;background:rgba(255,255,255,.35);
+  animation:cloudDrift 60s linear infinite}
+.c1{top:8%;left:-5%;width:14%;height:3.5%}
+.c2{top:5%;left:40%;width:10%;height:2.8%;background:rgba(255,255,255,.2);animation-duration:80s;animation-delay:-10s}
+.c3{top:14%;left:70%;width:8%;height:2.2%;background:rgba(255,255,255,.15);animation-duration:100s;animation-delay:-20s}
+@keyframes cloudDrift{0%{transform:translateX(0)}100%{transform:translateX(120%)}}
+
+/* ── Ground strip (anchors assets) ── */
+.ground{position:absolute;bottom:0;left:0;right:0;height:13%;z-index:7;
+  background:linear-gradient(0deg,rgba(14,48,32,.9),rgba(26,74,48,.7) 50%,rgba(45,106,72,.4))}
+
+/* ── Asset bands ── */
+.band{position:absolute;left:0;bottom:0;height:100%;pointer-events:none}
+.band .a{position:absolute;pointer-events:none;object-fit:contain;opacity:0;transition:opacity 1.2s ease}
+.band .a.vis{opacity:1}
+
+.bnear{width:200%;z-index:9;animation:drift 22s linear infinite}
+.bfront{width:200%;z-index:11;animation:drift 12s linear infinite}
+.bfront .a.vis{opacity:.85}
+
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ── Walker ── */
+.walker{position:absolute;bottom:12%;left:12%;height:18%;z-index:10;
+  filter:drop-shadow(2px 5px 8px rgba(0,0,0,.4))}
+.dev-desk .walker{left:8%;height:22%}
+
+/* ── Push animation on biome change ── */
+.world.push{animation:pushFwd .7s ease-out}
+@keyframes pushFwd{0%{transform:scale(1)}30%{transform:scale(1.02) translateY(-.3%)}100%{transform:scale(1)}}
+
+/* ── Form ── */
+.form{position:absolute;top:50%;right:12px;transform:translateY(-50%);z-index:20;
+  width:52%;max-width:210px;background:rgba(10,30,20,.4);border-radius:16px;padding:10px 12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.dev-desk .form{right:28px;max-width:230px}
+.prog{display:flex;gap:5px;margin-bottom:8px}
+.pdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2);transition:all .4s}
+.pdot.active{background:#fff;width:20px;border-radius:4px}
+.pdot.done{background:#6aaa5e}
+.form .tt{font-size:16px;font-weight:900;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5);margin-bottom:1px}
+.form .st{font-size:9px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:8px;text-shadow:0 1px 4px rgba(0,0,0,.3)}
+.dev-desk .form .tt{font-size:17px}
+.step{display:none;flex-direction:column;gap:5px}.step.on{display:flex}
+
+.opts{display:flex;flex-direction:column;gap:4px}
+.opt{padding:9px 18px;border-radius:24px;text-align:left;cursor:pointer;
+  font-size:13px;font-weight:800;color:rgba(255,255,255,.8);
+  background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.2);
+  transition:all .25s;font-family:inherit;text-shadow:0 1px 3px rgba(0,0,0,.2)}
+.opt:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35)}
+.opt.pk{background:rgba(106,170,94,.45);border-color:rgba(106,170,94,.6);color:#fff}
+.opt .olbl{display:block;font-size:8px;font-weight:600;opacity:.55;margin-top:1px}
+.opt.pk .olbl{opacity:.8}
+
+.fields{display:flex;flex-direction:column;gap:6px}
+.f{display:flex;flex-direction:column;gap:2px}
+.f label{font-size:8px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.7px;padding-left:8px}
+.f input,.f select{padding:10px 18px;border-radius:24px;border:1.5px solid rgba(255,255,255,.25);
+  font-size:12px;font-family:inherit;outline:none;background:rgba(255,255,255,.06);color:#fff;transition:all .25s}
+.f input:focus,.f select:focus{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.1)}
+.f input::placeholder{color:rgba(255,255,255,.25)}
+.f select{appearance:none;color:rgba(255,255,255,.6);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:34px}
+.f select option{color:#333;background:#fff}
+
+.nav{display:flex;gap:5px;margin-top:8px}
+.btn{flex:1;padding:9px;border-radius:24px;font-size:12px;font-weight:800;
+  font-family:inherit;cursor:pointer;border:none;transition:all .2s}
+.btn-b{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1.5px solid rgba(255,255,255,.18)}
+.btn-b:hover{background:rgba(255,255,255,.14)}
+.btn-n{background:rgba(106,170,94,.55);color:#fff;border:1.5px solid rgba(106,170,94,.4);
+  box-shadow:0 2px 10px rgba(106,170,94,.25)}
+.btn-n:hover{background:rgba(106,170,94,.75)}
+.btn:disabled{opacity:.2;cursor:not-allowed}
+
+.done-msg{display:none;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0}
+.done-msg.on{display:flex}
+.done-msg .ck{width:40px;height:40px;border-radius:50%;background:#6aaa5e;
+  display:flex;align-items;center;justify-content:center;font-size:20px;color:#fff;
+  animation:pop .5s cubic-bezier(.2,.8,.3,1.4);box-shadow:0 4px 16px rgba(106,170,94,.4)}
+@keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+.done-msg h2{font-size:14px;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.done-msg p{font-size:10px;color:rgba(255,255,255,.45);max-width:180px}
+
+.btag{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:25;
+  background:rgba(0,0,0,.3);color:#fff;font-size:9px;font-weight:800;
+  padding:3px 12px;border-radius:10px;letter-spacing:.8px;text-transform:uppercase;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+.btag.show{opacity:1}
+</style>
+
+<div class="views">
+
+<!-- ═══════════ MOBILE ═══════════ -->
+<div class="col">
+  <div class="lbl">Mobile</div>
+  <div class="device dev-mob">
+    <div class="world" id="src">
+
+      <!-- ═══ BIOME BACKGROUNDS ═══ -->
+      <div class="scene-bg bg-bosque vis" data-b="0"></div>
+      <div class="scene-bg bg-pradera" data-b="1"></div>
+      <div class="scene-bg bg-ciudad" data-b="2"></div>
+      <div class="scene-bg bg-parque" data-b="3"></div>
+      <div class="scene-bg bg-granja" data-b="4"></div>
+
+      <!-- Clouds -->
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+      <div class="btag">Bosque</div>
+
+      <!-- Ground strip -->
+      <div class="ground"></div>
+
+      <!-- ═══ NEAR BAND (scroll 22s, current biome) ═══ -->
+      <div class="band bnear">
+
+        <!-- Bosque near (step 0) — árboles + arbustos -->
+        <img data-b="0" src="assets/tree-dark.png"       class="a vis" style="left:3%;bottom:13%;height:38%">
+        <img data-b="0" src="assets/bush-green.png"      class="a vis" style="left:11%;bottom:13%;height:10%">
+        <img data-b="0" src="assets/tropical-plants.png" class="a vis" style="left:17%;bottom:13%;height:35%">
+        <img data-b="0" src="assets/bush-flowers.png"    class="a vis" style="left:24%;bottom:13%;height:11%">
+        <img data-b="0" src="assets/cypress-dark.png"    class="a vis" style="left:30%;bottom:13%;height:32%">
+        <img data-b="0" src="assets/tree-stars.png"      class="a vis" style="left:37%;bottom:13%;height:14%">
+        <img data-b="0" src="assets/tree-big.png"        class="a vis" style="left:44%;bottom:12%;height:42%">
+        <!-- mirror -->
+        <img data-b="0" src="assets/tree-dark.png"       class="a vis" style="left:53%;bottom:13%;height:38%">
+        <img data-b="0" src="assets/bush-green.png"      class="a vis" style="left:61%;bottom:13%;height:10%">
+        <img data-b="0" src="assets/tropical-plants.png" class="a vis" style="left:67%;bottom:13%;height:35%">
+        <img data-b="0" src="assets/bush-flowers.png"    class="a vis" style="left:74%;bottom:13%;height:11%">
+        <img data-b="0" src="assets/cypress-dark.png"    class="a vis" style="left:80%;bottom:13%;height:32%">
+        <img data-b="0" src="assets/tree-stars.png"      class="a vis" style="left:87%;bottom:13%;height:14%">
+        <img data-b="0" src="assets/tree-big.png"        class="a vis" style="left:94%;bottom:12%;height:42%">
+
+        <!-- Pradera near (step 1) — árboles + arbustos -->
+        <img data-b="1" src="assets/tree-light.png"    class="a" style="left:4%;bottom:13%;height:36%">
+        <img data-b="1" src="assets/bush-flowers.png"  class="a" style="left:12%;bottom:13%;height:11%">
+        <img data-b="1" src="assets/tree-oval.png"     class="a" style="left:19%;bottom:13%;height:32%">
+        <img data-b="1" src="assets/bush-green.png"    class="a" style="left:27%;bottom:13%;height:10%">
+        <img data-b="1" src="assets/cypress-light.png" class="a" style="left:34%;bottom:13%;height:30%">
+        <img data-b="1" src="assets/tree-big.png"      class="a" style="left:44%;bottom:12%;height:40%">
+        <!-- mirror -->
+        <img data-b="1" src="assets/tree-light.png"    class="a" style="left:54%;bottom:13%;height:36%">
+        <img data-b="1" src="assets/bush-flowers.png"  class="a" style="left:62%;bottom:13%;height:11%">
+        <img data-b="1" src="assets/tree-oval.png"     class="a" style="left:69%;bottom:13%;height:32%">
+        <img data-b="1" src="assets/bush-green.png"    class="a" style="left:77%;bottom:13%;height:10%">
+        <img data-b="1" src="assets/cypress-light.png" class="a" style="left:84%;bottom:13%;height:30%">
+        <img data-b="1" src="assets/tree-big.png"      class="a" style="left:94%;bottom:12%;height:40%">
+
+        <!-- Ciudad near (step 2) — perros + banca + parada (background tiene edificios) -->
+        <img data-b="2" src="assets/bench.png"     class="a" style="left:6%;bottom:13%;height:7%">
+        <img data-b="2" src="assets/beagle.gif"    class="a" style="left:14%;bottom:13%;height:7%;transform:scaleX(-1)">
+        <img data-b="2" src="assets/bus-stop.png"  class="a" style="left:22%;bottom:13%;height:18%">
+        <img data-b="2" src="assets/dog-stick.gif" class="a" style="left:32%;bottom:13%;height:9%;transform:scaleX(-1)">
+        <img data-b="2" src="assets/bench.png"     class="a" style="left:40%;bottom:13%;height:7%">
+        <img data-b="2" src="assets/husky.png"     class="a" style="left:47%;bottom:13%;height:11%;transform:scaleX(-1)">
+        <!-- mirror -->
+        <img data-b="2" src="assets/bench.png"     class="a" style="left:56%;bottom:13%;height:7%">
+        <img data-b="2" src="assets/beagle.gif"    class="a" style="left:64%;bottom:13%;height:7%;transform:scaleX(-1)">
+        <img data-b="2" src="assets/bus-stop.png"  class="a" style="left:72%;bottom:13%;height:18%">
+        <img data-b="2" src="assets/dog-stick.gif" class="a" style="left:82%;bottom:13%;height:9%;transform:scaleX(-1)">
+        <img data-b="2" src="assets/bench.png"     class="a" style="left:90%;bottom:13%;height:7%">
+        <img data-b="2" src="assets/husky.png"     class="a" style="left:97%;bottom:13%;height:11%;transform:scaleX(-1)">
+
+        <!-- Parque near (step 3) — árboles + banca + fuente + faroles + perros -->
+        <img data-b="3" src="assets/tree-oval.png"     class="a" style="left:2%;bottom:13%;height:32%">
+        <img data-b="3" src="assets/bench.png"         class="a" style="left:9%;bottom:13%;height:7%">
+        <img data-b="3" src="assets/lamp-bush.png"     class="a" style="left:13%;bottom:13%;height:24%">
+        <img data-b="3" src="assets/fountain.png"      class="a" style="left:19%;bottom:13%;height:18%">
+        <img data-b="3" src="assets/husky.png"         class="a" style="left:24%;bottom:13%;height:11%;transform:scaleX(-1)">
+        <img data-b="3" src="assets/bus-stop.png"      class="a" style="left:28%;bottom:13%;height:18%">
+        <img data-b="3" src="assets/tree-round.png"    class="a" style="left:33%;bottom:13%;height:30%">
+        <img data-b="3" src="assets/beagle.gif"        class="a" style="left:39%;bottom:13%;height:8%">
+        <img data-b="3" src="assets/dog-stick.gif"     class="a" style="left:43%;bottom:13%;height:10%;transform:scaleX(-1)">
+        <img data-b="3" src="assets/cypress-light.png" class="a" style="left:47%;bottom:13%;height:28%">
+        <!-- mirror -->
+        <img data-b="3" src="assets/tree-oval.png"     class="a" style="left:52%;bottom:13%;height:32%">
+        <img data-b="3" src="assets/bench.png"         class="a" style="left:59%;bottom:13%;height:7%">
+        <img data-b="3" src="assets/lamp-bush.png"     class="a" style="left:63%;bottom:13%;height:24%">
+        <img data-b="3" src="assets/fountain.png"      class="a" style="left:69%;bottom:13%;height:18%">
+        <img data-b="3" src="assets/husky.png"         class="a" style="left:74%;bottom:13%;height:11%;transform:scaleX(-1)">
+        <img data-b="3" src="assets/bus-stop.png"      class="a" style="left:78%;bottom:13%;height:18%">
+        <img data-b="3" src="assets/tree-round.png"    class="a" style="left:83%;bottom:13%;height:30%">
+        <img data-b="3" src="assets/beagle.gif"        class="a" style="left:89%;bottom:13%;height:8%">
+        <img data-b="3" src="assets/dog-stick.gif"     class="a" style="left:93%;bottom:13%;height:10%;transform:scaleX(-1)">
+        <img data-b="3" src="assets/cypress-light.png" class="a" style="left:97%;bottom:13%;height:28%">
+
+        <!-- Granja near (step 4/done) — granero + vaca + árboles + rocas -->
+        <img data-b="4" src="assets/cypress-dark.png"  class="a" style="left:3%;bottom:13%;height:32%">
+        <img data-b="4" src="assets/barn.png"          class="a" style="left:12%;bottom:12%;height:38%">
+        <img data-b="4" src="assets/cow.gif"           class="a" style="left:21%;bottom:13%;height:16%">
+        <img data-b="4" src="assets/tree-dark.png"     class="a" style="left:27%;bottom:13%;height:36%">
+        <img data-b="4" src="assets/forest-rocks.png"  class="a" style="left:35%;bottom:13%;height:22%">
+        <img data-b="4" src="assets/cypress-light.png" class="a" style="left:42%;bottom:13%;height:30%">
+        <!-- mirror -->
+        <img data-b="4" src="assets/cypress-dark.png"  class="a" style="left:53%;bottom:13%;height:32%">
+        <img data-b="4" src="assets/barn.png"          class="a" style="left:62%;bottom:12%;height:38%">
+        <img data-b="4" src="assets/cow.gif"           class="a" style="left:71%;bottom:13%;height:16%">
+        <img data-b="4" src="assets/tree-dark.png"     class="a" style="left:77%;bottom:13%;height:36%">
+        <img data-b="4" src="assets/forest-rocks.png"  class="a" style="left:85%;bottom:13%;height:22%">
+        <img data-b="4" src="assets/cypress-light.png" class="a" style="left:92%;bottom:13%;height:30%">
+      </div>
+
+      <!-- WALKER -->
+      <img src="assets/walker.gif" class="walker">
+
+      <!-- ═══ FRONT BAND (scroll 12s, foreground — NO edificios) ═══ -->
+      <div class="band bfront">
+        <!-- Bosque front — solo árboles -->
+        <img data-b="0" src="assets/tree-light.png" class="a vis" style="left:10%;bottom:3%;height:32%">
+        <img data-b="0" src="assets/tree-round.png" class="a vis" style="left:40%;bottom:4%;height:24%">
+        <img data-b="0" src="assets/tree-light.png" class="a vis" style="left:60%;bottom:3%;height:32%">
+        <img data-b="0" src="assets/tree-round.png" class="a vis" style="left:90%;bottom:4%;height:24%">
+
+        <!-- Pradera front — runner + árboles -->
+        <img data-b="1" src="assets/tree-round.png"     class="a" style="left:8%;bottom:4%;height:26%">
+        <img data-b="1" src="assets/person-runner.gif"   class="a" style="left:22%;bottom:8%;height:16%">
+        <img data-b="1" src="assets/tree-stars.png"      class="a" style="left:38%;bottom:3%;height:18%">
+        <img data-b="1" src="assets/tree-round.png"      class="a" style="left:58%;bottom:4%;height:26%">
+        <img data-b="1" src="assets/person-runner.gif"   class="a" style="left:72%;bottom:8%;height:16%">
+        <img data-b="1" src="assets/tree-stars.png"      class="a" style="left:88%;bottom:3%;height:18%">
+
+        <!-- Ciudad front — vespa + árboles -->
+        <img data-b="2" src="assets/tree-stars.png"     class="a" style="left:8%;bottom:4%;height:18%">
+        <img data-b="2" src="assets/person-vespa.gif"   class="a" style="left:24%;bottom:8%;height:14%">
+        <img data-b="2" src="assets/tree-oval.png"      class="a" style="left:42%;bottom:3%;height:20%">
+        <img data-b="2" src="assets/tree-stars.png"     class="a" style="left:58%;bottom:4%;height:18%">
+        <img data-b="2" src="assets/person-vespa.gif"   class="a" style="left:74%;bottom:8%;height:14%">
+        <img data-b="2" src="assets/tree-oval.png"      class="a" style="left:92%;bottom:3%;height:20%">
+
+        <!-- Parque front — person-walker + faroles -->
+        <img data-b="3" src="assets/lamp-bush.png"       class="a" style="left:6%;bottom:3%;height:26%">
+        <img data-b="3" src="assets/person-walker.gif"   class="a" style="left:22%;bottom:6%;height:18%">
+        <img data-b="3" src="assets/tree-stars.png"      class="a" style="left:40%;bottom:4%;height:16%">
+        <img data-b="3" src="assets/lamp-bush.png"       class="a" style="left:56%;bottom:3%;height:26%">
+        <img data-b="3" src="assets/person-walker.gif"   class="a" style="left:72%;bottom:6%;height:18%">
+        <img data-b="3" src="assets/tree-stars.png"      class="a" style="left:90%;bottom:4%;height:16%">
+
+        <!-- Granja front — árboles -->
+        <img data-b="4" src="assets/tree-round.png" class="a" style="left:12%;bottom:4%;height:22%">
+        <img data-b="4" src="assets/tree-stars.png" class="a" style="left:42%;bottom:3%;height:18%">
+        <img data-b="4" src="assets/tree-round.png" class="a" style="left:62%;bottom:4%;height:22%">
+        <img data-b="4" src="assets/tree-stars.png" class="a" style="left:92%;bottom:3%;height:18%">
+      </div>
+
+      <!-- ═══ FORM ═══ -->
+      <div class="form">
+        <div class="prog"><div class="pdot active"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
+        <div class="step on" data-s="0">
+          <div class="tt">¿Quién sos?</div>
+          <div class="st">Elegí tu rol</div>
+          <div class="opts">
+            <button class="opt" data-i="0">Paseador<span class="olbl">Cuido y paseo perros</span></button>
+            <button class="opt" data-i="1">Empresa<span class="olbl">Tengo un negocio</span></button>
+            <button class="opt" data-i="2">Dueño<span class="olbl">Quiero pasear a mi perro</span></button>
+          </div>
+        </div>
+        <div class="step" data-s="1">
+          <div class="tt">Tus datos</div>
+          <div class="st">Info personal</div>
+          <div class="fields">
+            <div class="f"><label>Nombre</label><input placeholder="Nombre completo"></div>
+            <div class="f"><label>Teléfono</label><input type="tel" placeholder="+57 300 123 4567"></div>
+            <div class="f"><label>Email</label><input type="email" placeholder="tu@email.com"></div>
+            <div class="f"><label>Contraseña</label><input type="password" placeholder="Mín. 6 caracteres"></div>
+          </div>
+        </div>
+        <div class="step" data-s="2">
+          <div class="tt">Ubicación</div>
+          <div class="st">¿Dónde operás?</div>
+          <div class="fields">
+            <div class="f"><label>Ciudad</label><input placeholder="Ej: Bogotá"></div>
+            <div class="f"><label>Zona</label><input placeholder="Ej: Chapinero"></div>
+            <div class="f"><label>Negocio</label><input placeholder="Nombre del negocio"></div>
+          </div>
+        </div>
+        <div class="step" data-s="3">
+          <div class="tt">Facturación</div>
+          <div class="st">Datos de cuenta</div>
+          <div class="fields">
+            <div class="f"><label>Tipo doc</label><select><option value="">Seleccionar…</option><option>CC</option><option>CE</option><option>NIT</option><option>Pasaporte</option></select></div>
+            <div class="f"><label>Número</label><input placeholder="1234567890"></div>
+            <div class="f"><label>NIT</label><input placeholder="Opcional"></div>
+          </div>
+        </div>
+        <div class="done-msg" id="dn">
+          <div class="ck">✓</div>
+          <h2>¡Bienvenido!</h2>
+          <p>Tu cuenta DevDogs está lista.</p>
+        </div>
+        <div class="nav" id="nv">
+          <button class="btn btn-b" id="bb" disabled>Atrás</button>
+          <button class="btn btn-n" id="bn">Siguiente</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ DESKTOP ═══════════ -->
+<div class="col">
+  <div class="lbl">Desktop</div>
+  <div class="device dev-desk">
+    <div class="world" id="dst"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+document.getElementById('dst').innerHTML = document.getElementById('src').innerHTML;
+
+var c = 0, mx = 3;
+var blabels = ['Bosque', 'Pradera', 'Ciudad', 'Parque de perros', 'Granja'];
+
+function setBiome(step) {
+  document.querySelectorAll('.scene-bg').forEach(function(bg) {
+    bg.classList.toggle('vis', parseInt(bg.dataset.b) === step);
+  });
+
+  document.querySelectorAll('.btag').forEach(function(t) {
+    t.textContent = blabels[step] || '';
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2500);
+  });
+
+  document.querySelectorAll('.bnear .a, .bfront .a').forEach(function(el) {
+    el.classList.toggle('vis', parseInt(el.dataset.b) === step);
+  });
+
+  document.querySelectorAll('.world').forEach(function(w) {
+    w.classList.remove('push');
+    void w.offsetWidth;
+    w.classList.add('push');
+  });
+}
+
+function ud() {
+  document.querySelectorAll('.pdot').forEach(function(d, i) {
+    var idx = i % 4;
+    d.classList.remove('active', 'done');
+    if (idx < c) d.classList.add('done');
+    else if (idx === c) d.classList.add('active');
+  });
+}
+
+document.addEventListener('click', function(e) {
+  var opt = e.target.closest('.opt');
+  if (opt) {
+    var idx = parseInt(opt.dataset.i);
+    document.querySelectorAll('.opt').forEach(function(r) { r.classList.remove('pk'); });
+    document.querySelectorAll('.opt[data-i="' + idx + '"]').forEach(function(r) { r.classList.add('pk'); });
+    return;
+  }
+  if (e.target.closest('.btn-n')) { go(1); return; }
+  var b = e.target.closest('.btn-b');
+  if (b && !b.disabled) { go(-1); }
+});
+
+function go(d) {
+  var n = c + d;
+  if (n < 0) return;
+  if (n > mx) {
+    c = mx + 1;
+    setBiome(4);
+    document.querySelectorAll('.step').forEach(function(s) { s.classList.remove('on'); });
+    document.querySelectorAll('.done-msg').forEach(function(s) { s.classList.add('on'); });
+    document.querySelectorAll('.nav').forEach(function(s) { s.style.display = 'none'; });
+    ud();
+    return;
+  }
+  c = n;
+  document.querySelectorAll('.step').forEach(function(s) {
+    s.classList.toggle('on', parseInt(s.dataset.s) === c);
+  });
+  document.querySelectorAll('.btn-b').forEach(function(b) { b.disabled = c === 0; });
+  document.querySelectorAll('.btn-n').forEach(function(b) {
+    b.textContent = c === mx ? 'Finalizar' : 'Siguiente';
+  });
+  setBiome(c);
+  ud();
+}
+
+setBiome(0);
+</script>
