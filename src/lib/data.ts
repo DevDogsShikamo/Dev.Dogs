@@ -56,24 +56,24 @@ export function perroActualizar(id: string, p: PerroInput): void {
   });
 }
 
+// Borrado OPTIMISTA (ya se quitó del store). El RPC (solo el jefe) da de baja el perro sin
+// perder su historial y limpia agenda futura, grupos y relaciones de los demás; el refresh
+// reconcilia el conteo. Si falla, el refresh revierte.
 export function perroEliminar(id: string): void {
-  // Borrado OPTIMISTA (ya se quitó del store). Limpiamos refs y borramos; el refresh
-  // final reconcilia el conteo de relaciones de los demás. Si falla, refresh revierte.
-  supa.from("perros").select("incompatibles").eq("id", id).single().then(function (res) {
-    const lst: RelEntry[] = ((res.data && (res.data as { incompatibles?: RelEntry[] }).incompatibles) || []);
-    const others = lst.map(function (e) { return (e && e.id) ? e.id : (e as unknown as string); }).filter(Boolean);
-    const doDelete = function () {
-      supa.from("perros").delete().eq("id", id).then(function (dr) {
-        if (dr && (dr as { error?: unknown }).error) toast("No se pudo eliminar el perro");
-        refresh();
-      });
-    };
-    if (!others.length) { doDelete(); return; }
-    let pending = others.length;
-    others.forEach(function (otherId) {
-      relPut(otherId, id, "", "", "", function () { pending -= 1; if (pending === 0) doDelete(); });
-    });
+  supa.rpc("perro_eliminar", { p_id: id }).then(function (res) {
+    if (res && (res as { error?: unknown }).error) toast("No se pudo eliminar el perro");
+    refresh();
   });
+}
+
+// Co-dueños (solo el jefe): el RPC valida que el perro y el cliente sean del negocio.
+export function coduenioAgregar(perroId: string, duenoId: string): void {
+  if (!perroId || !duenoId) return;
+  supa.rpc("coduenio_agregar", { p_perro: perroId, p_dueno: duenoId }).then(done("No se pudo agregar el co-dueño", refresh));
+}
+export function coduenioQuitar(perroId: string, duenoId: string): void {
+  if (!perroId || !duenoId) return;
+  supa.rpc("coduenio_quitar", { p_perro: perroId, p_dueno: duenoId }).then(done("No se pudo quitar el co-dueño", refresh));
 }
 
 // ---- Relaciones entre perros (perros.incompatibles jsonb) -----------------

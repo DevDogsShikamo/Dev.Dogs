@@ -63,4 +63,9 @@ export async function makeDog(ownerId, { history }) {
   }
   return dog.id
 }
-export const dropDog = (id) => admin().from('perros').delete().eq('id', id)
+// prestaciones.perro_id stops cascading in S2b1, so a dog with history is removed
+// together with its rows, through the service role.
+export async function dropDog(id) {
+  await admin().from('prestaciones').delete().eq('perro_id', id)
+  return admin().from('perros').delete().eq('id', id)
+}
