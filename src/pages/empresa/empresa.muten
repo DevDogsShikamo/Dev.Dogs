@@ -127,7 +127,7 @@ action asigCerrar mutates asigForm { asigForm.set(false) }
 action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(asigSalida, cid, cnom)  grupoAsignar(asigSalida, cid)  asigForm.set(false) }
 
 # ---- Cobrar un paseo pendiente (optimista + persiste) ----
-action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
+action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 
 Stack class("dd-app") {
 
