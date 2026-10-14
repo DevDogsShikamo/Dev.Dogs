@@ -150,9 +150,7 @@ Stack class("dd-app") {
     Span "Empresa" class("dd-navlbl")
     Button -> go("dashboard")  class("dd-lnk") class("dd-on" when section == "dashboard")  { Icon "lucide:home"        Span "Inicio" }
     Button -> go("paseadores") class("dd-lnk") class("dd-on" when section == "paseadores") { Icon "lucide:users"       Span "Paseadores" }
-    when auth.isOwner {
-      Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
-    }
+    Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
     Button -> go("salidas")    class("dd-lnk") class("dd-on" when section == "salidas")    { Icon "lucide:map-pin"     Span "Salidas" }
     Button -> go("agenda")     class("dd-lnk") class("dd-on" when section == "agenda")     { Icon "lucide:calendar"    Span "Agenda" }
     when auth.isOwner {
@@ -270,7 +268,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") {
             Title "Clientes" h2
-            Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
+            when auth.isOwner { Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" } }
           }
           each empresa.invitaciones as iv where iv.rol == "cliente" {
             InviteItem(iv: iv, onDelete: invBorrar)
@@ -676,9 +674,7 @@ Stack class("dd-app") {
   Nav class("dd-tabbar") {
     Button -> go("dashboard")  class("dd-on" when section == "dashboard")  aria(label: "Inicio") { Icon "lucide:home" }
     Button -> go("paseadores") class("dd-on" when section == "paseadores") aria(label: "Paseadores") { Icon "lucide:users" }
-    when auth.isOwner {
-      Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
-    }
+    Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
     Button -> go("salidas")    class("dd-on" when section == "salidas")    aria(label: "Salidas") { Icon "lucide:map-pin" }
     Button -> go("agenda")     class("dd-on" when section == "agenda")     aria(label: "Agenda") { Icon "lucide:calendar" }
     when auth.isOwner {
