@@ -448,6 +448,7 @@ Page class("lp2") {
         Span "DevDogs" class("gf-colh")
         Link "Nosotros" -> "/signup" class("gf-link")
         Link "Reseñas" -> "/signup" class("gf-link")
+        Link "Política de privacidad" -> "/privacidad" class("gf-link")
       }
     }
 

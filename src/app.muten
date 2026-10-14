@@ -6,6 +6,7 @@ routes {
   "/login"   -> login   guard not auth.loggedIn else "/app"
   "/signup"  -> signup  guard not auth.loggedIn else "/app"
   "/unirse"  -> unirse  guard not auth.loggedIn else "/app"   # canje de invitación (código)
+  "/privacidad" -> privacidad                                  # política de datos (pública, borrador)
   # Ruteo por ROL via cadena de guards: /app dispara al portal correcto.
   #  paseador → /app (dashboard) · empresa → /empresa · cliente → /cliente
   #  Sin sesión, la cadena termina en /login (los guards canX incluyen loggedIn).

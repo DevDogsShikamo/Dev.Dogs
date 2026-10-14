@@ -350,7 +350,7 @@ html{ scroll-padding-top:88px; }
 .su-hero-bold{ color:var(--color-violet); }
 .su-hero-sub{ font:500 11px/1.4 var(--font-body); color:var(--color-muted); margin:6px 0 0;
   max-width:22ch; }
-.su-right{ flex:1; min-width:0;height:9rem; }
+.su-right{ flex:1; min-width:0; min-height:9rem; }
 
 /* form steps */
 .su-step{ display:flex; flex-direction:column; gap:12px; }
@@ -1790,3 +1790,28 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-fac-exp:hover{filter:brightness(1.05)}
 .dd-app .dd-fac-exp svg{width:1.1rem;height:1.1rem}
 .dd-app .dd-cli-past{opacity:0.62}
+
+/* S7: consent block (signup data step, /unirse) and the policy page */
+.gconsent{ display:flex; flex-direction:column; gap:6px; padding:10px 12px; border:1.5px solid var(--color-border);
+  border-radius:14px; background:var(--color-panel); }
+.gconsent label{ display:flex; flex-direction:row; align-items:flex-start; gap:8px; font-weight:700; font-size:13px;
+  color:var(--color-ink); cursor:pointer; }
+.gconsent input[type="checkbox"]{ margin-top:2px; flex:0 0 auto; }
+.gconsent-note{ font-size:12px; color:var(--color-muted); }
+.gconsent-draft{ font-size:11px; font-weight:800; color:#b45309; letter-spacing:.02em; }
+
+.pv{ min-height:100vh; background:var(--color-bg); color:var(--color-ink); }
+.pv-wrap{ max-width:760px; margin:0 auto; padding:32px clamp(18px,5vw,40px) 64px; display:flex; flex-direction:column; gap:14px; }
+.pv-draft{ display:flex; flex-direction:column; gap:4px; padding:12px 14px; border-radius:14px; border:2px solid #b45309; background:#fff7ed; }
+.pv-draft-t{ font-weight:800; color:#b45309; letter-spacing:.03em; }
+.pv-draft-d{ font-size:13px; color:var(--color-ink); }
+.pv-h1{ font:800 clamp(22px,4vw,30px)/1.15 var(--font-display); margin:6px 0 0; }
+.pv-meta{ font-size:13px; color:var(--color-muted); margin:0; }
+.pv-sec{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.pv-sec h2{ font:800 18px/1.25 var(--font-display); margin:0; }
+.pv-sec p{ font-size:15px; line-height:1.55; margin:0; }
+.pv-sec ul{ display:flex; flex-direction:column; gap:6px; margin:0; padding-left:20px; list-style:disc; }
+.pv-sec li{ font-size:15px; line-height:1.5; }
+.pv-sec li p{ font-size:inherit; }
+.gconsent .glink{ align-self:flex-start; }
+.gconsent button.glink{ background:none; border:none; padding:0; font:inherit; font-weight:800; text-align:left; }
