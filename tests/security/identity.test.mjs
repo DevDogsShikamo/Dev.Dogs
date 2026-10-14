@@ -23,17 +23,6 @@ async function withUser(fn) {
   }
 }
 
-// A legacy (plaintext-code) invitation; returns its code.
-async function invite(negocio_id, rol) {
-  const codigo = `T${randomUUID().slice(0, 10)}`
-  const { error } = await admin()
-    .from('invitaciones')
-    .insert({ negocio_id, rol, codigo, estado: 'pendiente', expires_at: new Date(Date.now() + 864e5).toISOString() })
-  assert.equal(error, null)
-  return codigo
-}
-const dropInvite = (codigo) => admin().from('invitaciones').delete().eq('codigo', codigo)
-
 // ---- R2-1 provisioned profiles only -----------------------------------------
 test('TI-1a: NOPROFILE cannot insert a profile into tenant A', () =>
   withUser(async (u) => {
@@ -86,52 +75,7 @@ test('TI-1d: provisioning refuses the client role and creates nothing', () =>
     assert.equal((await admin().from('negocios').select('id').eq('owner_id', u.id)).data.length, 0)
   }))
 
-// ---- legacy invitation join (no upsert, result object) ------------------------
-test('redeem_invite: a new user joins the inviting tenant with the invited role', () =>
-  withUser(async (u) => {
-    const codigo = await invite(A, 'cliente')
-    try {
-      const res = await u.client.rpc('redeem_invite', { p_codigo: codigo })
-      assert.equal(res.error, null)
-      assert.equal(res.data.ok, true)
-      assert.deepEqual(
-        { rol: (await profileOf(u.id)).rol, negocio_id: (await profileOf(u.id)).negocio_id },
-        { rol: 'cliente', negocio_id: A },
-      )
-      assert.equal((await admin().from('invitaciones').select('estado').eq('codigo', codigo).single()).data.estado, 'aceptada')
-    } finally {
-      await dropInvite(codigo)
-    }
-  }))
-
-test('redeem_invite: a used code is rejected for a second user', () =>
-  withUser((first) =>
-    withUser(async (second) => {
-      const codigo = await invite(A, 'cliente')
-      try {
-        assert.equal((await first.client.rpc('redeem_invite', { p_codigo: codigo })).data.ok, true)
-        const res = await second.client.rpc('redeem_invite', { p_codigo: codigo })
-        assert.equal(res.data.ok, false)
-        assert.equal(await profileOf(second.id), null)
-      } finally {
-        await dropInvite(codigo)
-      }
-    })),
-)
-
-test('redeem_invite: a user with a profile cannot switch tenant or role', async () => {
-  const codigo = await invite(B, 'empresa')
-  const before = await profileOf(ids.users.CLIENT)
-  try {
-    const res = await (await as('CLIENT')).rpc('redeem_invite', { p_codigo: codigo })
-    assert.equal(res.data?.ok, false)
-    assert.deepEqual(await profileOf(ids.users.CLIENT), before)
-    assert.equal((await admin().from('invitaciones').select('estado').eq('codigo', codigo).single()).data.estado, 'pendiente')
-  } finally {
-    await admin().from('profiles').update({ rol: before.rol, negocio_id: before.negocio_id }).eq('id', ids.users.CLIENT)
-    await dropInvite(codigo)
-  }
-})
+// Invitation redemption (join, no switching, no upsert) is covered by invitations-redeem.test.mjs.
 
 // ---- R2-2 frozen identity fields ---------------------------------------------
 // Updates `name`'s profile as `actor`, returns the stored row, and always restores it.
