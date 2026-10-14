@@ -1,5 +1,6 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, paseoAgregarFoto from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, paseoAgregarFoto, invitarCrear, invitacionQuitar from "~/lib/data.ts"
+use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -68,11 +69,18 @@ state {
   vhasta  = "" : text
   vnota   = "" : text
   vform   = false : bool
+  invEmail = "" : text
 }
 action go(s: text) mutates section { section.set(s) }
+# Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
+get invValido = invEmail.length > 4
+action invCrear mutates invEmail { invitarCrear("cliente", invEmail)  invEmail.set("") }
+action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
+action copCod(c: text) { copiarCodigo(c) }
+action copLink(c: text) { copiarLink(c) }
 # Logout: limpia el cache persistido (in-memory + localStorage) y cierra sesión,
 # para no filtrar datos del usuario anterior en dispositivos compartidos.
-action salir { catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
+action salir { empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
 # Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
 action moverPerroGrupo(m: MovePayload) { moverPerro(m.perro, m.hacia, m.modo, m.fecha) }
@@ -188,7 +196,7 @@ Stack class("dd-app") {
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -731,12 +739,38 @@ Stack class("dd-app") {
           Stack class("dd-pf-list") {
             Button -> go("servicios") class("dd-pf-opt") { Icon "lucide:tag"  Span "{i18n.d.pf.servicios}"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("gruposadmin") class("dd-pf-opt") { Icon "lucide:layout-grid"  Span "{i18n.d.pf.grupos}"  Icon "lucide:chevron-right" class("chev") }
+            when auth.isOwner {
+              Button -> go("invitar") class("dd-pf-opt") { Icon "lucide:user-plus"  Span "Invitar clientes"  Icon "lucide:chevron-right" class("chev") }
+            }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:pencil"  Span "{i18n.d.pf.editar}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:bell"  Span "{i18n.d.pf.notif}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
           }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "{i18n.d.pf.salir}" }
+        }
+      }
+
+      # ==== INVITAR CLIENTES (P4: solo el paseador independiente, que es dueño de su negocio) ====
+      when section == "invitar" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+            Title "Invitar clientes" h2
+          }
+          Stack class("dd-gform") {
+            Span "Correo del cliente" class("dd-hor-lbl")
+            SearchField bind(invEmail) "correo@ejemplo.com"
+            Text "El código queda atado a este correo, vence en 7 días y se muestra una sola vez." class("dd-rel-hint")
+            Button "Crear invitación" -> invCrear class("dd-cat-add dd-hor-save") disabled when not invValido
+          }
+          when empresa.codigoNuevo.length > 0 {
+            InviteCode(code: empresa.codigoNuevo, email: empresa.codigoEmail, onCopyCode: copCod, onCopyLink: copLink, onClose: empresa.codigoCerrar)
+          }
+          Span "Invitaciones pendientes" class("dd-hor-lbl")
+          each empresa.invitaciones as iv {
+            InviteItem(iv: iv, onDelete: invBorrar)
+          }
         }
       }
 

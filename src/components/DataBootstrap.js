@@ -236,7 +236,26 @@ function mount(el, inputs, on) {
     });
   }
 
+  // ---------- INVITACIONES (panel "invitar cliente" del paseador independiente) ----------
+  // Solo correo y vencimiento; el código existe una única vez, al crearla. RLS: solo el dueño las lee.
+  function loadInvitaciones() {
+    var supa = globalThis.__supa;
+    if (!supa || !on.invitaciones) return;
+    globalThis.__ddSesion().then(function (s) {
+      if (!s.negocioId) return;
+      supa.from("invitaciones").select("id,rol,email,estado,expires_at").eq("negocio_id", s.negocioId)
+        .eq("estado", "pendiente").gt("expires_at", new Date().toISOString()).order("created_at")
+        .then(function (res) {
+          if (res && res.error) return;   // SWR: no pisar el cache si falló
+          on.invitaciones((res.data || []).map(function (i) {
+            return { id: i.id, rol: i.rol || "", email: i.email || "", estado: i.estado || "", vence: new Date(i.expires_at).toLocaleDateString("es") };
+          }));
+        });
+    });
+  }
+
   function loadAll() {
+    loadInvitaciones();
     loadPerros();
     loadServicios();
     loadGruposAdmin();
@@ -245,6 +264,8 @@ function mount(el, inputs, on) {
 
   loadAll();
   window.addEventListener("supa:refresh", loadAll);
+  // Código recién creado (data.ts invitarCrear): se entrega una vez a la página.
+  window.addEventListener("invite:code", function (e) { if (on.codigoNuevo) on.codigoNuevo(e.detail); });
   // Solo grupos-hoy depende del idioma (etiqueta de fecha + emojis).
   window.addEventListener("lang:changed", loadGruposHoy);
 
