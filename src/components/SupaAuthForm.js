@@ -8,9 +8,7 @@ function mount(el, inputs, on) {
   var last = inputs.nonce;
 
   function mapRol(r) {
-    if (r === "EMPRESA") return "empresa";
-    if (r === "DUENO") return "cliente";
-    return "paseador";
+    return r === "EMPRESA" ? "empresa" : "paseador";
   }
 
   // Load profile + negocio, then push the full session into the store.
@@ -34,20 +32,22 @@ function mount(el, inputs, on) {
   // negocio y el perfil del usuario como su dueño. Ya no hay INSERT directo en profiles
   // ni negocios, y "Dueño" entra por /unirse con invitación (nunca desde el signup).
   function provision(inp, user) {
-    var rol = mapRol(inp.rol);
-    if (rol === "cliente") { on.failed("Para registrarte como dueño necesitas una invitación."); return; }
-    supa.rpc("provision_negocio", { p_rol: rol, p_nombre: inp.nombre || "", p_negocio: inp.negocioNombre || "", p_telefono: inp.telefono || "" })
+    supa.rpc("provision_negocio", { p_rol: mapRol(inp.rol), p_nombre: inp.nombre || "", p_negocio: inp.negocioNombre || "", p_telefono: inp.telefono || "" })
       .then(function (r) { r.error ? on.failed(r.error.message) : reportSession(user); })
       .catch(function () { on.failed("No pudimos crear tu cuenta."); });
   }
 
   // Canje de invitación: crea la cuenta y, con el código, queda asociada al negocio
-  // con el rol de la invitación (redeem_invite es SECURITY DEFINER y devuelve {ok,error}). Luego setea el
+  // con el rol de la invitación (redeem_invite exige que el correo sea el invitado). Luego setea el
   // nombre en su profile y reporta la sesión (la cadena de guards la rutea a su portal).
   function join(inp, user) {
     supa.rpc("redeem_invite", { p_codigo: (inp.codigo || "").trim() }).then(function (r) {
       if (r.error) return on.failed(r.error.message || "Invitación inválida o expirada.");
-      if (!r.data || !r.data.ok) return on.failed("Invitación inválida, expirada o esta cuenta ya tiene perfil.");
+      if (!r.data || !r.data.ok) {
+        var e = r.data && r.data.error;
+        return on.failed(e === "demasiados_intentos" ? "Demasiados intentos. Probá de nuevo en 15 minutos."
+          : e === "perfil_existente" ? "Esta cuenta ya tiene un perfil." : "Invitación inválida, vencida o para otro correo.");
+      }
       var nombre = (inp.nombre || "").trim();
       if (nombre) {
         supa.from("profiles").update({ nombre: nombre }).eq("id", user.id)
