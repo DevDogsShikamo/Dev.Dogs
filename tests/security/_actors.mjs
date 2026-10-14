@@ -121,17 +121,24 @@ async function data() {
       Object.entries(ACTORS)
         .filter(([, a]) => a.rol)
         .map(([name, a]) => ({
-          id: u[name], negocio_id: ids.negocios[a.neg], rol: a.rol, nombre: a.nombre, verificado: false, salario_fijo: 0,
+          id: u[name], negocio_id: ids.negocios[a.neg], rol: a.rol, nombre: a.nombre, verificado: false,
         })),
     ),
     'profiles',
   )
   ok(
     await db.from('servicios').upsert([
-      { id: ids.servicios.paseoA, negocio_id: A, tipo: 'paseo', nombre: 'Paseo', precio: 20000 },
-      { id: ids.servicios.banoA, negocio_id: A, tipo: 'bano', nombre: 'Bano', precio: 30000 },
+      { id: ids.servicios.paseoA, negocio_id: A, tipo: 'paseo', nombre: 'Paseo' },
+      { id: ids.servicios.banoA, negocio_id: A, tipo: 'bano', nombre: 'Bano' },
     ]),
     'servicios',
+  )
+  ok(
+    await db.from('tarifas').upsert([
+      { servicio_id: ids.servicios.paseoA, negocio_id: A, precio: 20000, precio_mensual: 0 },
+      { servicio_id: ids.servicios.banoA, negocio_id: A, precio: 30000, precio_mensual: 0 },
+    ]),
+    'tarifas',
   )
 
   const dog = (id, negocio_id, nombre) => ({ id, negocio_id, nombre, activo: true, compatible: true, incompatibles: [] })
@@ -181,17 +188,36 @@ async function data() {
   const base = { negocio_id: A, perro_id: d1, cobrado: false, cobrable: true, confirmado_por: null, confirmado_at: null }
   const walk = { ...base, tipo: 'paseo', servicio_id: ids.servicios.paseoA, grupo_id: g1, cuidador_id: u.WALKER_CO, precio_aplicado: 20000 }
   const p = ids.prestaciones
-  ok(
-    await db.from('prestaciones').upsert([
+  await writePrestaciones(
+    [
       { ...walk, id: p.p1, fecha: day(0), estado: 'programado', detalle: { hora: '08:00' } },
       { ...walk, id: p.hist, fecha: day(-7), estado: 'finalizado', cobrado: true, detalle: { hora: '08:00' } },
       { ...walk, id: p.unpaid, fecha: day(-3), estado: 'finalizado', detalle: { hora: '08:00' } },
       { ...walk, id: p.future, fecha: day(7), estado: 'programado', detalle: { hora: '08:00' } },
       { ...base, id: p.nonWalk, tipo: 'bano', servicio_id: ids.servicios.banoA, grupo_id: null, cuidador_id: null,
         fecha: day(8), estado: 'programado', precio_aplicado: 30000, detalle: {} },
-    ]),
-    'prestaciones',
+    ],
+    { upsert: true },
   )
+}
+
+// Money lives in `cobros`, not in `prestaciones` (S4b). Fixtures and tests keep writing one row shape;
+// this splits the money keys off, writes the booking and then its charge (service role). Rows keep their order.
+const MONEY = ['precio_aplicado', 'cobrable', 'cobrado', 'confirmado_por', 'confirmado_at']
+export async function writePrestaciones(rows, { upsert = false } = {}) {
+  const list = [].concat(rows)
+  const bookings = list.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY.includes(k))))
+  const q = admin().from('prestaciones')
+  const res = await (upsert ? q.upsert(bookings) : q.insert(bookings)).select('*')
+  ok(res, 'prestaciones')
+  ok(
+    await admin().from('cobros').upsert(res.data.map((b, i) => ({
+      prestacion_id: b.id, negocio_id: b.negocio_id, precio_aplicado: list[i].precio_aplicado ?? 0, cobrable: list[i].cobrable ?? true,
+      cobrado: list[i].cobrado ?? false, confirmado_por: list[i].confirmado_por ?? null, confirmado_at: list[i].confirmado_at ?? null,
+    }))),
+    'cobros',
+  )
+  return res
 }
 
 let seeded

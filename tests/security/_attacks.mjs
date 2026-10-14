@@ -1,7 +1,7 @@
 // Shared exploit helpers for the baseline (RED) tests. Each attack records the
 // damage it caused and can undo it, so a successful exploit never poisons the
 // next test. Import-safe (no side effects on load).
-import { admin, day, ids } from './_actors.mjs'
+import { admin, day, ids, writePrestaciones } from './_actors.mjs'
 
 export const FAR_DAY = '2099-01-01'
 const hora = async () => (await admin().from('grupos').select('hora').eq('id', ids.grupos.g1).single()).data.hora
@@ -56,7 +56,7 @@ export async function makeDog(ownerId, { history }) {
   await db.from('perro_duenos').insert({ perro_id: dog.id, dueno_id: ownerId, rol: 'principal', estado: 'activo' })
   if (history) {
     const row = { negocio_id: ids.negocios.A, perro_id: dog.id, tipo: 'paseo', estado: 'finalizado', precio_aplicado: 20000 }
-    await db.from('prestaciones').insert([
+    await writePrestaciones([
       { ...row, fecha: day(-7), cobrado: true },
       { ...row, fecha: day(-3), cobrado: false },
     ])

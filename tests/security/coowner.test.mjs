@@ -36,7 +36,7 @@ for (const actor of ['COOWNER', 'CLIENT']) {
     const client = await as(actor)
     assert.equal((await client.from('prestaciones').select('id').eq('id', p.nonWalk)).data.length, 1, 'the booking must be visible to the owner')
     try {
-      for (const patch of [{ estado: 'cancelado' }, { fecha: '2099-01-01' }, { precio_aplicado: 1 }, { detalle: { x: 1 } }]) {
+      for (const patch of [{ estado: 'cancelado' }, { fecha: '2099-01-01' }, { servicio_id: ids.servicios.paseoA }, { detalle: { x: 1 } }]) {
         const res = await client.from('prestaciones').update(patch).eq('id', p.nonWalk).select('id')
         assert.deepEqual(res.data, [], `${Object.keys(patch)[0]}: the update matched the booking`)
       }

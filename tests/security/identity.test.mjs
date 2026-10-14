@@ -108,17 +108,6 @@ test('TI-2d: WALKER-CO can still edit own name and availability', async () => {
   assert.deepEqual(after.horario, { lun: ['08:00'] })
 })
 
-test('TI-2e: WALKER-CO cannot change own salary', async () => {
-  const { before, after } = await tryUpdate('WALKER_CO', 'WALKER_CO', { salario_fijo: 999999 })
-  assert.equal(before.salario_fijo, 0)
-  assert.equal(after.salario_fijo, 0)
-})
-
-test('TI-2e: OWNER can still set the salary of an employee', async () => {
-  const { after } = await tryUpdate('OWNER', 'WALKER_CO', { salario_fijo: 150000 })
-  assert.equal(after.salario_fijo, 150000)
-})
-
 test('TI-2: CLIENT cannot verify itself', async () => {
   const { before, after } = await tryUpdate('CLIENT', 'CLIENT', { verificado: true, verificado_at: new Date().toISOString() })
   assert.equal(before.verificado, false)

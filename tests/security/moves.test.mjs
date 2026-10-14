@@ -3,7 +3,7 @@
 // vulnerable run never poisons the shared fixtures.
 import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admin, as, day, ids, seed } from './_actors.mjs'
+import { admin, as, day, ids, seed, writePrestaciones } from './_actors.mjs'
 import { dropDog } from './_attacks.mjs'
 
 before(() => seed())
@@ -33,8 +33,7 @@ async function withDog(fn) {
       clientWalk: { ...walk, fecha: day(11), estado: 'programado', grupo_id: null },
     }
     const names = Object.keys(spec)
-    const { data, error } = await db.from('prestaciones').insert(Object.values(spec)).select('*')
-    assert.equal(error, null)
+    const { data } = await writePrestaciones(Object.values(spec))
     const rows = Object.fromEntries(names.map((n) => [n, data.find((r) => r.fecha === spec[n].fecha && r.tipo === spec[n].tipo)]))
     assert.equal(Object.values(rows).filter(Boolean).length, names.length, 'fixture rows were not created')
     return await fn(dog.id, rows)

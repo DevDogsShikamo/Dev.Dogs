@@ -58,14 +58,14 @@ test('clients see exactly their own dogs; the co-owner sees d1 as co', async () 
 })
 
 test('CLIENT sees the d1 history: finished, charged, unpaid, future walk, future booking', async () => {
-  const data = await rows(await as('CLIENT'), 'prestaciones', 'id, estado, cobrado, tipo, grupo_id')
+  const data = await rows(await as('CLIENT'), 'prestaciones', 'id, estado, cobros(cobrado), tipo, grupo_id')
   assert.deepEqual(
     pick(data),
     sorted(ids.prestaciones.p1, ids.prestaciones.hist, ids.prestaciones.unpaid, ids.prestaciones.future, ids.prestaciones.nonWalk),
   )
   const by = Object.fromEntries(data.map((r) => [r.id, r]))
-  assert.equal(by[ids.prestaciones.hist].cobrado, true)
-  assert.equal(by[ids.prestaciones.unpaid].cobrado, false)
+  assert.equal(by[ids.prestaciones.hist].cobros.cobrado, true)
+  assert.equal(by[ids.prestaciones.unpaid].cobros.cobrado, false)
   assert.equal(by[ids.prestaciones.nonWalk].grupo_id, null)
   assert.equal(by[ids.prestaciones.nonWalk].tipo, 'bano')
 })

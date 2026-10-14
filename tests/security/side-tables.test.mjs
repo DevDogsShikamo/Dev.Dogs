@@ -1,5 +1,5 @@
 // S4a1 side tables (contactos, nomina, permisos, tarifas, cobros, perro_identidad): who reads which
-// rows (RV-1a/b, RV-5a/b/d, RV-8a/b, D5/D5b, microchip) and the backfill from the legacy columns.
+// rows (RV-1a/b, RV-5a/b/d, RV-8a/b, D5/D5b, microchip). Fixtures write the side tables directly.
 import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ACTORS, admin, as, ids, seed } from './_actors.mjs'
@@ -13,7 +13,7 @@ const neg = (n) => ids.negocios[ACTORS[n].neg]
 const ok = ({ error }, what) => assert.equal(error, null, `${what}: ${error?.message}`)
 const denied = (res, what) => assert.equal(res.error?.code, '42501', `${what}: expected 42501, got ${res.error?.code ?? 'no error'}`)
 
-// Distinctive legacy values, copied by backfill_side_tables().
+// Distinctive values written to the side tables by setup().
 const phone = (n) => `tel-${n}`
 const salary = (n) => 1000 + names.indexOf(n)
 const chip = { [ids.perros.d1]: 'DDTEST-CHIP-1', [ids.perros.d3]: 'DDTEST-CHIP-3', [ids.perros.dB]: 'DDTEST-CHIP-B', [ids.perros.dI]: 'DDTEST-CHIP-I' }
@@ -23,10 +23,10 @@ let ready
 const setup = () => (ready ??= (async () => {
   await seed()
   const db = admin()
-  for (const n of withProfile) ok(await db.from('profiles').update({ telefono: phone(n), salario_fijo: salary(n) }).eq('id', u[n]), 'profile')
-  for (const [id, microchip] of Object.entries(chip)) ok(await db.from('perros').update({ microchip }).eq('id', id), 'chip')
+  ok(await db.from('contactos').upsert(withProfile.map((n) => ({ user_id: u[n], negocio_id: neg(n), rol: ACTORS[n].rol, telefono: phone(n) }))), 'contactos')
+  ok(await db.from('nomina').upsert(withProfile.filter((n) => ACTORS[n].rol !== 'cliente').map((n) => ({ user_id: u[n], negocio_id: neg(n), salario_fijo: salary(n) }))), 'nomina')
+  ok(await db.from('perro_identidad').upsert(Object.entries(chip).map(([perro_id, microchip]) => ({ perro_id, microchip }))), 'chips')
   ok(await db.from('permisos').upsert(flagged.map((n) => ({ user_id: u[n], negocio_id: neg(n), finanzas: true }))), 'permisos')
-  ok(await db.rpc('backfill_side_tables'), 'backfill')
 })())
 
 after(async () => {
@@ -34,9 +34,8 @@ after(async () => {
   const db = admin()
   await db.from('permisos').delete().in('user_id', flagged.map((n) => u[n]))
   await db.from('perro_identidad').delete().in('perro_id', Object.keys(chip))
-  await db.from('perros').update({ microchip: null }).in('id', Object.keys(chip))
-  await db.from('profiles').update({ telefono: null, salario_fijo: 0 }).in('id', withProfile.map((n) => u[n]))
-  await db.rpc('backfill_side_tables')
+  await db.from('contactos').update({ telefono: null }).in('user_id', withProfile.map((n) => u[n]))
+  await db.from('nomina').update({ salario_fijo: 0 }).in('user_id', withProfile.map((n) => u[n]))
 })
 
 // ---- visibility matrix: actor -> the fixture rows it may read (anything absent = zero rows) ----
@@ -152,41 +151,11 @@ test('RV-4d: revoking the finance flag takes effect in the same session', async 
 test('new helpers are SECURITY DEFINER with an empty search_path and anon cannot execute or read anything', () => {
   const fns = sql(`select proname, prosecdef, coalesce(proconfig @> array['search_path=""'], false) as pinned,
       has_function_privilege('anon', oid, 'execute') as anon, has_function_privilege('authenticated', oid, 'execute') as auth
-    from pg_proc where pronamespace = 'public'::regnamespace and proname in ('has_finanzas', 'owns_cobro', 'backfill_side_tables') order by 1`)
-  assert.deepEqual(fns.map((f) => f.proname), ['backfill_side_tables', 'has_finanzas', 'owns_cobro'])
-  for (const f of fns) assert.deepEqual([f.prosecdef, f.pinned, f.anon], [true, true, false], f.proname)
-  assert.deepEqual(fns.map((f) => f.auth), [false, true, true], 'only the backfill stays closed to signed-in users')
+    from pg_proc where pronamespace = 'public'::regnamespace and proname in ('has_finanzas', 'owns_cobro') order by 1`)
+  assert.deepEqual(fns.map((f) => f.proname), ['has_finanzas', 'owns_cobro'])
+  for (const f of fns) assert.deepEqual([f.prosecdef, f.pinned, f.anon, f.auth], [true, true, false, true], f.proname)
   const tbl = sql(`select relname, relrowsecurity as rls, has_table_privilege('anon', oid, 'select') as anon
     from pg_class where relnamespace = 'public'::regnamespace and relname in ('contactos','nomina','permisos','cobros','tarifas','perro_identidad') order by 1`)
   assert.equal(tbl.length, 6)
   for (const t of tbl) assert.deepEqual([t.rls, t.anon], [true, false], t.relname)
-})
-
-// ---- backfill: each side table equals its legacy columns, row for row ----
-test('backfill copies the legacy columns row for row and a re-run changes nothing', async () => {
-  await setup()
-  const db = admin()
-  const A3 = Object.values(ids.negocios)
-  const cases = [
-    ['contactos', 'user_id,negocio_id,rol,telefono', 'profiles', 'id,negocio_id,rol,telefono', (r) => ({ user_id: r.id, negocio_id: r.negocio_id, rol: r.rol, telefono: r.telefono })],
-    ['nomina', 'user_id,negocio_id,salario_fijo', 'profiles', 'id,negocio_id,rol,salario_fijo', (r) => ({ user_id: r.id, negocio_id: r.negocio_id, salario_fijo: r.salario_fijo ?? 0 }), (q) => q.neq('rol', 'cliente')],
-    ['tarifas', 'servicio_id,negocio_id,precio,precio_mensual', 'servicios', 'id,negocio_id,precio,precio_mensual', (r) => ({ servicio_id: r.id, negocio_id: r.negocio_id, precio: r.precio ?? 0, precio_mensual: r.precio_mensual ?? 0 })],
-    ['cobros', 'prestacion_id,negocio_id,precio_aplicado,cobrable,cobrado,confirmado_por,confirmado_at', 'prestaciones', 'id,negocio_id,precio_aplicado,cobrable,cobrado,confirmado_por,confirmado_at',
-      (r) => ({ prestacion_id: r.id, negocio_id: r.negocio_id, precio_aplicado: r.precio_aplicado ?? 0, cobrable: r.cobrable ?? false, cobrado: r.cobrado ?? false, confirmado_por: r.confirmado_por, confirmado_at: r.confirmado_at })],
-    ['perro_identidad', 'perro_id,microchip', 'perros', 'id,negocio_id,microchip', (r) => ({ perro_id: r.id, microchip: r.microchip }), (q) => q.not('microchip', 'is', null)],
-  ]
-  const check = async () => {
-    for (const [side, sideCols, legacy, legacyCols, map, filter = (q) => q] of cases) {
-      const key = Object.keys(map({}))[0]
-      const expected = (await filter(db.from(legacy).select(legacyCols).in('negocio_id', A3))).data.map(map)
-      const scopeIds = expected.map((r) => r[key])
-      const actual = (await db.from(side).select(sideCols).in(key, scopeIds)).data
-      assert.ok(expected.length > 0, `${side}: legacy rows exist (precondition)`)
-      const sort = (rows) => rows.sort((a, b) => (a[key] < b[key] ? -1 : 1))
-      assert.deepEqual(sort(actual), sort(expected), `${side} differs from ${legacy}`)
-    }
-  }
-  await check()
-  ok(await db.rpc('backfill_side_tables'), 'second run')
-  await check()
 })

@@ -4,7 +4,7 @@
 // AH-6a (baseline exploit) lives in baseline-data.test.mjs.
 import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admin, as, ids, seed } from './_actors.mjs'
+import { admin, as, ids, seed, writePrestaciones } from './_actors.mjs'
 
 before(() => seed())
 
@@ -13,7 +13,7 @@ const u = ids.users
 const hoy = (n = 0) => new Date(Date.now() - 5 * 36e5 + n * 864e5).toISOString().slice(0, 10)
 const denied = (res) => assert.equal(res.error?.code, '42501', `expected permission denied, got ${res.error?.code ?? 'no error'}`)
 const row = async (id) => (await admin().from('prestaciones').select('*').eq('id', id).single()).data
-const PROTECTED = ['negocio_id', 'perro_id', 'servicio_id', 'tipo', 'cuidador_id', 'fecha', 'precio_aplicado', 'cobrable', 'cobrado', 'confirmado_por', 'confirmado_at']
+const PROTECTED = ['negocio_id', 'perro_id', 'servicio_id', 'tipo', 'cuidador_id', 'fecha']
 const guarded = (r) => Object.fromEntries(PROTECTED.map((k) => [k, r[k]]))
 
 // Throwaway walks of WALKER_CO on dog d2, so the shared fixtures are never touched.
@@ -22,8 +22,7 @@ async function walks(specs, fn) {
     negocio_id: ids.negocios.A, perro_id: ids.perros.d2, tipo: 'paseo', servicio_id: ids.servicios.paseoA,
     cuidador_id: u.WALKER_CO, precio_aplicado: 20000, cobrable: true, cobrado: false, detalle: { hora: '08:00' },
   }
-  const { data, error } = await admin().from('prestaciones').insert(specs.map((s) => ({ fecha: hoy(), estado: 'programado', ...base, ...s }))).select('*')
-  assert.equal(error, null, error?.message)
+  const { data } = await writePrestaciones(specs.map((s) => ({ fecha: hoy(), estado: 'programado', ...base, ...s })))
   try {
     return await fn(data.map((r) => r.id), data)
   } finally {
@@ -40,13 +39,14 @@ test('AH-6a/6c: WALKER_CO cannot update any column of its walk, nor delete it', 
     const walker = await as('WALKER_CO')
     assert.equal((await walker.from('prestaciones').select('id').eq('id', id)).data.length, 1, 'the walker must see its own walk')
     for (const patch of [
-      { precio_aplicado: 1 }, { cobrado: true }, { cobrable: false }, { cuidador_id: u.WALKER_CO2 }, { fecha: hoy(30) },
-      { perro_id: ids.perros.d3 }, { estado: 'finalizado' }, { detalle: { fotos: ['x'] } }, { confirmado_por: u.WALKER_CO },
+      { cuidador_id: u.WALKER_CO2 }, { fecha: hoy(30) }, { perro_id: ids.perros.d3 }, { estado: 'finalizado' }, { detalle: { fotos: ['x'] } },
     ]) {
       const res = await walker.from('prestaciones').update(patch).eq('id', id).select('id')
       assert.deepEqual(res.data, [], `${Object.keys(patch)[0]}: the update matched the walk`)
     }
     assert.deepEqual((await walker.from('prestaciones').delete().eq('id', id).select('id')).data, [])
+    // Price and paid flag live in cobros: the walker neither reads nor changes them.
+    assert.equal((await walker.from('cobros').update({ precio_aplicado: 1, cobrado: true }).eq('prestacion_id', id).select('prestacion_id')).error?.code, '42501')
     assert.deepEqual(await row(id), before)
   }))
 

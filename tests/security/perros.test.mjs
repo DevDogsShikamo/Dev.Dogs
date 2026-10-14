@@ -3,7 +3,7 @@
 // AH-5a, AH-5b (client DELETE) live in baseline-data.test.mjs.
 import { afterEach, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admin, as, day, ids, seed, tempUser } from './_actors.mjs'
+import { admin, as, day, ids, seed, tempUser, writePrestaciones } from './_actors.mjs'
 import { dropDog, makeDog } from './_attacks.mjs'
 
 before(() => seed())
@@ -72,8 +72,8 @@ test('AH-5e: CLIENT registers a dog; it gets its principal link and business def
   assert.equal(res.error, null, res.error?.message)
   const row = await dog(res.data)
   assert.deepEqual(
-    { neg: row.negocio_id, nombre: row.nombre, activo: row.activo, compatible: row.compatible, incompatibles: row.incompatibles, microchip: row.microchip },
-    { neg: ids.negocios.A, nombre: 'Nuevo', activo: true, compatible: true, incompatibles: [], microchip: null },
+    { neg: row.negocio_id, nombre: row.nombre, activo: row.activo, compatible: row.compatible, incompatibles: row.incompatibles },
+    { neg: ids.negocios.A, nombre: 'Nuevo', activo: true, compatible: true, incompatibles: [] },
   )
   assert.deepEqual((await admin().from('perro_duenos').select('dueno_id,rol,estado').eq('perro_id', res.data)).data, [{ dueno_id: u.CLIENT, rol: 'principal', estado: 'activo' }])
 })
@@ -141,7 +141,7 @@ test('AH-5f: perro_eliminar drops future programado rows, memberships and the do
   const db = admin()
   const row = { negocio_id: ids.negocios.A, perro_id: victim, tipo: 'paseo', cobrado: false, precio_aplicado: 20000 }
   try {
-    await db.from('prestaciones').insert([
+    await writePrestaciones([
       { ...row, fecha: day(5), estado: 'programado' },
       { ...row, fecha: day(6), estado: 'programado', cobrado: true },
       { ...row, fecha: day(-2), estado: 'finalizado' },
@@ -152,8 +152,8 @@ test('AH-5f: perro_eliminar drops future programado rows, memberships and the do
 
     assert.equal((await (await as('OWNER')).rpc('perro_eliminar', { p_id: victim })).error, null)
 
-    const left = (await db.from('prestaciones').select('fecha,estado,cobrado').eq('perro_id', victim).order('fecha')).data
-    assert.deepEqual(left.map((r) => `${r.estado}${r.cobrado ? '$' : ''}`), ['finalizado', 'programado$', 'en_curso'], 'only the unpaid future programado row goes')
+    const left = (await db.from('prestaciones').select('fecha,estado,cobros(cobrado)').eq('perro_id', victim).order('fecha')).data
+    assert.deepEqual(left.map((r) => `${r.estado}${r.cobros.cobrado ? '$' : ''}`), ['finalizado', 'programado$', 'en_curso'], 'only the unpaid future programado row goes')
     assert.equal((await db.from('grupo_membresias').select('perro_id').eq('perro_id', victim)).data.length, 0)
     assert.deepEqual((await dog(d2)).incompatibles, [{ id: d3, nivel: 'tolera' }])
   } finally {
@@ -238,8 +238,8 @@ test('AH-8a: a walker reads the memberships of its own groups only', async () =>
 test('AH-8b: CLIENT still lists own dogs, own agenda with prices, groups and services', async () => {
   const client = await as('CLIENT')
   assert.deepEqual((await client.from('perros').select('id')).data.map((r) => r.id).sort(), [d1, d2].sort())
-  const { data: agenda } = await client.from('prestaciones').select('id,precio_aplicado').eq('perro_id', d1)
-  assert.equal(agenda.find((r) => r.id === ids.prestaciones.p1)?.precio_aplicado, 20000)
+  const { data: agenda } = await client.from('prestaciones').select('id,cobros(precio_aplicado)').eq('perro_id', d1)
+  assert.equal(agenda.find((r) => r.id === ids.prestaciones.p1)?.cobros.precio_aplicado, 20000)
   assert.equal((await client.from('grupos').select('id')).data.length >= 2, true)
-  assert.equal((await client.from('servicios').select('id,precio')).data.length >= 2, true)
+  assert.equal((await client.from('servicios').select('id,tarifas(precio)')).data.filter((s) => s.tarifas.precio > 0).length >= 2, true)
 })
