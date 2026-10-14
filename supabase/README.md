@@ -119,6 +119,17 @@ S2b2 rollback (server-side pricing): revert the S2b2 commits (migration `2026101
 go together: without the RPCs a client cannot book or buy and the owner cannot mark a charge paid. Before pushing
 this migration to a database with real data, check `select count(*) from prestaciones where precio_aplicado < 0`
 (and the same for `servicios.precio`, `servicios.precio_mensual`, `suscripciones.precio_mensual`): the CHECKs fail on negatives.
+S3 rollback (invitations): revert the S3 commits (migration `20261013140001_s3_invitations.sql`, `src/lib/data.ts`, `EmpresaBridge.js`,
+`DataBootstrap.js`, `SupaAuthForm.js`, `empresa.store`, `empresa.muten`, `dashboard.muten`, `unirse.muten`, the two invitation parts) and reset
+staging. `supabase/rollback/20261013140001_s3_invitations.down.sql` only re-adds an EMPTY nullable `codigo` column: dropping the plaintext
+`invitaciones.codigo` is irreversible (acceptable pre-launch), hashed codes cannot be turned back into codes, and the script never reopens
+anything (owners keep read-only access without the hash, `redeem_invite` keeps the email binding and attempt limit). After any rollback every
+pending invitation must be revoked and created again: a lost code is never recoverable, only revoked and replaced. The migration deletes all
+existing `invitaciones` rows (legacy plaintext codes with optional email cannot be migrated); run it only before launch.
+Email binding limitation: production Supabase Auth has email confirmation OFF, so anyone can sign up with any address; the invitation email
+binding (`redeem_invite` requires the caller's confirmed email to equal the invited one) is therefore NOT a true second factor yet. It becomes
+one when confirmation is turned on (the function already refuses an unconfirmed email). The code's 70 bits, the 5-failures-per-15-minutes
+limit, the 7-day expiry and single use are what protect an invitation today.
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 
