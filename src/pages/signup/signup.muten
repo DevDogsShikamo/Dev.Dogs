@@ -2,6 +2,7 @@ screen signup
 
 use okPhone from "../../components/validate.js"
 use okPw from "../../components/validate.js"
+use politicaVersion, abrirPolitica from "~/lib/politica.js"
 
 state {
   step      = 0 : number
@@ -13,14 +14,18 @@ state {
   negocio   = "" : text
   nonce     = 0  : number
   menuOpen  = false : boolean
+  acepta    = false : bool
 }
 
 action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
+action leerPolitica { abrirPolitica() }
 
 get phoneOk  = okPhone(telefono)
 get pwOk     = okPw(pw)
+# La versión viaja al servidor solo si la casilla está marcada; sin ella el envío no ocurre.
+get politicaAceptada = acepta ? politicaVersion() : ""
 
-get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk)
+get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk and acepta)
 
 action pick(r: text) mutates rol { rol.set(r) }
 action next mutates step { step.set(step + 1) }
@@ -128,6 +133,13 @@ Page class("su") {
               }
             }
           }
+          Stack class("gconsent") {
+            Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
+            Text "Tus datos se usan solo para prestar el servicio: tu cuenta, tus perros, los paseos y los cobros." class("gconsent-note")
+            Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
+            Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
+            Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
+          }
           Stack class("su-nav") {
             Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
             Button -> finish class("su-cta") disabled when not validStep { Span "Crear mi cuenta" }
@@ -158,5 +170,5 @@ Page class("su") {
     }
   }
 
-  Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, telefono: @telefono, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, telefono: @telefono, rol: @rol, negocioNombre: @negocio, politica: @politicaAceptada, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
 }
