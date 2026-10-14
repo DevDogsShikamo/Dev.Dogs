@@ -5,13 +5,14 @@ import assert from 'node:assert/strict'
 import { admin, as, ids, seed } from './_actors.mjs'
 import { create, denied, INVALID, mail, only, ownerCan, profileOf, withUser } from './_invites.mjs'
 import { sql } from './_sql.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 const { A, B } = ids.negocios
 const clean = () => admin().from('invitaciones').delete().in('negocio_id', Object.values(ids.negocios))
 before(async () => { await seed(); await clean() })
 after(clean)
 
-const redeem = (u, code) => u.client.rpc('redeem_invite', { p_codigo: code })
+const redeem = (u, code) => u.client.rpc('redeem_invite', { p_codigo: code, p_politica: POLITICA_VERSION })
 // A pending invitation for `email`; returns the code.
 const invite = async (email, rol = 'cliente', actor = 'OWNER') => {
   const res = await create(actor, rol, email)
@@ -116,7 +117,7 @@ test('IV-5b: the 6th attempt in 15 minutes is blocked, even with a valid code, u
 
 test('IV-5c: ANON cannot redeem', async () => {
   const { code, email } = await ownerCan()
-  denied(await (await as('ANON')).rpc('redeem_invite', { p_codigo: code }))
+  denied(await (await as('ANON')).rpc('redeem_invite', { p_codigo: code, p_politica: POLITICA_VERSION }))
   assert.equal(await estado(email), 'pendiente')
 })
 
@@ -134,7 +135,7 @@ test('IV-6a: a CLIENT of tenant A cannot redeem a tenant B code; the code stays 
     const clientMail = (await (await as('CLIENT')).auth.getUser()).data.user.email
     const code = await invite(clientMail, 'cliente', 'OTHER') // bound to the CLIENT's own email
     const before = await profileOf(ids.users.CLIENT)
-    const res = await (await as('CLIENT')).rpc('redeem_invite', { p_codigo: code })
+    const res = await (await as('CLIENT')).rpc('redeem_invite', { p_codigo: code, p_politica: POLITICA_VERSION })
     assert.deepEqual(res.data, { ok: false, error: 'perfil_existente' })
     assert.deepEqual(await profileOf(ids.users.CLIENT), before)
     assert.equal(await estado(clientMail), 'pendiente')
@@ -146,7 +147,7 @@ test('IV-6b: an employed walker cannot redeem an empresa code of its own tenant;
   const email = (await (await as('WALKER_CO')).auth.getUser()).data.user.email
   const code = await invite(email, 'empresa')
   const before = await profileOf(ids.users.WALKER_CO)
-  const res = await (await as('WALKER_CO')).rpc('redeem_invite', { p_codigo: code })
+  const res = await (await as('WALKER_CO')).rpc('redeem_invite', { p_codigo: code, p_politica: POLITICA_VERSION })
   assert.deepEqual(res.data, { ok: false, error: 'perfil_existente' })
   assert.deepEqual(await profileOf(ids.users.WALKER_CO), before)
   assert.equal(await estado(email), 'pendiente')
