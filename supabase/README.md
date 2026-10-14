@@ -131,6 +131,7 @@ binding (`redeem_invite` requires the caller's confirmed email to equal the invi
 one when confirmation is turned on (the function already refuses an unconfirmed email). The code's 70 bits, the 5-failures-per-15-minutes
 limit, the 7-day expiry and single use are what protect an invitation today.
 S4a1 rollback (side tables): additive slice, so `supabase/rollback/20261013150001_s4a1_tables.down.sql` simply drops `contactos`, `nomina`, `permisos`, `tarifas`, `cobros`, `perro_identidad` and the helpers `has_finanzas`, `owns_cobro`, `backfill_side_tables`. The legacy columns and policies were never touched, so nothing is reopened and the app (which still reads the old columns) is unaffected. Do not run it once S4a2 or S4b is applied. The side tables are NOT kept in sync until S4a2: re-run `select backfill_side_tables()` (service role) before S4b relies on them.
+S4a2 rollback (side-table RPCs and sync): additive slice, so `supabase/rollback/20261013160001_s4a2_rpcs.down.sql` drops the four `sync_*` triggers and functions, `walks_dog`, `contacto_set`, `permiso_finanzas_set`, `servicio_guardar`, `perro_duenos_nombres`, and restores `cobro_marcar` to its S2b2 owner-only body (narrower, so nothing is reopened). Afterwards the side tables go stale again: run `select backfill_side_tables()` (service role) before anything reads them. Do not run it once S4b is applied.
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 
