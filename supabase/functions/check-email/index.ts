@@ -1,23 +1,9 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { handle } from "./handler.js";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// App origins allowed to call this function, comma separated. Set it at deploy time:
+//   supabase secrets set ALLOWED_ORIGINS=https://app.example.com --project-ref <ref>
+// (localhost dev origins are always accepted by the handler).
+const origins = (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((o) => o.trim()).filter(Boolean);
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-
-  try {
-    const { email } = await req.json();
-    const domain = email?.split("@")[1]?.toLowerCase();
-    if (!domain) return Response.json({ valid: false, reason: "no_domain" }, { headers: CORS });
-
-    const records = await Deno.resolveDns(domain, "MX").catch(() => []);
-    const valid = records.length > 0;
-
-    return Response.json({ valid, reason: valid ? "ok" : "no_mx" }, { headers: CORS });
-  } catch {
-    return Response.json({ valid: false, reason: "error" }, { headers: CORS, status: 400 });
-  }
-});
+serve((req) => handle(req, { origins, resolveMx: (domain: string) => Deno.resolveDns(domain, "MX") }));
