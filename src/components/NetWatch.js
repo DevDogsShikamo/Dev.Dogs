@@ -9,7 +9,9 @@ function mount(el, inputs, on) {
     try {
       var raw = localStorage.getItem("dd:outbox") || "[]";
       var arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr.length : 0;
+      // Solo las escrituras del usuario actual (las de otro quedan aparcadas, invisibles).
+      var uid = globalThis.__ddUid ? globalThis.__ddUid() : "";
+      return Array.isArray(arr) ? arr.filter(function (o) { return uid && o && o.uid === uid; }).length : 0;
     } catch (e) {
       return 0;
     }

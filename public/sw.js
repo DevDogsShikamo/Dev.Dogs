@@ -51,7 +51,12 @@ self.addEventListener("fetch", function (e) {
   e.respondWith(
     fetch(req)
       .then(function (res) {
-        if (res && res.status === 200 && url.origin === self.location.origin) putInCache(req, res);
+        if (res && res.status === 200 && url.origin === self.location.origin) {
+          putInCache(req, res);
+          // Every SPA route serves the same shell: keep a copy under /index.html so ANY route
+          // (e.g. /login after an offline sign-out) opens offline, not only the visited ones.
+          if (req.mode === "navigate") putInCache(new Request("/index.html"), res);
+        }
         return res;
       })
       .catch(function () {

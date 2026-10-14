@@ -5,9 +5,12 @@
 //
 // Hoy encola RPCs (modo paseo: paseo_marcar / paseo_no_salio). Extender a inserts/
 // updates es sumar tipos de op acá.
-import { supa, toast } from "./authActions";
+import { currentUid, supa, toast } from "./authActions";
+import { classify, opsFor } from "./localData.js";
 
-type Op = { kind: "rpc"; name: string; params: Record<string, unknown> };
+// Every op is tagged with the user who queued it and only that user replays it. Ops of another
+// user stay parked (never replayed, never counted) until a sign-out/expiry purge removes them.
+type Op = { kind: "rpc"; name: string; params: Record<string, unknown>; uid: string; at: number };
 const KEY = "dd:outbox";
 
 function read(): Op[] {
@@ -26,7 +29,7 @@ function write(ops: Op[]): void {
   // Punto ÚNICO de cambio de la cola → avisá a la UI (NetWatch pinta el conteo)
   // sin sondeo. El evento "storage" no dispara en la misma pestaña, este sí.
   try {
-    window.dispatchEvent(new CustomEvent("dd:outbox", { detail: ops.length }));
+    window.dispatchEvent(new CustomEvent("dd:outbox", { detail: opsFor(ops, currentUid()).mine.length }));
   } catch {
     /* noop */
   }
@@ -43,12 +46,13 @@ function offline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
-// Cuántas escrituras hay esperando sincronizar (para un indicador de UI si se quiere).
+// Cuántas escrituras del usuario actual hay esperando sincronizar.
 export function pending(): number {
-  return read().length;
+  return opsFor(read(), currentUid()).mine.length;
 }
 
-function enqueue(op: Op): void {
+function enqueue(name: string, params: Record<string, unknown>): void {
+  const op: Op = { kind: "rpc", name, params, uid: currentUid(), at: Date.now() };
   const ops = read();
   ops.push(op);
   write(ops);
@@ -56,57 +60,63 @@ function enqueue(op: Op): void {
 }
 
 let flushing = false;
-// Reproduce la cola en orden contra Supabase; corta y conserva el resto si falla la red.
+// Reproduce la cola del usuario actual en orden contra Supabase.
+//  - sin red o sesión vencida: corta y conserva el resto (y esa op);
+//  - rechazo del servidor: descarta SOLO esa op, la cuenta y avisa; nunca dice "Sincronizado".
 export function flush(): void {
   if (flushing || offline()) return;
-  const ops = read();
-  if (!ops.length) return;
+  const all = read();
+  const { mine, parked } = opsFor(all, currentUid());
+  if (!mine.length) return;
   flushing = true;
+  let rejected = 0;
+  const finish = (keep: Op[], reason: string): void => {
+    write([...parked, ...keep]);
+    flushing = false;
+    refresh();
+    if (rejected) toast(rejected + (rejected === 1 ? " cambio no se pudo aplicar" : " cambios no se pudieron aplicar"));
+    else if (reason === "auth") toast("Sesión vencida — iniciá sesión para sincronizar");
+    else if (reason === "done") toast("Sincronizado ✓");
+  };
   const step = (i: number): void => {
-    if (i >= ops.length) {
-      write([]);
-      flushing = false;
-      refresh();
-      toast("Sincronizado ✓");
-      return;
-    }
-    const op = ops[i];
+    if (i >= mine.length) return finish([], "done");
+    const op = mine[i];
     supa
       .rpc(op.name, op.params)
-      .then((r: { error?: unknown }) => {
-        // error de SERVIDOR (no de red): descartamos esa op para no trabar la cola.
-        if (r && r.error) {
-          step(i + 1);
-          return;
+      .then((r: { error?: unknown; status?: number }) => {
+        const c = classify(r as never);
+        if (c === "ok") return step(i + 1);
+        if (c === "rejected") {
+          rejected++;
+          return step(i + 1);
         }
-        step(i + 1);
+        finish(mine.slice(i), c); // network | auth: keep this op and the rest
       })
-      .catch(() => {
-        // Sigue sin red: conservá lo que falta y reintentá al próximo "online".
-        write(ops.slice(i));
-        flushing = false;
-      });
+      .catch(() => finish(mine.slice(i), "network"));
   };
   step(0);
 }
 
-// Ejecuta un RPC; offline lo encola. Online, si el servidor devuelve error revierte
-// (refresh); si la red se cae en el intento, lo encola para reintentar.
+// Ejecuta un RPC; offline lo encola. Online, si el servidor lo rechaza revierte (refresh);
+// si la red se cae en el intento, lo encola para reintentar.
 export function rpcOrQueue(name: string, params: Record<string, unknown>): void {
   if (offline()) {
-    enqueue({ kind: "rpc", name, params });
+    enqueue(name, params);
     return;
   }
   supa
     .rpc(name, params)
-    .then((r: { error?: unknown }) => {
-      if (r && r.error) {
+    .then((r: { error?: unknown; status?: number }) => {
+      const c = classify(r as never);
+      if (c === "network") enqueue(name, params); // postgrest-js reports a dead network as an error, not a throw
+      else if (c === "auth") toast("Sesión vencida — iniciá sesión de nuevo");
+      else if (c === "rejected") {
         toast("No se pudo guardar");
         refresh();
       }
     })
     .catch(() => {
-      enqueue({ kind: "rpc", name, params });
+      enqueue(name, params);
     });
 }
 

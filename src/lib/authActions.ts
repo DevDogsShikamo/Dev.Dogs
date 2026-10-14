@@ -2,6 +2,7 @@
 // so we expose the client on globalThis for the headless Custom auth bridges to read.
 // The publishable key is public by design; RLS on the DB is what protects data.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { purgeKeys, shouldPurge } from "./localData.js";
 
 // Test hook: the E2E harness sets window.__DD_CFG = { url, key } to point the app at
 // STAGING. It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
@@ -72,9 +73,59 @@ g.__ddSesion = resolveSesion;
 // Fire-and-forget side effect callable from a Muten action.
 // Clears the cached identity so the next login resolves a fresh session.
 export function signOut(): void {
-  supa.auth.signOut();
+  // Offline the revoke call fails and supabase-js then keeps the session (even scope "local" calls
+  // the server), so the stored token is dropped by hand and the device purged. The server-side
+  // refresh token stays valid until it expires: it cannot be revoked without a network.
+  supa.auth.signOut().then((r) => {
+    if (r && r.error) {
+      localStorage.removeItem(authKey);
+      purge();
+    }
+  });
   sesionMemo = null;
 }
+
+// ---- End of session: purge what is on the device (design section 7) ----------
+// The auth session key supabase-js uses; its presence tells "token gone" from "network down".
+const authKey = "sb-" + new URL(cfg.url).hostname.split(".")[0] + "-auth-token";
+
+// Id of the user whose session is stored. Synchronous and valid offline (the outbox needs it
+// to tag and replay only the current user's operations).
+export function currentUid(): string {
+  try {
+    const s = JSON.parse(localStorage.getItem(authKey) || "null");
+    return (s && s.user && s.user.id) || "";
+  } catch {
+    return "";
+  }
+}
+g.__ddUid = currentUid; // NetWatch.js (a Custom, cannot import) counts only this user's queue
+
+function purge(): void {
+  purgeKeys(localStorage);
+  supa.removeAllChannels();
+  sesionMemo = null;
+  // A hard reload is what clears the in-memory stores (TypeScript cannot call store actions).
+  // Muten writes its in-memory state back to localStorage while the page unloads, so /boot.js
+  // repeats the purge on the next load, before the app reads anything (it looks for this flag).
+  sessionStorage.setItem("dd_purge", "1");
+  location.replace("/login");
+}
+
+supa.auth.onAuthStateChange((event, session) => {
+  const flag = localStorage.getItem("muten:auth:loggedIn");
+  if (
+    shouldPurge({
+      event,
+      session,
+      online: navigator.onLine,
+      hasToken: localStorage.getItem(authKey) !== null,
+      loggedIn: flag === "true",
+    })
+  ) {
+    purge();
+  }
+});
 
 // ---- Shared bridge utilities (globalThis.__ddUtils) --------------------------
 // Custom (.js) files cannot import, so the date/color/toast/menu helpers that

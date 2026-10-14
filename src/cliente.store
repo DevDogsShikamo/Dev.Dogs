@@ -12,16 +12,16 @@ entity Foto { paseoId text  url text }
 entity Novedad { kind text  perro text  servicio text  hora text  fecha text  fotos bool }
 
 state {
-  misPerros = [] : list<PerroMio> persist
-  misPaseos = [] : list<PaseoMio> persist
-  misFotos  = [] : list<Foto> persist
-  novedades = [] : list<Novedad> persist
-  salidas   = [] : list<SalidaDisp> persist
-  servicios = [] : list<ServicioCat> persist
+  misPerros = [] : list<PerroMio>
+  misPaseos = [] : list<PaseoMio>
+  misFotos  = [] : list<Foto>
+  novedades = [] : list<Novedad>
+  salidas   = [] : list<SalidaDisp>
+  servicios = [] : list<ServicioCat>
   # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
-  loaded        = false : bool persist
+  loaded        = false : bool
 }
 
 get nPerros    = misPerros.length

@@ -33,6 +33,8 @@ entity ServicioDraft {
 }
 
 state {
+  # Cerrar sesión con cambios sin enviar: pide confirmación antes de descartarlos (la salida purga la cola).
+  salirConfirma = false : bool
   section = "dashboard" : text
   fotosPaseo = [] : list<text>
   pdraft  = {} : PerroDraft
@@ -74,13 +76,19 @@ state {
 action go(s: text) mutates section { section.set(s) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
 get invValido = invEmail.length > 4
+# El Inicio sale del esqueleto con el catálogo cargado o, sin red, con la agenda del día guardada (el único dato que el paseador conserva offline).
+get inicioListo = catalogo.loaded or grupos.fecha != ""
 action invCrear mutates invEmail { invitarCrear("cliente", invEmail)  invEmail.set("") }
 action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
 action copCod(c: text) { copiarCodigo(c) }
 action copLink(c: text) { copiarLink(c) }
 # Logout: limpia el cache persistido (in-memory + localStorage) y cierra sesión,
 # para no filtrar datos del usuario anterior en dispositivos compartidos.
-action salir { empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
+action salir mutates salirConfirma {
+  if net.pending > 0 and not salirConfirma { salirConfirma.set(true) }
+  else { salirConfirma.set(false)  empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
+}
+action salirCancelar mutates salirConfirma { salirConfirma.set(false) }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
 # Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
 action moverPerroGrupo(m: MovePayload) { moverPerro(m.perro, m.hacia, m.modo, m.fecha) }
@@ -303,7 +311,7 @@ Stack class("dd-app") {
       }
 
       # ==== DASHBOARD: skeleton ====
-      when section == "dashboard" and not catalogo.loaded {
+      when section == "dashboard" and not inicioListo {
         Stack class("dd-sec skel-col") {
           Stack class("skel-row") {
             Stack class("skel-b skel-circle skel-av")
@@ -322,7 +330,7 @@ Stack class("dd-app") {
         }
       }
       # ==== DASHBOARD ====
-      when section == "dashboard" and catalogo.loaded {
+      when section == "dashboard" and inicioListo {
         Stack class("dd-sec") {
           Stack class("dd-top") {
             Stack class("dd-greet") {
@@ -748,6 +756,13 @@ Stack class("dd-app") {
             Button class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
           }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "{i18n.d.pf.salir}" }
+          when salirConfirma {
+            Stack class("dd-netbar dd-netbar-off") {
+              Span "{net.pending} sin enviar: se perderán si cerrás sesión"
+              Button "Descartar y salir" -> salir class("dd-pf-logout")
+              Button "Cancelar" -> salirCancelar class("dd-pf-opt")
+            }
+          }
         }
       }
 
