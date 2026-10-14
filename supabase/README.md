@@ -130,6 +130,7 @@ Email binding limitation: production Supabase Auth has email confirmation OFF, s
 binding (`redeem_invite` requires the caller's confirmed email to equal the invited one) is therefore NOT a true second factor yet. It becomes
 one when confirmation is turned on (the function already refuses an unconfirmed email). The code's 70 bits, the 5-failures-per-15-minutes
 limit, the 7-day expiry and single use are what protect an invitation today.
+S4a1 rollback (side tables): additive slice, so `supabase/rollback/20261013150001_s4a1_tables.down.sql` simply drops `contactos`, `nomina`, `permisos`, `tarifas`, `cobros`, `perro_identidad` and the helpers `has_finanzas`, `owns_cobro`, `backfill_side_tables`. The legacy columns and policies were never touched, so nothing is reopened and the app (which still reads the old columns) is unaffected. Do not run it once S4a2 or S4b is applied. The side tables are NOT kept in sync until S4a2: re-run `select backfill_side_tables()` (service role) before S4b relies on them.
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 
