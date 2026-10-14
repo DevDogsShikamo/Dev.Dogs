@@ -36,6 +36,7 @@ export function resolveConfig(env) {
     dbPassword: env.STAGING_DB_PASSWORD,
     publishableKey: first(env, ['STAGING_PUBLISHABLE_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_ANON_KEY']),
     serviceKey: first(env, ['STAGING_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY']),
+    fotosUrl: env.FOTOS_URL, // optional: the staging photo Worker (S5a)
   }
   const names = {
     ref: 'STAGING_PROJECT_REF',
