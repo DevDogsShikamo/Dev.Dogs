@@ -29,21 +29,22 @@ function bajar(nombre: string, mime: string, contenido: BlobPart): void {
 function traerFilas(perroId: string): Promise<Fila[]> {
   return supa
     .from("prestaciones")
-    .select("fecha,estado,tipo,precio_aplicado,cobrable,cobrado,servicios(nombre)")
+    .select("fecha,estado,tipo,cobros(precio_aplicado,cobrable,cobrado),servicios(nombre)")
     .eq("perro_id", perroId)
     .order("fecha")
     .then((res: { data?: unknown[] | null }) => {
       const rows = (res.data || []) as Record<string, unknown>[];
       return rows.map((r): Fila => {
-        const cobrable = r.cobrable !== false;
+        const cb = (r.cobros as { precio_aplicado?: number; cobrable?: boolean; cobrado?: boolean } | null) || {};
+        const cobrable = cb.cobrable !== false;
         const svc = (r.servicios as { nombre?: string } | null) || {};
         return {
           fecha: (r.fecha as string) || "",
           servicio: svc.nombre || (r.tipo as string) || "",
           estado: (r.estado as string) || "",
-          precio: cobrable ? ((r.precio_aplicado as number) || 0) : 0,
+          precio: cobrable ? (cb.precio_aplicado || 0) : 0,
           cobrable,
-          cobrado: !!r.cobrado,
+          cobrado: !!cb.cobrado,
         };
       });
     });

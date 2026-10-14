@@ -109,28 +109,21 @@ export function relacionQuitar(a: string, b: string): void {
 // El paseador define su oferta: tipo, nombre, duración y precio (por uso o mensual).
 type ServicioInput = { nombre?: string; tipo?: string; duracion?: number; precio?: number; modelo?: string };
 
-function servicioFields(s: ServicioInput): Record<string, unknown> {
-  const mensual = s.modelo === "mensual";
-  return {
-    nombre: s.nombre || "",
-    tipo: s.tipo || "paseo",
-    duracion_min: s.duracion || 0,
-    modelo_cobro: mensual ? "mensual" : "por_uso",
-    precio: mensual ? 0 : (s.precio || 0),
-    precio_mensual: mensual ? (s.precio || 0) : 0,
-  };
+// El precio vive en `tarifas`, no en `servicios`: crear y editar pasan por el RPC servicio_guardar (solo el dueño).
+function servicioGuardar(id: string | null, s: ServicioInput, msg: string, onOk?: () => void): void {
+  supa.rpc("servicio_guardar", {
+    p_id: id, p_nombre: s.nombre || "", p_tipo: s.tipo || "paseo", p_duracion: s.duracion || 0,
+    p_precio: Math.round(s.precio || 0), p_modelo: s.modelo === "mensual" ? "mensual" : "por_uso",
+  }).then(done(msg, onOk));
 }
 
 export function servicioCrear(s: ServicioInput): void {
-  resolveSesion().then(function (sesion) {
-    if (!sesion.negocioId) return;
-    supa.from("servicios").insert({ negocio_id: sesion.negocioId, activo: true, ...servicioFields(s) }).then(done("No se pudo agregar el servicio", refresh));
-  });
+  servicioGuardar(null, s, "No se pudo agregar el servicio", refresh);
 }
 
 // Optimista (servicioUpd ya patcheó el store): éxito → nada; error → toast+revert.
 export function servicioActualizar(id: string, s: ServicioInput): void {
-  supa.from("servicios").update(servicioFields(s)).eq("id", id).then(done("No se pudo guardar el servicio"));
+  servicioGuardar(id, s, "No se pudo guardar el servicio");
 }
 
 // Soft-delete OPTIMISTA (servicioDel ya lo quitó): éxito → nada; error → toast+revert.
@@ -286,9 +279,18 @@ export function perroNoSalio(presId: string, motivo: string): void {
 }
 
 // ---- Gestión del negocio (portal EMPRESA) --------------------------------
-// Salario mensual fijo de un paseador empleado (profiles.salario_fijo).
+// Salario mensual fijo de un paseador empleado: vive en `nomina` (solo lo escribe el dueño).
 export function paseadorSalario(id: string, salario: number): void {
-  supa.from("profiles").update({ salario_fijo: salario || 0 }).eq("id", id).then(done("No se pudo actualizar el salario"));
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    supa.from("nomina").upsert({ user_id: id, negocio_id: s.negocioId, salario_fijo: Math.max(0, Math.round(salario || 0)) }).then(done("No se pudo actualizar el salario"));
+  });
+}
+
+// Permiso de finanzas de un empleado de gestión (optimista: finanzasSet ya lo reflejó). Solo el dueño.
+export function permisoFinanzas(userId: string, on: boolean): void {
+  if (!userId) return;
+  supa.rpc("permiso_finanzas_set", { p_user: userId, p_on: !!on }).then(done("No se pudo cambiar el permiso", refresh));
 }
 
 // Crea una invitación por RPC: el servidor genera el código (14 símbolos, solo se guarda su hash) y lo

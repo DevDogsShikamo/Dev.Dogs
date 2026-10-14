@@ -14,6 +14,8 @@ state {
   slug      = ""    : text persist
   isOwner   = false : bool persist   # dueño del negocio (jefe) vs empleado de gestión
   authError = ""    : text
+  # Permiso de finanzas (lo informa ReportesBridge desde has_finanzas()). Solo gobierna la UI; el servidor decide.
+  finanzas  = false : bool
 }
 
 get isPaseador = rol == "paseador"
@@ -21,6 +23,8 @@ get isEmpresa  = rol == "empresa"
 get isCliente  = rol == "cliente"
 # Empleado de gestión = trabaja en la oficina (rol empresa) pero NO es el dueño.
 get isGestion  = rol == "empresa" and not isOwner
+# Ve cobros y reportes: el dueño, o la oficina con el permiso que el dueño le dio.
+get verFinanzas = isOwner or finanzas
 
 # Guards de portal: rol correcto Y sesión activa (los usa app.muten en las rutas link-based).
 get canWalker   = loggedIn and rol == "paseador"
@@ -39,8 +43,10 @@ action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId
 }
 
 action setError(msg: text) mutates authError { authError.set(msg) }
+action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
 
-action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError, finanzas {
+  finanzas.set(false)
   signOut()
   loggedIn.set(false)
   userId.set("")

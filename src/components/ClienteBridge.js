@@ -29,22 +29,23 @@ function mount(el, inputs, on) {
 
         // Mis paseos (prestaciones de esos perros).
         if (on.misPaseos && ids.length) {
-          supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,precio_aplicado,cobrable,cobrado,perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
+          supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,cobros(precio_aplicado,cobrable,cobrado),perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
             if (pr && pr.error) return;
             var t = today();
             var fotos = [];
             var paseos = (pr.data || []).map(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
-              var cobrable = r.cobrable !== false;
+              var cb = r.cobros || {};
+              var cobrable = cb.cobrable !== false;
               var estado = r.estado || "programado";
-              var precio = cobrable ? (r.precio_aplicado || 0) : 0;
+              var precio = cobrable ? (cb.precio_aplicado || 0) : 0;
               // Fotos del paseo (detalle.fotos) → lista plana {paseoId, url} para la Agenda.
               (det.fotos || []).forEach(function (u) { if (u) fotos.push({ paseoId: r.id, url: u }); });
               return {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
-                cobrable: cobrable, cobrado: !!r.cobrado, cuidador: "", futuro: (r.fecha || "") >= t
+                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t
               };
             });
             on.misPaseos(paseos);
@@ -77,11 +78,11 @@ function mount(el, inputs, on) {
 
       // Salidas disponibles del negocio (para reservar).
       if (on.salidas && s.negocioId) {
-        supa.from("grupos").select("id,zona,hora,servicio_id,cuidador_id,servicios(nombre,tipo)").eq("negocio_id", s.negocioId).eq("activo", true).order("hora").then(function (gr) {
+        supa.from("grupos").select("id,zona,hora,servicio_id,servicios(nombre,tipo)").eq("negocio_id", s.negocioId).eq("activo", true).order("hora").then(function (gr) {
           if (gr && gr.error) return;
           var sal = (gr.data || []).map(function (g) {
             var svc = g.servicios || {};
-            return { id: g.id, zona: g.zona || "", hora: g.hora || "08:00", servicio: svc.nombre || "", servicioId: g.servicio_id || "", cuidadorId: g.cuidador_id || "", tipo: svc.tipo || "paseo" };
+            return { id: g.id, zona: g.zona || "", hora: g.hora || "08:00", servicio: svc.nombre || "", servicioId: g.servicio_id || "", tipo: svc.tipo || "paseo" };
           });
           on.salidas(sal);
         });
@@ -89,11 +90,11 @@ function mount(el, inputs, on) {
 
       // Catálogo de servicios del negocio (para pedir baño/guardería/corte/etc.).
       if (on.servicios && s.negocioId) {
-        supa.from("servicios").select("id,nombre,tipo,precio,modelo_cobro").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {
+        supa.from("servicios").select("id,nombre,tipo,modelo_cobro,tarifas(precio)").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {
           if (svr && svr.error) return;
           var svs = (svr.data || []).map(function (r) {
             var mensual = r.modelo_cobro === "mensual";
-            return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "paseo", precio: mensual ? 0 : (r.precio || 0), modelo: mensual ? "mensual" : "por_uso" };
+            return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "paseo", precio: mensual ? 0 : ((r.tarifas && r.tarifas.precio) || 0), modelo: mensual ? "mensual" : "por_uso" };
           });
           on.servicios(svs);
         });

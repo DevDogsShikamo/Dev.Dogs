@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -130,11 +130,14 @@ action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(a
 # ---- Cobrar un paseo pendiente (optimista + persiste) ----
 action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 
+# ---- Permiso de finanzas de la oficina (solo el dueño; optimista + RPC) ----
+action finanzasToggle(id: text, on: bool) { empresa.finanzasSet(id, on)  permisoFinanzas(id, on) }
+
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
-  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
+  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
   Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda)
@@ -158,7 +161,7 @@ Stack class("dd-app") {
     when auth.isOwner {
       Button -> go("perros") class("dd-lnk") class("dd-on" when section == "perros") { Icon "lucide:dog" Span "Perros" }
     }
-    when auth.isOwner {
+    when auth.verFinanzas {
       Button -> go("reportes") class("dd-lnk") class("dd-on" when section == "reportes") { Icon "lucide:bar-chart-3" Span "Reportes" }
     }
     Button -> go("perfil")     class("dd-lnk") class("dd-on" when section == "perfil")     { Icon "lucide:user"        Span "Perfil" }
@@ -246,7 +249,6 @@ Stack class("dd-app") {
                   Stack class("nmline") {
                     Span "{p.nombre}" class("nm")
                     when p.verificado { Span "✓" class("dd-emp-ver") }
-                    when p.zona { Span "{p.zona}" class("cd") }
                   }
                   when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
                   when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
@@ -587,6 +589,7 @@ Stack class("dd-app") {
                       Stack class("nmline") { Span "{g.nombre}" class("nm") }
                       when g.telefono { Span "{g.telefono}" class("meta") }
                     }
+                    Checkbox checked(g.finanzas) -> finanzasToggle(g.id, not g.finanzas) "Finanzas"
                   }
                 }
               }
@@ -681,7 +684,7 @@ Stack class("dd-app") {
     when auth.isOwner {
       Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
     }
-    when auth.isOwner {
+    when auth.verFinanzas {
       Button -> go("reportes") class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }
     }
     Button -> go("perfil")     class("dd-on" when section == "perfil")     aria(label: "Perfil") { Icon "lucide:user" }
