@@ -61,17 +61,17 @@ export async function startApp({ bundle = false } = {}) {
     url,
     // One context per page: sessions in localStorage must not leak between tests.
     // The page CSP (meta in index.html) is bypassed except for the CSP spec ({ csp: true }), which
-    // runs under the real policy; there the production Supabase origin in the meta is swapped for the
-    // staging one (the only edit), because the app talks to staging through __DD_CFG.
+    // runs under the real policy; there the production Supabase and photo Worker origins in the meta are
+    // swapped for the staging ones (the only edit), because the app talks to staging through __DD_CFG.
     async newPage({ csp = false } = {}) {
       const context = await browser.newContext({ bypassCSP: !csp })
-      await context.addInitScript(({ url, key }) => { window.__DD_CFG = { url, key } }, { url: cfg.url, key: cfg.publishableKey })
+      await context.addInitScript(({ url, key, fotos }) => { window.__DD_CFG = { url, key, fotos } }, { url: cfg.url, key: cfg.publishableKey, fotos: cfg.fotosUrl })
       if (csp) {
         const stagingHost = new URL(cfg.url).host
         await context.route(/^https?:\/\/(localhost|127\.0\.0\.1)[:/][^?]*$/, async (route) => {
           if (route.request().resourceType() !== 'document') return route.continue()
           const res = await route.fetch()
-          const body = (await res.text()).replaceAll('agutaluxzruuthbbagkh.supabase.co', stagingHost)
+          const body = (await res.text()).replaceAll('agutaluxzruuthbbagkh.supabase.co', stagingHost).replaceAll('devdogs-fotos.devdogsco.workers.dev', cfg.fotosUrl ? new URL(cfg.fotosUrl).host : 'devdogs-fotos.devdogsco.workers.dev')
           return route.fulfill({ response: res, body })
         })
       }
