@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { injectCsp } from '../../scripts/csp-inject.mjs'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const text = (p) => readFileSync(join(ROOT, p), 'utf8')
@@ -42,11 +43,12 @@ test('CC-1b: no persisted entity carries a phone, price, note, salary, code or e
   }
 })
 
-const html = text('index.html')
+// The CSP is added by the production build (scripts/csp-inject.mjs): the policy is read from the built shape.
+const html = injectCsp(text('index.html'))
 const csp = html.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)?.[1]
 const directives = Object.fromEntries((csp || '').split(';').map((d) => d.trim().split(/\s+/)).filter((d) => d[0]).map(([k, ...v]) => [k, v]))
 
-test('CC-5a: index.html carries a CSP meta with the required directives', () => {
+test('CC-5a: the built index.html carries a CSP meta with the required directives', () => {
   assert.ok(csp, 'CSP meta present')
   assert.deepEqual(directives['script-src'], ["'self'"], 'scripts: self only, no inline')
   assert.deepEqual(directives['default-src'], ["'self'"])

@@ -6,6 +6,8 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, ids, seed } from '../security/_actors.mjs'
 import { loadConfig } from '../security/_env.mjs'
+import { readFileSync } from 'node:fs'
+import { CSP } from '../../csp.config.mjs'
 import { startApp } from './_app.mjs'
 
 const PHONE = { WALKER_CO: '+57 300 111 0001', CLIENT: '+57 300 222 0002' }
@@ -260,7 +262,8 @@ test('CC-5b: the production bundle under the real CSP boots, registers its worke
     page.on('console', (m) => { if (/content security policy/i.test(m.text())) violations.push(m.text()) })
     await page.goto(`${bundle.url}/login`)
     const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
-    assert.match(policy, /script-src 'self';/, 'the CSP meta survives the build')
+    assert.match(policy, /script-src 'self';/, 'the CSP meta is in the page')
+    assert.ok(readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8').includes(`content="${CSP}"`), 'dist/index.html (npm run build) carries exactly the configured CSP')
     assert.ok(await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)), 'the service worker registers under worker-src self')
     await page.getByRole('link', { name: 'Regístrate' }).click() // signup renders (SPA navigation: the CSP rewrite only covers documents)
     await page.waitForURL('**/signup')

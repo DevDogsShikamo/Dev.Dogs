@@ -34,10 +34,10 @@ function startServer() {
 
 // Production build served statically (dist/ from `muten bundle`), with the SPA fallback hosting gives.
 // The dev server injects inline scripts of its own (error overlay), which no CSP can allow, so the
-// CSP spec runs against the bundle: that is what ships.
+// CSP spec runs against the bundle built by `npm run build` (the CSP meta is added by that build only).
 function startBundle() {
-  const build = spawnSync(process.execPath, [MUTEN, 'bundle', ROOT], { cwd: ROOT, encoding: 'utf8' })
-  if (build.status !== 0) throw new Error(`muten bundle failed:
+  const build = spawnSync('npm run build', { cwd: ROOT, encoding: 'utf8', shell: true }) // muten bundle + CSP injection
+  if (build.status !== 0) throw new Error(`npm run build failed:
 ${build.stdout}
 ${build.stderr}`)
   const dist = join(ROOT, 'dist')
