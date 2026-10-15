@@ -24,13 +24,12 @@ entity PerroPaseo {
   id     text
   gkey   text
   nombre text
-  foto   text
   estado text
   motivo text
 }
 
 # Perro que sale hoy (para la fila de avatares del Inicio). Único por nombre.
-entity PerroHoy { nombre text  foto text }
+entity PerroHoy { nombre text }
 
 # Conflicto de compatibilidad: dos perros incompatibles en la MISMA salida de hoy.
 # nivel: cuidado | no_tolera (tolera NO genera conflicto: se bancan en paseo).

@@ -105,6 +105,9 @@ g.__ddUid = currentUid; // NetWatch.js (a Custom, cannot import) counts only thi
 
 function purge(): void {
   purgeKeys(localStorage);
+  // Nothing caches photos today (the service worker never touches the photo Worker); this keeps it so
+  // if a photo cache ever appears: no photo survives the end of a session.
+  if (typeof caches !== "undefined") caches.keys().then((ks) => ks.filter((k) => /^fotos/i.test(k)).forEach((k) => caches.delete(k)));
   supa.removeAllChannels();
   sesionMemo = null;
   // A hard reload is what clears the in-memory stores (TypeScript cannot call store actions).

@@ -179,8 +179,8 @@ function mount(el, inputs, on) {
             if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
             g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
-            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, foto: pobj.foto_url || "", estado: estado, motivo: d.motivo_no_salio || "" });
-            if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre, foto: pobj.foto_url || "" }); }
+            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "" });
+            if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre }); }
           });
           var cards = order.map(function (k) {
             var g = groups[k], start = timeNum(g.hora), durH = Math.max(1, (g.dur || 60) / 60);

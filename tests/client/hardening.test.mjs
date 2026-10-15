@@ -17,7 +17,7 @@ const ALLOWED = {
   'calendario.store': ['anchor', 'view', 'sel', 'ocultos'], // UI preferences
   'i18n.store': ['lang'],
 }
-const FORBIDDEN = /telefono|phone|salari|precio|price|cobr|factur|codigo|\bcode\b|token|email|nota\b|notas|tip\b|propina|invit|slug/i
+const FORBIDDEN = /telefono|phone|salari|precio|price|cobr|factur|codigo|\bcode\b|token|email|nota\b|notas|tip\b|propina|invit|slug|foto/i
 
 const persisted = (src) =>
   [...src.matchAll(/^\s*(\w+)\s*=.*:\s*(\S.*?)\s+persist\b/gm)].map(([, name, type]) => ({ name, type }))
@@ -35,7 +35,7 @@ test('CC-1b: no persisted entity carries a phone, price, note, salary, code or e
     const src = text(`src/${f}`)
     for (const { name, type } of persisted(src)) {
       const entity = type.match(/list<(\w+)>/)?.[1]
-      const body = entity && src.match(new RegExp(`entity\s+${entity}\s*\{([^}]*)\}`))?.[1]
+      const body = entity && src.match(new RegExp(String.raw`entity\s+${entity}\s*\{([^}]*)\}`))?.[1]
       const fields = (body || name).split(/[\s,]+/).join(' ')
       assert.ok(!FORBIDDEN.test(entity ? fields : name), `${f}: persisted "${name}" (${entity || type}) has a sensitive field`)
     }
@@ -56,9 +56,11 @@ test('CC-5a: index.html carries a CSP meta with the required directives', () => 
   assert.deepEqual(directives['worker-src'], ["'self'"])
   assert.deepEqual(directives['manifest-src'], ["'self'"])
   const prod = 'agutaluxzruuthbbagkh.supabase.co'
-  assert.deepEqual(directives['connect-src'], ["'self'", `https://${prod}`, `wss://${prod}`])
+  const worker = 'https://devdogs-fotos.devdogsco.workers.dev' // production photo Worker (S5b)
+  assert.deepEqual(directives['connect-src'], ["'self'", `https://${prod}`, `wss://${prod}`, worker])
   assert.ok(directives['img-src'].includes('https:') && directives['img-src'].includes("'self'"), 'img-src keeps https: (perros.foto_url is free text)')
-  assert.ok(!directives['img-src'].includes('blob:'), 'blob: arrives with the S5b photo flow, not before')
+  assert.ok(directives['img-src'].includes('blob:') && directives['img-src'].includes(worker), 'gallery images are blob: URLs fetched from the Worker')
+  assert.ok(!directives['connect-src'].some((o) => /staging/.test(o)), 'the staging Worker is injected by the test server, never shipped')
   assert.ok(!/unsafe-eval|\*(?!\.)/.test(directives['script-src'].join(' ')))
 })
 

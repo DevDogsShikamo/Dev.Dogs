@@ -371,8 +371,7 @@ Stack class("dd-app") {
             Stack class("dd-dt-row") {
               each grupos.perrosHoy.take(6) as p, i {
                 Stack class("dd-dogav") {
-                  when p.foto { Image "{p.foto}" alt("{p.nombre}") }
-                  when p.foto == "" { Span "🐕" }
+                  Span "{initial(p.nombre)}"
                   when i == 5 and grupos.perrosHoy.length > 6 {
                     Button "+{grupos.perrosHoy.length - 6}" -> go("grupos") class("dd-dogbadge")
                   }
