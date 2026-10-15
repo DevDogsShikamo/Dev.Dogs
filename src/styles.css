@@ -1427,6 +1427,7 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
 .dd-app .dd-paseo-fotos-t{font-weight:800;font-size:0.9rem}
 .dd-app .dd-fotoup-btn{border:0;background:#2b2536;color:#fff;font-weight:700;font-size:0.82rem;padding:0.45rem 0.8rem;border-radius:0.7rem;cursor:pointer}
 .dd-app .dd-fotoup-btn:disabled{opacity:.6;cursor:default}
+.dd-app .dd-paseo-fotos-dogs{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:0.4rem 0.9rem;margin-bottom:0.5rem;font-size:0.85rem}
 .dd-app .dd-paseo-fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr));gap:0.4rem}
 .dd-app .dd-paseo-foto{width:100%;aspect-ratio:1;object-fit:cover;border-radius:0.6rem;background:#eee}
 .dd-app .dd-cli-paseo{display:flex;flex-direction:column;gap:0.4rem}
