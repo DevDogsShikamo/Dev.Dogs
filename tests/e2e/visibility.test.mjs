@@ -47,9 +47,7 @@ async function loginAs(actor, portal, nav) {
   await page.getByPlaceholder('••••••••').fill(password)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.waitForURL(`**/${portal}`, { timeout: 30_000 })
-  // Pre-existing: the role guard chain recurses once while the profile loads and `muten dev` leaves its overlay.
   await page.getByRole('button', { name: nav, exact: true }).waitFor()
-  await page.evaluate(() => document.getElementById('__mu_err')?.remove())
   await page.waitForLoadState('networkidle')
   return page
 }

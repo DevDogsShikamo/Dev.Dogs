@@ -60,9 +60,7 @@ async function loginAs(actor, { csp = false } = {}) {
   await page.getByPlaceholder('••••••••').fill(password)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.waitForURL(`**/${PORTAL_URL[actor]}`, { timeout: 30_000 })
-  // Pre-existing: the role guard chain recurses once while the profile loads and `muten dev` leaves its overlay.
   await page.getByRole('button', { name: 'Perfil', exact: true }).waitFor({ timeout: 60_000 }) // cold dev server
-  await page.evaluate(() => document.getElementById('__mu_err')?.remove())
   await page.waitForLoadState('networkidle')
   return page
 }
@@ -210,7 +208,7 @@ test('CC-2d: the next user on the same device sees none of the previous data and
   await a.getByPlaceholder('••••••••').fill(password)
   await a.getByRole('button', { name: 'Entrar', exact: true }).click()
   await a.waitForURL('**/app', { timeout: 30_000 })
-  await a.evaluate(() => { document.getElementById('__mu_err')?.remove(); window.dispatchEvent(new Event('online')) })
+  await a.evaluate(() => window.dispatchEvent(new Event('online')))
   await a.waitForTimeout(3000)
   assert.ok(!a.requests.some((u) => u.includes('/rpc/paseo_marcar')), "B replayed A's operation")
   assert.equal(await a.getByText('Rex').count(), 0, "A's dog is visible to B")

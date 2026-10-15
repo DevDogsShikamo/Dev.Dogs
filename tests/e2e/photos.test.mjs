@@ -53,7 +53,6 @@ async function loginAs(actor, from = app) {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.waitForURL(`**/${PORTAL[actor]}`, { timeout: 30_000 })
   await page.getByRole('button', { name: 'Perfil', exact: true }).waitFor({ timeout: 60_000 })
-  await page.evaluate(() => document.getElementById('__mu_err')?.remove()) // pre-existing login redirect overlay
   await page.waitForLoadState('networkidle')
   return page
 }
