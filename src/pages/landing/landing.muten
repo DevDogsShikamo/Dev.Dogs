@@ -1,35 +1,5 @@
 screen landing
 
-entity Review {
-  name   text required
-  role   text
-  rating number
-  body   text required
-}
-
-state {
-  mail     = "" : text
-  nombre   = "" : text
-  contacto = "" : text
-  reviews  = query reviews : list<Review>
-  skel     = [ { n: 1 }, { n: 2 }, { n: 3 }, { n: 4 } ] : list
-}
-
-# Las 4 mejores reseñas (ordenadas por rating).
-get ranked = reviews.data.sortDesc by rating
-get top    = ranked.take(4)
-
-# Datos de demo mientras se conecta el backend real.
-# Vaciá esta lista (o dejá que el query devuelva []) para ver el esqueleto.
-mock {
-  reviews: [
-    { name: "Valentina Ríos", role: "Dueña de Rocky",      rating: 5, body: "Impecable. Me llega la foto de entrega cada tarde y sé exactamente a qué hora salió mi perro. Tranquilidad total." }
-    { name: "Martín Aguirre", role: "Dueño de Luna & Toby", rating: 5, body: "Reservar es de otro nivel: elijo el horario y listo. El reporte diario con fotos me encanta." }
-    { name: "Camila Duarte",  role: "Dueña de Pelusa",       rating: 5, body: "Se nota que aman a los perros. Pelusa vuelve feliz y cansada de sus paseos. Cero preocupaciones." }
-    { name: "Julián Ortega",  role: "Dueño de Thor",         rating: 4, body: "El adiestramiento con refuerzo positivo funcionó. Thor mejoró un montón en pocas semanas." }
-  ]
-}
-
 # Hero: corte diagonal + medalla giratoria + collage de stickers (concepto 04).
 Page class("lp2") {
   Stack class("dc-hero") {
@@ -49,8 +19,6 @@ Page class("lp2") {
           Text "Sin tarjeta — tu cuenta queda lista en segundos." class("dc-ctanote")
         }
         Stack class("dc-stats") {
-          Stack class("dc-stat") { Span "+1.200" class("dc-statn")  Span "paseos" class("dc-statk") }
-          Stack class("dc-stat") { Span "4.9★"   class("dc-statn")  Span "dueños felices" class("dc-statk") }
           Stack class("dc-stat") { Span "0$"     class("dc-statn")  Span "para empezar" class("dc-statk") }
         }
       }
@@ -177,7 +145,7 @@ Page class("lp2") {
           Stack class("ag-row") {
             Span "8:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Rocky — Val. Ríos" class("ag-nm")  Span "Paseo" class("ag-sv") }
+              Stack class("ag-who") { Span "Rocky — Cliente" class("ag-nm")  Span "Paseo" class("ag-sv") }
               Span "$8.000" class("ag-pr")
             }
           }
@@ -191,21 +159,21 @@ Page class("lp2") {
           Stack class("ag-row") {
             Span "10:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Luna & Toby — M. Aguirre" class("ag-nm")  Span "Guardería" class("ag-sv") }
+              Stack class("ag-who") { Span "Luna & Toby — Cliente" class("ag-nm")  Span "Guardería" class("ag-sv") }
               Span "$18.000" class("ag-pr")
             }
           }
           Stack class("ag-row") {
             Span "12:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Pelusa — C. Duarte" class("ag-nm")  Span "Baño" class("ag-sv") }
+              Stack class("ag-who") { Span "Pelusa — Cliente" class("ag-nm")  Span "Baño" class("ag-sv") }
               Span "sin cobrar" class("ag-pr ag-pr-soft")
             }
           }
           Stack class("ag-row") {
             Span "2:00" class("ag-t")
             Stack class("ag-main") {
-              Stack class("ag-who") { Span "Thor — J. Ortega" class("ag-nm")  Span "Adiestramiento" class("ag-sv") }
+              Stack class("ag-who") { Span "Thor — Cliente" class("ag-nm")  Span "Adiestramiento" class("ag-sv") }
               Span "$15.000" class("ag-pr")
             }
           }
@@ -278,75 +246,14 @@ Page class("lp2") {
     }
   }
 
-  # ===== Reseñas (fondo claro · 4 mejores reseñas reales · esqueleto si no hay) =====
-  Section class("rv") {
-    Stack class("rv-wave-t") {}
-    Stack class("rv-head") {
-      Stack class("rv-headl") {
-        Stack class("rv-eye") { Icon "lucide:heart-handshake"  Span "Lo que dicen" }
-        Stack class("rv-h") {
-          Span "Dueños que ya "
-          Span "nos eligen." class("rv-acc")
-        }
-        Text "Reseñas reales de quienes dejan a su perro en nuestras manos." class("rv-sub")
-      }
-      Link "" -> "/signup" class("rv-all") { Span "Ver todas"  Icon "lucide:arrow-up-right" }
-    }
-
-    # Sin reseñas todavía (o cargando) → esqueleto.
-    when reviews.loading or reviews.data.length == 0 {
-      List class("rv-grid") {
-        each skel as s {
-          Stack class("rv-card rv-skelcard") {
-            Stack class("rv-sk rv-sk-stars") {}
-            Stack class("rv-sk rv-sk-l1") {}
-            Stack class("rv-sk rv-sk-l2") {}
-            Stack class("rv-sk rv-sk-l3") {}
-            Stack class("rv-foot") {
-              Stack class("rv-sk rv-sk-av") {}
-              Stack class("rv-fx") {
-                Stack class("rv-sk rv-sk-nm") {}
-                Stack class("rv-sk rv-sk-role") {}
-              }
-            }
-          }
-        }
-      }
-    }
-
-    # Con reseñas → las 4 mejores.
-    when not reviews.loading and reviews.data.length > 0 {
-      List class("rv-grid") {
-        each top as r {
-          Article class("rv-card") {
-            Stack class("rv-stars") {
-              Icon "lucide:star"
-              Icon "lucide:star"
-              Icon "lucide:star"
-              Icon "lucide:star"
-              Icon "lucide:star"
-              Span "{r.rating}.0" class("rv-score")
-            }
-            Text "{r.body}" class("rv-body")
-            Stack class("rv-foot") {
-              Stack class("rv-av") { Span "{initial(r.name)}" }
-              Stack class("rv-fx") {
-                Span "{r.name}" class("rv-nm")
-                Span "{r.role}" class("rv-role")
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  # Reseñas: se reincorporan con datos reales (pendiente)
 
   # ===== Buscador (CTA central · píldora de búsqueda tipo marketplace) =====
   Section class("bs") {
     Stack class("bs-head") {
       Span "Buscá y reservá" class("bs-eye")
       Title "Encontrá dónde agendar, cerca tuyo" h2 class("bs-h")
-      Text "Escribí un servicio o tocá una categoría: te llevamos al buscador con los negocios que ya usan DevDogs." class("bs-sub")
+      Text "Escribí un servicio o tocá una categoría: te llevamos al buscador de DevDogs." class("bs-sub")
     }
 
     Stack class("bs-bar") {
@@ -389,21 +296,13 @@ Page class("lp2") {
       # ---- izquierda: título + form ----
       Stack class("pf-copy") {
         Stack class("pf-h") {
-          Span "¿Tenés "
-          Span "preguntas?" class("pf-acc")
+          Span "¿Listo para "
+          Span "empezar?" class("pf-acc")
         }
-        Text "Escribinos y te respondemos en minutos. También podés dejarnos tu reseña — nos ayuda a mejorar." class("pf-sub")
+        Text "Creá tu cuenta gratis y probá DevDogs con tus perros." class("pf-sub")
 
         Stack class("pf-form") {
-          Stack class("pf-field") {
-            Span "Tu nombre" class("pf-label")
-            SearchField bind(nombre) "Juan Pérez" class("pf-input")
-          }
-          Stack class("pf-field") {
-            Span "Tu WhatsApp" class("pf-label")
-            SearchField bind(contacto) "+57 300 123 4567" class("pf-input")
-          }
-          Link "Contactanos" -> "/signup" class("pf-btn")
+          Link "Crear cuenta" -> "/signup" class("pf-btn")
         }
       }
 
@@ -425,7 +324,6 @@ Page class("lp2") {
     }
     
     Span "Medellín, Antioquia, Colombia" class("gf-addr")
-    Span "+57 300 123 4567" class("gf-phone")
 
     Span "" class("gf-rule")
 
@@ -447,7 +345,6 @@ Page class("lp2") {
       Nav class("gf-col") aria(label: "DevDogs") {
         Span "DevDogs" class("gf-colh")
         Link "Nosotros" -> "/signup" class("gf-link")
-        Link "Reseñas" -> "/signup" class("gf-link")
         Link "Política de privacidad" -> "/privacidad" class("gf-link")
       }
     }

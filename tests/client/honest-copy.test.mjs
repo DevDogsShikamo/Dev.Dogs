@@ -60,6 +60,10 @@ const all = files.flatMap((f) => literals(f).map((s) => ({ file: relative(ROOT, 
 
 const BANNED = [
   ['"factura"', (s) => /factura/i.test(s.replace(/no es una factura electr[oó]nica/gi, ''))],
+  // Fabricated social proof and claims nothing backs (Ley 1480): counts, ratings, testimonials, a fake phone.
+  ...['+1.200', '4.9★', '500+', 'Reseñas reales', 'Datos protegidos', 'te respondemos en minutos', '+57 300 123 4567']
+    .map((p) => [p, (s) => s.includes(p)]),
+  ...['Valentina', 'Ríos', 'Aguirre', 'Duarte', 'Ortega'].map((n) => [n, (s) => s.includes(n)]),
 ]
 
 test('scan sanity: finds the pages and the export module', () => {
