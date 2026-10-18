@@ -1768,7 +1768,7 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-cli-empty{font-size:0.9rem;color:var(--dim)}
 .dd-app .dd-cli-hint{font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem;line-height:1.4}
 .dd-app .dd-cli-resbtn{padding:0.45rem 0.9rem;font-size:0.85rem}
-/* Factura / registro del perro (la "libreta" + export) */
+/* Estado de cuenta / registro del perro (la "libreta" + export) */
 .dd-app .dd-cli-facbtn{padding:0.4rem 0.75rem;font-size:0.82rem}
 .dd-app .dd-cobrar-btn{padding:0.45rem 0.85rem;font-size:0.82rem;background:#3bb273}
 .dd-app .dd-cobrar-btn:hover{filter:brightness(1.05)}
@@ -1786,6 +1786,7 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-fac-total{display:flex;flex-direction:row;justify-content:space-between;align-items:center;padding:0.6rem 0.2rem;border-top:0.13rem solid var(--ink);margin-bottom:1rem}
 .dd-app .dd-fac-total .l{font-weight:700}
 .dd-app .dd-fac-total .v{font-weight:800;font-size:1.15rem;color:var(--purple)}
+.dd-app .dd-fac-legal{font-size:0.75rem;color:var(--dim);margin:-0.5rem 0 0.9rem}
 .dd-app .dd-fac-actions{display:flex;flex-direction:row;gap:0.6rem}
 .dd-app .dd-fac-exp{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.4rem;padding:0.7rem;border-radius:0.9rem;background:var(--purple);color:#fff;font-weight:700;border:0;cursor:pointer;font-size:0.9rem}
 .dd-app .dd-fac-exp:hover{filter:brightness(1.05)}

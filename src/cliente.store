@@ -18,7 +18,7 @@ state {
   novedades = [] : list<Novedad>
   salidas   = [] : list<SalidaDisp>
   servicios = [] : list<ServicioCat>
-  # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
+  # Estado de cuenta del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
   loaded        = false : bool

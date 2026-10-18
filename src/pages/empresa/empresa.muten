@@ -401,7 +401,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reportes" h2 }
           Stack class("dd-emp-kpis") {
-            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(empresa.facturado)}" class("v")  Span "Facturado (30d)" class("l") }
+            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(empresa.facturado)}" class("v")  Span "Total del periodo (30d)" class("l") }
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:circle-check"  Span "{cop(empresa.cobrado)}" class("v")    Span "Cobrado" class("l") }
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:clock"         Span "{cop(empresa.pendiente)}" class("v")  Span "Pendiente" class("l") }
           }

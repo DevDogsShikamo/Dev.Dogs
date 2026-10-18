@@ -228,11 +228,12 @@ test('CC-5b: photo upload, gallery and export run under the real CSP with no vio
     await client.locator('img.dd-paseo-foto').nth(1).waitFor({ timeout: 30_000 }) // 2 photos: the one above + the surviving one
     assert.ok(await client.locator('img.dd-paseo-foto').evaluateAll((els) => els.every((e) => e.src.startsWith('blob:') && e.naturalWidth > 0)), 'blob: images load under img-src')
     await client.getByRole('button', { name: 'Mis perros', exact: true }).filter({ visible: true }).first().click()
-    await client.getByRole('button', { name: /Factura/ }).first().click()
+    await client.getByRole('button', { name: /Estado de cuenta/ }).first().click()
+    await client.getByText('Este documento no es una factura electrónica.').waitFor()
     for (const name of ['CSV', 'Excel']) {
       const download = client.waitForEvent('download')
       await client.getByRole('button', { name }).click()
-      assert.match((await download).suggestedFilename(), /\.(csv|xlsx)$/, `${name} export`)
+      assert.match((await download).suggestedFilename(), /^estado-de-cuenta-.+\.(csv|xlsx)$/, `${name} export`)
     }
     violations.push(...(await client.evaluate(() => window.__csp)))
     await client.close()

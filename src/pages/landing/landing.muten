@@ -110,7 +110,7 @@ Page class("lp2") {
         Span "tu perro" class("sv-acc")
         Span "?"
       }
-      Text "Elegí la salida según su energía y carácter. Todo queda registrado, con foto de entrega y facturable." class("sv-sub")
+      Text "Elegí la salida según su energía y carácter. Todo queda registrado, con foto de entrega y su cobro." class("sv-sub")
     }
 
     Stack class("sv-grid") {
