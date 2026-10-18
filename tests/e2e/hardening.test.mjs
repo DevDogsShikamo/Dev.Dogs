@@ -95,7 +95,8 @@ async function offlineReload(page) {
 }
 const dump = (page) => page.evaluate(() => JSON.stringify(Object.entries(localStorage)))
 const toasts = (page) => page.evaluate(() => window.__toasts || [])
-const until = async (fn, ms = 20_000) => { const t = Date.now(); for (;;) { const v = await fn(); if (v) return v; if (Date.now() - t > ms) return v; await new Promise((r) => setTimeout(r, 300)) } }
+// A probe that runs while the purge reloads /login loses its execution context: that is "not yet", retry.
+const until = async (fn, ms = 20_000) => { const t = Date.now(); for (;;) { const v = await fn().catch(() => false); if (v) return v; if (Date.now() - t > ms) return v; await new Promise((r) => setTimeout(r, 300)) } }
 const dayLoaded = (page) => until(async () => (await dump(page)).includes('Rex'))
 const outbox = (page) => page.evaluate(() => localStorage.getItem('dd:outbox') || '[]')
 const uidOf = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) || 'null')?.user?.id || '', sbKey)
