@@ -32,3 +32,12 @@ test('PC-3b: the text keeps its placeholders, makes no compliance claim and uses
   assert.doesNotMatch(page, /cumple con|cumplimos|certificad|garantiza|plenamente|totalmente conforme/i)
   assert.doesNotMatch(page, /\b(tenés|querés|podés|sos|vos|hacé|mirá)\b/i)
 })
+
+test('Mis datos: section 7 (anchor "derechos") offers the in-app channel, keeps the email placeholder and the version moved on', () => {
+  assert.notEqual(POLITICA_VERSION, '2026-10-15-borrador')
+  assert.match(page, /Section class\("pv-sec"\) id\("derechos"\) \{\s*Title "7\./)
+  assert.match(section(7), /“Mis datos”/)
+  assert.match(section(7), /\[COMPLETAR: correo de contacto\]/)
+  const landing = readFileSync(fileURLToPath(new URL('../../src/pages/landing/landing.muten', import.meta.url)), 'utf8')
+  assert.match(landing, /Link "Contacto" -> "\/privacidad#derechos"/)
+})

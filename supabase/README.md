@@ -179,3 +179,4 @@ update public.solicitudes_datos
 ```
 
 The user's own data for a `consulta` is what "Descargar mis datos" returns (`mis_datos_exportar()`). A `supresion` of the account is done by deleting the auth user in the dashboard after answering: the profile and every row that references it cascade, the request row included, so answer and keep any evidence the lawyer requires before deleting.
+Mis datos policy version (`20261019130002_politica_mis_datos.sql`, data only): marks the previous `politicas` row not current and adds `2026-10-19-borrador`; the re-consent gate asks existing users to accept it. No down script: revert the commit and reset staging.

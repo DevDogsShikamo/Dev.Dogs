@@ -1,6 +1,6 @@
 screen privacidad
 
-use politicaVersion from "~/lib/politica.js"
+use politicaVersion, irAlAncla from "~/lib/politica.js"
 
 meta {
   title       "Política de tratamiento de datos | DevDogs"
@@ -11,6 +11,8 @@ meta {
 # BORRADOR para revisión de un abogado. No afirma adecuación legal. Todo dato desconocido es un
 # marcador [COMPLETAR: ...]. Al cambiar el texto, sube POLITICA_VERSION en src/lib/politica.js y
 # agrega la fila en `politicas` (ver supabase/migrations/*_s7_consent.sql).
+
+effect { irAlAncla() }
 
 Page class("pv") {
   Stack class("pv-wrap") {
@@ -93,7 +95,7 @@ Page class("pv") {
       }
     }
 
-    Section class("pv-sec") {
+    Section class("pv-sec") id("derechos") {
       Title "7. Derechos de los titulares" h2
       Text "Toda persona cuyos datos se tratan puede:"
       List {
@@ -102,7 +104,8 @@ Page class("pv") {
         Text "Solicitar prueba de la autorización que dio al crear su cuenta."
         Text "Presentar quejas ante la Superintendencia de Industria y Comercio."
       }
-      Text "Canal para ejercer estos derechos: [COMPLETAR: correo de contacto]. Plazos de respuesta: [COMPLETAR: plazos que fije el abogado]."
+      Text "Dentro de la aplicación, en “Mis datos” (desde el perfil), cada usuario puede ver, corregir y descargar sus datos personales y presentar una consulta, una solicitud de rectificación, de supresión de su cuenta o de revocación de la autorización. La solicitud queda registrada con su fecha y se responde dentro del plazo legal; la supresión y la revocación no son inmediatas."
+      Text "Otro canal para ejercer estos derechos: [COMPLETAR: correo de contacto]. Plazos de respuesta: [COMPLETAR: plazos que fije el abogado]."
     }
 
     Section class("pv-sec") {

@@ -151,7 +151,8 @@ test('PC-2b: a user reads only its own consent records; OTHER and the tenant own
     assert.deepEqual(mine.data, [{ user_id: a.id, policy_version: POLITICA_VERSION }])
     assert.ok((await admin().from('consentimientos').select('id', { count: 'exact', head: true })).count >= 2, 'table not populated')
     const other = await (await as('OTHER')).from('consentimientos').select('user_id')
-    assert.deepEqual(other.data, [{ user_id: ids.users.OTHER }]) // only its own fixture record (seed)
+    // Only its own fixture records (one per policy version it accepted across re-seeds).
+    assert.deepEqual([...new Set(other.data.map((r) => r.user_id))], [ids.users.OTHER])
     assert.equal(other.error, null)
     const peek = await a.client.from('consentimientos').select('*').eq('user_id', b.id)
     assert.deepEqual(peek.data, [])
