@@ -154,3 +154,28 @@ S7 rollback (privacy consent): revert the S7 commits (migration `20261014100001_
 
 S5b rollback (photo switch): `supabase/rollback/20261015100001_s5b_photos_switch.down.sql` only re-creates the hardened `paseo_agregar_foto` of S2b1. It never makes the `paseos` bucket public again, never recreates its storage policies and cannot restore the photo URLs removed from `prestaciones.detalle`. The authoritative pre-launch rollback is `git revert` of the S5b commits plus `node supabase/staging.mjs reset`. Deleting the legacy bucket is the manual step H7 (WP-1c).
 S5b policy version (`20261015110001_s5b_policy_version.sql`, data only): marks the previous `politicas` row not current and adds `2026-10-15-borrador`. No down script: revert the commit and reset staging; consent rows keep pointing at the version the user saw.
+Mis datos rollback (`20261019130001_mis_datos.sql`, additive): `supabase/rollback/20261019130001_mis_datos.down.sql` drops `mis_datos_exportar`, `solicitud_datos_crear`, the table `solicitudes_datos` with its rows (export the pending ones first: they carry legal deadlines) and the `profiles_nombre_len` check. Revert it together with the `/mis-datos` page.
+
+## Data-rights requests (Ley 1581): how staff process them
+
+Users file requests from "Mis datos" in the app (`solicitud_datos_crear`). Nobody can read or change them through the API except the author (read only), so staff work in the SQL editor of the project (service role). Terms: 10 business days for a `consulta`, 15 for `rectificacion`, `supresion` and `revocacion`, counted from the day after the request. `vence_at` counts Monday to Friday only: **Colombian public holidays are not skipped**, so around a holiday the legal deadline is later than `vence_at` (treat `vence_at` as the earliest safe date).
+
+```sql
+-- Pending and in-progress requests, oldest due date first, with the requester's email and name.
+select s.id, s.tipo, s.estado, s.created_at, s.vence_at, s.detalle, u.email, p.nombre, p.rol
+  from public.solicitudes_datos s
+  join auth.users u on u.id = s.user_id
+  left join public.profiles p on p.id = s.user_id
+ where s.estado <> 'respondida'
+ order by s.vence_at, s.created_at;
+
+-- Mark one as being handled.
+update public.solicitudes_datos set estado = 'en_proceso' where id = '<id>';
+
+-- Close it with the answer the user will see in the app (also send it to the user's email).
+update public.solicitudes_datos
+   set estado = 'respondida', respondida_at = now(), respuesta = '<respuesta>'
+ where id = '<id>';
+```
+
+The user's own data for a `consulta` is what "Descargar mis datos" returns (`mis_datos_exportar()`). A `supresion` of the account is done by deleting the auth user in the dashboard after answering: the profile and every row that references it cascade, the request row included, so answer and keep any evidence the lawyer requires before deleting.
