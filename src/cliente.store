@@ -10,6 +10,8 @@ entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text
 entity Foto { paseoId text  url text }
 # Novedad (notificación in-app): paseo de hoy o paseo finalizado con fotos nuevas.
 entity Novedad { kind text  perro text  servicio text  hora text  fecha text  fotos bool }
+# Mi reseña del negocio (0 o 1 fila): estado pendiente | aprobada | rechazada.
+entity MiResena { rating number  texto text  publicar bool  estado text }
 
 state {
   misPerros = [] : list<PerroMio>
@@ -18,6 +20,7 @@ state {
   novedades = [] : list<Novedad>
   salidas   = [] : list<SalidaDisp>
   servicios = [] : list<ServicioCat>
+  miResena  = [] : list<MiResena>
   # Estado de cuenta del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
@@ -27,6 +30,8 @@ state {
 get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
 get nNovedades = novedades.length
+# Reseñar exige al menos un servicio finalizado (el servidor lo vuelve a exigir).
+get puedeResenar = (misPaseos.count where estado == "finalizado") > 0
 # Saldo pendiente = paseos realizados y cobrables aún no cobrados (facturable ya trae
 # 0 en los no-finalizados/no-cobrables). Estado de cuenta del cliente.
 get paseosImpagos  = misPaseos where not cobrado
@@ -47,8 +52,9 @@ action setMisFotos(rows: list<Foto>) mutates misFotos { misFotos.set(rows) }
 action setNovedades(rows: list<Novedad>) mutates novedades { novedades.set(rows) }
 action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
 action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
+action setMiResena(rows: list<MiResena>) mutates miResena { miResena.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
 action setLoaded mutates loaded { loaded.set(true) }
 # Limpia los datos del cliente al hacer logout (dispositivo compartido).
-action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  loaded.set(false) }
+action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, miResena, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  miResena.reset()  loaded.set(false) }

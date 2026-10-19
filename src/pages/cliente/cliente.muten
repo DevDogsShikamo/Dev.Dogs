@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -40,7 +40,17 @@ state {
   pdraft       = {} : PerroDraft
   pform        = false : bool
   notifOpen    = false : bool
+  rsRating     = 0 : number
+  rsTexto      = "" : text
+  rsPublicar   = false : bool
+  rsForm       = false : bool
 }
+# Reseña del negocio: nueva (vacía, casilla del nombre sin marcar) o editar la mía.
+action rsNueva mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(0)  rsTexto.set("")  rsPublicar.set(false)  rsForm.set(true) }
+action rsEditar(rating: number, texto: text, publicar: bool) mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(rating)  rsTexto.set(texto)  rsPublicar.set(publicar)  rsForm.set(true) }
+action rsPick(n: number) mutates rsRating { rsRating.set(n) }
+action rsCerrar mutates rsForm { rsForm.set(false) }
+action rsEnviar mutates rsForm { resenaGuardar(rsRating, rsTexto, rsPublicar)  rsForm.set(false) }
 action go(s: text) mutates section { section.set(s) }
 action notifToggle mutates notifOpen { notifOpen.toggle() }
 action notifCerrar mutates notifOpen { notifOpen.set(false) }
@@ -73,7 +83,8 @@ action facXLS { descargarEstadoCuentaExcel(cliente.facturaPerro, cliente.factura
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, loaded: cliente.setLoaded)
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, loaded: cliente.setLoaded)
+  Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
@@ -357,6 +368,30 @@ Stack class("dd-app") {
             Stack class("dd-pf-stat") { Span "{cliente.nPerros}" class("v")  Span "Perros" class("l") }
             Stack class("dd-pf-stat") { Span "{cliente.proximos}" class("v")  Span "Próximos" class("l") }
           }
+          # Reseña del negocio: solo con al menos un servicio finalizado.
+          when cliente.puedeResenar {
+            Stack class("dd-rs") {
+              Span "Tu reseña del negocio" class("dd-emp-lbl")
+              each cliente.miResena as r {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") {
+                      Span "{r.rating} de 5 estrellas" class("nm")
+                      match r.estado {
+                        pendiente -> Span "Pendiente de aprobación" class("cd")
+                        aprobada -> Span "Aprobada" class("cd")
+                        rechazada -> Span "No aprobada" class("cd")
+                      }
+                    }
+                    Span "{r.texto}" class("dd-rs-txt")
+                    when not r.publicar { Span "No se publica: elegiste no mostrar tu nombre." class("obs") }
+                  }
+                  Stack class("acts") { Button "Editar" -> rsEditar(r.rating, r.texto, r.publicar) class("dd-cat-add") }
+                }
+              }
+              when cliente.miResena.length == 0 { Button -> rsNueva class("dd-cat-add") { Icon "lucide:star"  Span "Dejar una reseña" } }
+            }
+          }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }
@@ -432,6 +467,34 @@ Stack class("dd-app") {
               Span "Cantidad" class("dd-hor-lbl")
               Number bind(prodCantidad) min(1) max(20)
               Button "Confirmar compra" -> prodConfirmar class("dd-cat-add dd-hor-save") disabled when prodPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Modal: reseña del negocio ----
+      when rsForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: rsCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Tu reseña" h3
+              Button -> rsCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Span "¿Cómo calificas el servicio?" class("dd-hor-lbl")
+              Stack class("dd-rs-stars") {
+                Button -> rsPick(1) class("on" when rsRating >= 1) aria(label: "1 estrella") { Icon "lucide:star" }
+                Button -> rsPick(2) class("on" when rsRating >= 2) aria(label: "2 estrellas") { Icon "lucide:star" }
+                Button -> rsPick(3) class("on" when rsRating >= 3) aria(label: "3 estrellas") { Icon "lucide:star" }
+                Button -> rsPick(4) class("on" when rsRating >= 4) aria(label: "4 estrellas") { Icon "lucide:star" }
+                Button -> rsPick(5) class("on" when rsRating >= 5) aria(label: "5 estrellas") { Icon "lucide:star" }
+              }
+              Span "Tu opinión" class("dd-hor-lbl")
+              Textarea bind(rsTexto) "Cuéntanos cómo fue (mínimo 10 caracteres)"
+              Checkbox bind(rsPublicar) "Acepto que mi reseña se publique con mi nombre"
+              Text "Se muestra tu nombre y la inicial de tu apellido. Sin esta casilla, tu reseña no se publica." class("dd-rel-hint")
+              Button "Enviar reseña" -> rsEnviar class("dd-cat-add dd-hor-save") disabled when rsRating == 0 or rsTexto.length < 10
             }
           }
         }

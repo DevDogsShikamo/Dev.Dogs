@@ -120,6 +120,14 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Mi reseña del negocio (RLS: solo la mía).
+      if (on.miResena && s.negocioId) {
+        supa.from("resenas").select("rating,texto,publicar_nombre,estado").eq("autor_id", s.uid).eq("negocio_id", s.negocioId).then(function (rr) {
+          if (rr && rr.error) return;
+          on.miResena((rr.data || []).map(function (r) { return { rating: r.rating, texto: r.texto || "", publicar: !!r.publicar_nombre, estado: r.estado || "" }; }));
+        });
+      }
+
       // Catálogo de servicios del negocio (para pedir baño/guardería/corte/etc.).
       if (on.servicios && s.negocioId) {
         supa.from("servicios").select("id,nombre,tipo,modelo_cobro,tarifas(precio)").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {

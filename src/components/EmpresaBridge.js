@@ -93,6 +93,18 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Reseñas del negocio, pendientes primero. RLS: solo el jefe las lee; para la oficina vuelve vacío.
+      if (on.resenas) {
+        supa.from("resenas").select("id,rating,texto,publicar_nombre,estado,created_at,profiles!autor_id(nombre)").eq("negocio_id", neg).order("created_at", { ascending: false }).then(function (rr) {
+          if (rr && rr.error) return;
+          var rs = (rr.data || []).map(function (r) {
+            return { id: r.id, autor: (r.profiles && r.profiles.nombre) || "", rating: r.rating, texto: r.texto || "", publicar: !!r.publicar_nombre, estado: r.estado || "", fecha: (r.created_at || "").slice(0, 10) };
+          });
+          rs.sort(function (a, b) { return (a.estado === "pendiente" ? 0 : 1) - (b.estado === "pendiente" ? 0 : 1); });
+          on.resenas(rs);
+        });
+      }
+
       // Zonas del negocio (para el picker de zona al crear/editar una salida/grupo).
       if (on.zonas) {
         supa.from("negocios").select("zonas").eq("id", neg).single().then(function (nr) {

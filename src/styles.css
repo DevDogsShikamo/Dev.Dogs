@@ -1647,6 +1647,15 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-gform{display:flex;flex-direction:column;gap:0.5rem}
 .dd-app .dd-gform input{width:100%;padding:0.65rem 0.8rem;border-radius:0.7rem;border:0.0625rem solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:0.92rem}
 .dd-app .dd-gform input:focus{outline:2px solid var(--purple);outline-offset:1px;border-color:transparent}
+.dd-app .dd-gform textarea{width:100%;min-height:6rem;padding:0.65rem 0.8rem;border-radius:0.7rem;border:0.0625rem solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:0.92rem;resize:vertical}
+.dd-app .dd-gform input[type=checkbox]{width:auto;margin-right:0.4rem}
+/* reseña del cliente: selector de 1 a 5 estrellas */
+.dd-app .dd-rs{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.6rem;max-width:34rem}
+.dd-app .dd-rs-stars{display:flex;flex-direction:row;gap:0.3rem}
+.dd-app .dd-rs-stars button{font-size:1.7rem;line-height:1;color:var(--line);background:none;border:0;padding:0.1rem;cursor:pointer}
+.dd-app .dd-rs-stars button.on{color:#f5a524}
+.dd-app .dd-rs-stars button.on .iconify{fill:currentColor}
+.dd-app .dd-cat-item .dd-rs-txt{font-size:0.82rem;color:var(--ink);line-height:1.4}
 .dd-app .dd-grow{display:flex;flex-direction:row;gap:0.8rem}
 .dd-app .dd-gcol{display:flex;flex-direction:column;gap:0.3rem;flex:1 1 auto}
 .dd-app .dd-gsvc{display:flex;flex-direction:row;flex-wrap:wrap;gap:0.4rem}
