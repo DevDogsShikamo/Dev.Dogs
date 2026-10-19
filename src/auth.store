@@ -3,7 +3,7 @@
 # app.muten routes each rol to its portal.
 use signOut from "~/lib/authActions.ts"
 
-entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  isOwner bool }
+entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  isOwner bool  politica text }
 
 state {
   loggedIn  = false : bool persist
@@ -12,6 +12,9 @@ state {
   rol       = ""    : text persist
   negocioId = ""    : text persist
   isOwner   = false : bool persist   # dueño del negocio (jefe) vs empleado de gestión
+  # Current policy version the user has not accepted yet ("" = up to date). Persisted so a reload
+  # keeps the portals closed until /aceptar-politica records the acceptance.
+  politicaPendiente = "" : text persist
   authError = ""    : text
   # Permiso de finanzas (lo informa ReportesBridge desde has_finanzas()). Solo gobierna la UI; el servidor decide.
   finanzas  = false : bool
@@ -25,25 +28,28 @@ get isGestion  = rol == "empresa" and not isOwner
 # Ve cobros y reportes: el dueño, o la oficina con el permiso que el dueño le dio.
 get verFinanzas = isOwner or finanzas
 
-# Guards de portal: rol correcto Y sesión activa (los usa app.muten en las rutas link-based).
-get canWalker   = loggedIn and rol == "paseador"
-get canBusiness = loggedIn and rol == "empresa"
-get canClient   = loggedIn and rol == "cliente"
+# Guards de portal: rol correcto, sesión activa Y política vigente aceptada (los usa app.muten).
+get canWalker   = loggedIn and politicaPendiente == "" and rol == "paseador"
+get canBusiness = loggedIn and politicaPendiente == "" and rol == "empresa"
+get canClient   = loggedIn and politicaPendiente == "" and rol == "cliente"
+# Sesión activa con una política nueva sin aceptar: solo se abre /aceptar-politica.
+get debeAceptar = loggedIn and politicaPendiente != ""
 
-action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, isOwner, authError {
+action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, authError {
   loggedIn.set(s.loggedIn)
   userId.set(s.userId)
   userName.set(s.userName)
   rol.set(s.rol)
   negocioId.set(s.negocioId)
   isOwner.set(s.isOwner)
+  politicaPendiente.set(s.politica)
   authError.set("")
 }
 
 action setError(msg: text) mutates authError { authError.set(msg) }
 action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
 
-action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, authError, finanzas {
+action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, authError, finanzas {
   finanzas.set(false)
   signOut()
   loggedIn.set(false)
@@ -52,5 +58,6 @@ action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, authE
   rol.set("")
   negocioId.set("")
   isOwner.set(false)
+  politicaPendiente.set("")
   authError.set("")
 }

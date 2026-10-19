@@ -1,4 +1,4 @@
-// Login/signup submitter AND session reporter. Lives on the login/signup pages
+// Login/signup/re-consent submitter AND session reporter. Lives on the login/signup/gate pages
 // (Custom components in the shell do NOT mount in Muten, so the session bridge
 // must run from a page). On auth success it loads the profile and reports the
 // full session (rol + negocio) into the auth store via on(session).
@@ -24,13 +24,31 @@ function mount(el, inputs, on) {
       // A session without a profile has no portal: the app stays logged out on /login with a message.
       // (No supa.auth.signOut here: its SIGNED_OUT event purges and reloads the page, which would drop the message.)
       if (!rol) return on.failed("Tu cuenta no tiene un perfil. Crea una cuenta nueva o usa tu código de invitación.");
-      if (!nid) { on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: "", isOwner: false }); return; }
-      // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
-      supa.from("negocios").select("owner_id").eq("id", nid).maybeSingle().then(function (ng) {
-        var d = (ng && ng.data) || {};
-        on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: d.owner_id === user.id });
-      }).catch(function () { on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false }); });
+      // A current policy version the user has not accepted closes every portal guard (the chain ends at
+      // /aceptar-politica). Fail closed: without the answer no session is reported.
+      supa.rpc("consentimiento_pendiente").then(function (cp) {
+        if (cp.error) return on.failed("No pudimos verificar la política de datos. Intenta de nuevo.");
+        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "" };
+        if (!nid) return on.session(s);
+        // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
+        supa.from("negocios").select("owner_id").eq("id", nid).maybeSingle().then(function (ng) {
+          s.isOwner = ((ng && ng.data) || {}).owner_id === user.id;
+          on.session(s);
+        }).catch(function () { on.session(s); });
+      }).catch(function () { on.failed("No pudimos verificar la política de datos. Intenta de nuevo."); });
     }).catch(function () { on.failed("No pudimos cargar tu perfil. Intenta de nuevo."); });
+  }
+
+  // Re-consent from /aceptar-politica: record the current version, then report the session again
+  // (nothing pending now), which opens the portal of the role.
+  function accept(inp) {
+    supa.rpc("consentimiento_aceptar", { p_politica: inp.politica }).then(function (r) {
+      if (r.error) return on.failed(failMsg(r.error.message));
+      return supa.auth.getSession().then(function (g) {
+        var user = g.data && g.data.session && g.data.session.user;
+        user ? reportSession(user) : on.failed("Tu sesión terminó. Vuelve a iniciar sesión.");
+      });
+    }).catch(function () { on.failed("No pudimos registrar tu aceptación. Intenta de nuevo."); });
   }
 
   // The server refuses a policy version that is not the current one (politica_invalida).
@@ -73,6 +91,7 @@ function mount(el, inputs, on) {
     // Signup and join need the accepted policy version (empty until the box is ticked): without it
     // no account is created, so no profile-less user is left behind.
     if (inp.mode !== "login" && !inp.politica) return on.failed("Acepta la Política de tratamiento de datos para continuar.");
+    if (inp.mode === "aceptar") return accept(inp);
     if (inp.mode === "login") {
       supa.auth.signInWithPassword({ email: inp.email, password: inp.pw })
         .then(function (res) {
