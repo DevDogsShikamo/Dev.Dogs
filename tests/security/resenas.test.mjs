@@ -4,7 +4,7 @@
 // aggregates approved + name-consented reviews only and returns nothing below 3. No direct API write exists.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admin, as, ids, seed, tempUser } from './_actors.mjs'
+import { admin, as, day, ids, seed, tempUser, writePrestaciones } from './_actors.mjs'
 import { denied, withUser } from './_invites.mjs'
 import { sql } from './_sql.mjs'
 
@@ -59,6 +59,32 @@ test('eligibility: no finished service, wrong role, other tenant or no session a
     assert.deepEqual(await stored(), [])
   } finally {
     await admin().from('perro_duenos').delete().eq('perro_id', ids.perros.d3).eq('dueno_id', u.CLIENT3)
+  }
+})
+
+test('a product purchase is not a service: a client whose only finished row is a comprar_producto purchase is denied; a finished bath makes them eligible', async () => {
+  const db = admin()
+  const prod = (await db.from('servicios').insert({ negocio_id: A, tipo: 'comida', nombre: 'Snack' }).select('id').single()).data.id
+  ok(await db.from('tarifas').insert({ servicio_id: prod, negocio_id: A, precio: 5000, precio_mensual: 0 }), 'tarifa')
+  const rows = []
+  try {
+    const buy = await (await as('CLIENT2')).rpc('comprar_producto', { p_perro: ids.perros.d3, p_servicio: prod, p_cantidad: 1 })
+    ok(buy, 'CLIENT2 buys a product for d3')
+    rows.push(buy.data)
+    const { data: fin } = await db.from('prestaciones').select('tipo').in('perro_id', [ids.perros.d3, ids.perros.d4]).eq('estado', 'finalizado')
+    assert.deepEqual(fin, [{ tipo: 'comida' }], 'precondition: the purchase is CLIENT2s only finished row')
+    const res = await save('CLIENT2')
+    denied(res)
+    assert.match(res.error.message, /sin_servicio_finalizado/)
+    assert.deepEqual(await stored(), [])
+    const bath = await writePrestaciones({ negocio_id: A, perro_id: ids.perros.d3, servicio_id: ids.servicios.banoA, tipo: 'bano', fecha: day(-1), estado: 'finalizado', precio_aplicado: 30000 })
+    rows.push(bath.data[0].id)
+    ok(await save('CLIENT2'), 'CLIENT2 with a finished bath')
+    assert.equal((await mine(u.CLIENT2)).estado, 'pendiente')
+  } finally {
+    await clean()
+    await db.from('prestaciones').delete().in('id', rows)
+    await db.from('servicios').delete().eq('id', prod)
   }
 })
 

@@ -94,7 +94,8 @@ function mount(el, inputs, on) {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
-                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t
+                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t,
+                producto: r.tipo === "comida" || r.tipo === "accesorio"
               };
             });
             on.misPaseos(paseos);

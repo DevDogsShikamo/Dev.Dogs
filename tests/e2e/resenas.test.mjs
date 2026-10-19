@@ -1,10 +1,11 @@
 // Real reviews in a real browser against STAGING (muten dev): a client with a finished service leaves a
 // review from Perfil, the business owner approves it in Reseñas, and the public landing shows the section
 // with the server's average and count only once 3 approved + name-consented reviews exist. Below 3 the
-// landing renders no reviews section at all; a client without a finished service gets no review action.
+// landing renders no reviews section at all; a client without a finished service (a product purchase is
+// not one) gets no review action.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admin, credentials, ids, seed } from '../security/_actors.mjs'
+import { admin, credentials, day, ids, seed, writePrestaciones } from '../security/_actors.mjs'
 import { startApp } from './_app.mjs'
 
 const u = ids.users
@@ -105,12 +106,18 @@ test('a client leaves a review, the owner approves it and the landing shows the 
   await page.close()
 })
 
-test('a client without a finished service has no "Dejar una reseña" action', async () => {
-  const page = await login('CLIENT2', 'cliente')
-  await navTo(page, 'Perfil')
-  await page.waitForTimeout(1500)
-  await page.getByText('Cerrar sesión').waitFor()
-  assert.equal(await page.getByRole('button', { name: 'Dejar una reseña' }).count(), 0)
-  assert.equal(await page.getByText('Tu reseña del negocio').count(), 0)
-  await page.close()
+// CLIENT2 has no finished service; a finished product purchase (tipo comida) must not count as one.
+test('a client whose only finished row is a product purchase has no "Dejar una reseña" action', async () => {
+  const buy = await writePrestaciones({ negocio_id: A, perro_id: ids.perros.d3, tipo: 'comida', fecha: day(-1), estado: 'finalizado', precio_aplicado: 5000, detalle: { cantidad: 1 } })
+  try {
+    const page = await login('CLIENT2', 'cliente')
+    await navTo(page, 'Perfil')
+    await page.waitForTimeout(1500)
+    await page.getByText('Cerrar sesión').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Dejar una reseña' }).count(), 0)
+    assert.equal(await page.getByText('Tu reseña del negocio').count(), 0)
+    await page.close()
+  } finally {
+    await admin().from('prestaciones').delete().eq('id', buy.data[0].id)
+  }
 })

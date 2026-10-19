@@ -2,7 +2,7 @@
 # Sus perros (perro_duenos → perros), sus paseos (prestaciones), y las salidas
 # disponibles del negocio para reservar (grupos).
 entity PerroMio  { id text  nombre text  raza text  tamano text  foto text }
-entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool }
+entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool  producto bool }
 entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  tipo text }
 # Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
@@ -30,8 +30,8 @@ state {
 get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
 get nNovedades = novedades.length
-# Reseñar exige al menos un servicio finalizado (el servidor lo vuelve a exigir).
-get puedeResenar = (misPaseos.count where estado == "finalizado") > 0
+# Reseñar exige al menos un servicio finalizado; una compra de producto no cuenta (el servidor lo vuelve a exigir).
+get puedeResenar = (misPaseos.count where estado == "finalizado" and not producto) > 0
 # Saldo pendiente = paseos realizados y cobrables aún no cobrados (facturable ya trae
 # 0 en los no-finalizados/no-cobrables). Estado de cuenta del cliente.
 get paseosImpagos  = misPaseos where not cobrado
