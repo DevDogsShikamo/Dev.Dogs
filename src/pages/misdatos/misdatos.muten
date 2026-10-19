@@ -1,0 +1,125 @@
+screen misdatos
+use miNombreGuardar, miTelefonoGuardar, solicitudDatosCrear from "~/lib/data.ts"
+use misDatosDescargar from "~/lib/export.ts"
+use okPhone from "../../components/validate.js"
+
+meta {
+  title "Mis datos | DevDogs"
+  lang  "es"
+}
+
+# Derechos del titular (Ley 1581 de 2012): ver, corregir y descargar los datos propios y presentar una
+# solicitud. Todo sale de mis_datos_exportar() (MisDatosBridge) y solo trae datos de quien inició sesión.
+# Las solicitudes las responde el equipo de DevDogs (supabase/README.md); acá no se promete nada inmediato.
+
+entity MisDatos { nombre text  email text  telefono text  rol text  negocio text }
+entity SolicitudDatos { tipo text  estado text  fecha text  vence text  respuesta text }
+
+state {
+  datos       = {} : MisDatos
+  solicitudes = [] : list<SolicitudDatos>
+  nombre      = "" : text
+  telefono    = "" : text
+  tipo        = "consulta" : text
+  detalle     = "" : text
+}
+
+get rolTxt  = datos.rol == "cliente" ? "Cliente" : (datos.rol == "paseador" ? "Paseador" : "Empresa")
+get nombreOk = nombre.length > 0 and nombre.length <= 100
+get telOk   = telefono == "" or okPhone(telefono)
+
+action cargar(d: MisDatos) mutates datos, nombre, telefono {
+  datos.set(d)
+  nombre.set(d.nombre)
+  telefono.set(d.telefono)
+  auth.setUserName(d.nombre)
+}
+action setSolicitudes(rows: list<SolicitudDatos>) mutates solicitudes { solicitudes.set(rows) }
+action guardarNombre { miNombreGuardar(nombre) }
+action guardarTelefono { miTelefonoGuardar(telefono) }
+action descargar { misDatosDescargar() }
+action pick(t: text) mutates tipo { tipo.set(t) }
+action enviar mutates detalle {
+  solicitudDatosCrear(tipo, detalle)
+  detalle.reset()
+}
+
+Page class("pv") {
+  Stack class("pv-wrap") {
+    Link "← Volver" -> "/app" class("glink t-sm")
+    Title "Mis datos" h1 class("pv-h1")
+    Text "Aquí puedes ver, corregir y descargar tus datos personales, y presentar una solicitud sobre ellos según la Ley 1581 de 2012." class("pv-meta")
+
+    Section class("pv-sec") {
+      Title "Tus datos" h2
+      Text "Nombre: {datos.nombre}" class("md-dato")
+      Text "Correo: {datos.email}" class("md-dato")
+      when datos.telefono != "" { Text "Teléfono: {datos.telefono}" class("md-dato") }
+      when datos.telefono == "" { Text "Teléfono: sin registrar" class("md-dato") }
+      Text "Rol: {rolTxt}" class("md-dato")
+      Text "Negocio: {datos.negocio}" class("md-dato")
+    }
+
+    Section class("pv-sec") {
+      Title "Corregir" h2
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:user" }
+        Stack class("gfield-body") {
+          Text "Nombre" class("gfield-label")
+          SearchField bind(nombre) "Tu nombre" class("gfield-input")
+        }
+      }
+      Button "Guardar nombre" -> guardarNombre class("md-btn") disabled when not nombreOk
+      Stack class("gfield") class("gfield-err" when not telOk) {
+        Stack class("gfield-ic") { Icon "lucide:phone" }
+        Stack class("gfield-body") {
+          Text "Teléfono" class("gfield-label")
+          SearchField bind(telefono) "+57 300 000 0000" class("gfield-input")
+        }
+        when not telOk { Text "Nº inválido" class("gfield-hint") }
+      }
+      Button "Guardar teléfono" -> guardarTelefono class("md-btn") disabled when not telOk
+    }
+
+    Section class("pv-sec") {
+      Title "Descargar mis datos" h2
+      Text "Un archivo JSON con tu cuenta, tu perfil, tus autorizaciones, tus reseñas y tus solicitudes; si eres cliente, también tus perros y sus servicios. No incluye datos de otras personas."
+      Button -> descargar class("md-btn") { Icon "lucide:download"  Span "Descargar mis datos" }
+    }
+
+    Section class("pv-sec") {
+      Title "Solicitudes" h2
+      Text "Puedes consultar qué datos tenemos, pedir que se corrijan, pedir la supresión de tu cuenta o revocar la autorización que diste. El plazo de respuesta es de 10 días hábiles para una consulta y de 15 días hábiles para las demás solicitudes."
+      Stack class("md-tipos") {
+        Button "Consulta" -> pick("consulta") class("md-tipo") class("md-on" when tipo == "consulta") aria(pressed: tipo == "consulta")
+        Button "Rectificación" -> pick("rectificacion") class("md-tipo") class("md-on" when tipo == "rectificacion") aria(pressed: tipo == "rectificacion")
+        Button "Supresión de la cuenta" -> pick("supresion") class("md-tipo") class("md-on" when tipo == "supresion") aria(pressed: tipo == "supresion")
+        Button "Revocación de la autorización" -> pick("revocacion") class("md-tipo") class("md-on" when tipo == "revocacion") aria(pressed: tipo == "revocacion")
+      }
+      Textarea bind(detalle) "Detalle de tu solicitud (opcional, máximo 1000 caracteres)" class("md-txt")
+      Button "Enviar solicitud" -> enviar class("md-btn") disabled when detalle.length > 1000
+      when solicitudes.length == 0 { Text "Aún no has presentado solicitudes." class("pv-meta") }
+      each solicitudes as s {
+        Article class("md-sol") {
+          Stack class("md-sol-h") {
+            match s.tipo {
+              consulta -> Span "Consulta"
+              rectificacion -> Span "Rectificación"
+              supresion -> Span "Supresión de la cuenta"
+              revocacion -> Span "Revocación de la autorización"
+            }
+            match s.estado {
+              pendiente -> Span "Pendiente"
+              en_proceso -> Span "En proceso"
+              respondida -> Span "Respondida"
+            }
+          }
+          Span "Presentada el {s.fecha} · Vence el {s.vence}" class("pv-meta")
+          when s.respuesta != "" { Text "Respuesta: {s.respuesta}" }
+        }
+      }
+    }
+  }
+  Custom MisDatosBridge on(perfil: cargar, solicitudes: setSolicitudes)
+  Custom Toast
+}

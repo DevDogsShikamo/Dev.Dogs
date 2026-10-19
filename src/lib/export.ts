@@ -112,3 +112,12 @@ export function descargarEstadoCuentaExcel(perroId: string, perroNombre: string)
       .catch(() => toast("No se pudo generar el Excel"));
   });
 }
+
+// "Descargar mis datos": the JSON mis_datos_exportar() returns (only the caller's own personal data).
+export function misDatosDescargar(): void {
+  supa.rpc("mis_datos_exportar").then((res: { data?: unknown; error?: unknown }) => {
+    if (res.error) { toast("No se pudieron descargar tus datos"); return; }
+    bajar("mis-datos-devdogs.json", "application/json;charset=utf-8", JSON.stringify(res.data, null, 2));
+    toast("Tus datos se descargaron");
+  });
+}
