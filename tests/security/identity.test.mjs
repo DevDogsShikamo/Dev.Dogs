@@ -160,12 +160,13 @@ test('PC-1b: no column or provisioning parameter stores a national ID or NIT', (
 })
 
 // ---- R2-6 anonymous surface closed -------------------------------------------
-test('TI-6b: the set of functions executable by anon is empty', () => {
+// The one deliberate exception is the public reviews aggregate of the landing (resenas.test.mjs).
+test('TI-6b: the set of functions executable by anon is only resenas_publicas', () => {
   const total = sql(`select count(*)::int as n from pg_proc where pronamespace = 'public'::regnamespace`)[0].n
   assert.ok(total > 10, 'introspection returned too few functions')
   const open = sql(`select proname from pg_proc where pronamespace = 'public'::regnamespace
                     and has_function_privilege('anon', oid, 'execute') order by 1`)
-  assert.deepEqual(open.map((r) => r.proname), [])
+  assert.deepEqual(open.map((r) => r.proname), ['resenas_publicas'])
 })
 
 test('TI-6b: anon holds no privilege on any table of the exposed schema', () => {

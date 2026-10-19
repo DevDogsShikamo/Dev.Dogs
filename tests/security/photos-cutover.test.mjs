@@ -64,9 +64,9 @@ test('WP-3e: the only registration function takes walk ids; a URL in its place i
   assert.equal((await admin().from('paseo_fotos').select('id', { count: 'exact', head: true })).count, before)
 })
 
-test('AH-1a: every SECURITY DEFINER function in public pins search_path to empty, and anon executes none', () => {
+test('AH-1a: every SECURITY DEFINER function in public pins search_path to empty, and anon executes only the public reviews aggregate', () => {
   const definers = sql(`select proname, coalesce(proconfig @> array['search_path=""'], false) as pinned from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and prosecdef`)
   assert.ok(definers.length > 30, `scan sanity: ${definers.length} definers`)
   assert.deepEqual(definers.filter((d) => !d.pinned).map((d) => d.proname), [])
-  assert.deepEqual(sql(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')`), [])
+  assert.deepEqual(sql(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')`), [{ proname: 'resenas_publicas' }])
 })
