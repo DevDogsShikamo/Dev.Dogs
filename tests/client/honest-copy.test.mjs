@@ -84,3 +84,13 @@ test('the per-dog statement says it is not an electronic invoice (sheet + export
   for (const f of ['src/pages/cliente/cliente.muten', 'src/lib/export.ts'])
     assert.ok(readFileSync(join(ROOT, f), 'utf8').includes(LEGEND), f)
 })
+
+// Reviews come only from resenas_publicas(): the landing may interpolate the server's numbers but never carry
+// a rating, average or review count of its own (Ley 1480). A regression guard for the d52655b removal.
+test('the landing reviews section is fed by ResenasBridge and holds no hardcoded rating or count', () => {
+  const landing = all.filter(({ file }) => file.replace(/\\/g, '/').endsWith('pages/landing/landing.muten')).map(({ s }) => s)
+  assert.ok(landing.length > 20, 'landing literals extracted')
+  const numeric = landing.filter((s) => /\d\s*(de 5|\/5|★|reseñas?|opiniones)/i.test(s) || /(^|[^\d.])[1-5][.,]\d(?!\d)/.test(s))
+  assert.deepEqual(numeric, [])
+  assert.match(readFileSync(join(SRC, 'pages/landing/landing.muten'), 'utf8'), /Custom ResenasBridge on\(total: \w+, promedio: \w+, items: \w+\)/)
+})
