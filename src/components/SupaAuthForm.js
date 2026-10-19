@@ -16,19 +16,19 @@ function mount(el, inputs, on) {
   // (/login -> /app -> /empresa -> /cliente -> /login) cycled until the stack overflowed.
   function reportSession(user) {
     var meta = user.user_metadata || {};
-    var name = meta.nombre || (user.email || "").split("@")[0] || "";
+    var name = meta.nombre || meta.full_name || meta.name || (user.email || "").split("@")[0] || "";
     supa.from("profiles").select("rol,negocio_id").eq("id", user.id).maybeSingle().then(function (pr) {
       if (pr && pr.error) return on.failed("No pudimos cargar tu perfil. Intenta de nuevo.");
       var rol = (pr && pr.data && pr.data.rol) || "";
       var nid = (pr && pr.data && pr.data.negocio_id) || "";
-      // A session without a profile has no portal: the app stays logged out on /login with a message.
-      // (No supa.auth.signOut here: its SIGNED_OUT event purges and reloads the page, which would drop the message.)
-      if (!rol) return on.failed("Tu cuenta no tiene un perfil. Crea una cuenta nueva o usa tu código de invitación.");
+      // A session without a profile (first Google login, failed provisioning) opens only /completar-registro:
+      // sinPerfil closes every portal guard and the chain ends there, so no empty-rol state can cycle.
+      if (!rol) return on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false, politica: "", sinPerfil: true });
       // A current policy version the user has not accepted closes every portal guard (the chain ends at
       // /aceptar-politica). Fail closed: without the answer no session is reported.
       supa.rpc("consentimiento_pendiente").then(function (cp) {
         if (cp.error) return on.failed("No pudimos verificar la política de datos. Intenta de nuevo.");
-        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "" };
+        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "", sinPerfil: false };
         if (!nid) return on.session(s);
         // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
         supa.from("negocios").select("owner_id").eq("id", nid).maybeSingle().then(function (ng) {
@@ -52,8 +52,12 @@ function mount(el, inputs, on) {
   }
 
   // The server refuses a policy version that is not the current one (politica_invalida).
+  // Profile RPCs raise perfil_existente / datos_invalidos too (provision_negocio).
   function failMsg(m) {
-    return /politica_invalida/.test(m || "") ? "La política cambió. Recarga la página y vuelve a aceptarla." : m;
+    if (/politica_invalida/.test(m || "")) return "La política cambió. Recarga la página y vuelve a aceptarla.";
+    if (/perfil_existente/.test(m || "")) return "Esta cuenta ya tiene un perfil.";
+    if (/datos_invalidos/.test(m || "")) return "Revisa tus datos: el nombre es obligatorio y admite hasta 100 caracteres.";
+    return m;
   }
 
   // Alta de negocio (empresa o paseador independiente) por RPC: el servidor crea el
@@ -73,7 +77,7 @@ function mount(el, inputs, on) {
       if (r.error) return on.failed(failMsg(r.error.message) || "Invitación inválida o expirada.");
       if (!r.data || !r.data.ok) {
         var e = r.data && r.data.error;
-        return on.failed(e === "demasiados_intentos" ? "Demasiados intentos. Probá de nuevo en 15 minutos."
+        return on.failed(e === "demasiados_intentos" ? "Demasiados intentos. Intenta de nuevo en 15 minutos."
           : e === "perfil_existente" ? "Esta cuenta ya tiene un perfil." : "Invitación inválida, vencida o para otro correo.");
       }
       var nombre = (inp.nombre || "").trim();
@@ -92,6 +96,16 @@ function mount(el, inputs, on) {
     // no account is created, so no profile-less user is left behind.
     if (inp.mode !== "login" && !inp.politica) return on.failed("Acepta la Política de tratamiento de datos para continuar.");
     if (inp.mode === "aceptar") return accept(inp);
+    // /completar-registro: the user is already signed in (e.g. with Google) and only lacks the profile,
+    // which the same RPCs as signup and /unirse create.
+    if (inp.mode === "completar") {
+      supa.auth.getSession().then(function (g) {
+        var user = g.data && g.data.session && g.data.session.user;
+        if (!user) return on.failed("Tu sesión terminó. Vuelve a iniciar sesión.");
+        inp.rol === "CODIGO" ? join(inp, user) : provision(inp, user);
+      });
+      return;
+    }
     if (inp.mode === "login") {
       supa.auth.signInWithPassword({ email: inp.email, password: inp.pw })
         .then(function (res) {
@@ -108,6 +122,16 @@ function mount(el, inputs, on) {
         if (inp.mode === "join") { join(inp, res.data.user); }
         else { provision(inp, res.data.user); }
       });
+  }
+
+  // Guest pages report a session that already exists: the return from Google lands on /login with the
+  // session in the URL (supabase-js stores it before getSession resolves), or an earlier signup left a
+  // session without a profile.
+  if (supa && (inputs.mode === "login" || inputs.mode === "signup" || inputs.mode === "join")) {
+    supa.auth.getSession().then(function (g) {
+      var user = g.data && g.data.session && g.data.session.user;
+      if (user) reportSession(user);
+    });
   }
 
   return function (next) {

@@ -49,12 +49,11 @@ for (const [actor, portal] of Object.entries(PORTAL)) {
   })
 }
 
-test('login NOPROFILE: a session without a profile returns to /login with a message, no loop', async () => {
+test('login NOPROFILE: a session without a profile lands on /completar-registro, no loop', async () => {
   const page = await login('NOPROFILE')
-  await page.getByText(/no tiene un perfil/i).waitFor({ timeout: 60_000 })
+  await page.waitForURL('**/completar-registro', { timeout: 60_000 })
   await settle(page)
-  assert.ok(page.url().endsWith('/login'), `stays on /login, got ${page.url()}`)
-  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('muten:auth:loggedIn') ?? 'false')), false, 'the app does not keep a logged-in state')
+  assert.ok(page.url().endsWith('/completar-registro'), `stays on /completar-registro, got ${page.url()}`)
   await clean(page)
   await page.close()
 })
