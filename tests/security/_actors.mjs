@@ -4,6 +4,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { loadConfig } from './_env.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 // Fixed ids make every re-seed an upsert. The 12-digit tail is the entity number.
 const uuid = (kind, n) => `0d0d0d${kind}-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -125,6 +126,15 @@ async function data() {
         })),
     ),
     'profiles',
+  )
+  // Every actor with a profile accepted the current policy, as a real user would have: without it the
+  // app sends them to the /aceptar-politica gate instead of their portal.
+  ok(
+    await db.from('consentimientos').upsert(
+      Object.keys(ACTORS).filter((name) => ACTORS[name].rol).map((name) => ({ user_id: u[name], policy_version: POLITICA_VERSION })),
+      { onConflict: 'user_id,policy_version', ignoreDuplicates: true },
+    ),
+    'consentimientos',
   )
   ok(
     await db.from('servicios').upsert([
