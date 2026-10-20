@@ -1,8 +1,9 @@
-// Single source of the privacy-policy version. The consent checkbox pages pass it to
-// provision_negocio / redeem_invite, the policy page shows it, and the migration seeds the same
-// string into `politicas` (tests/security/consent.test.mjs fails if they drift).
+// Single source of the version of the legal documents the user accepts (terms of use + data policy
+// since 2026-10-20b; the `politicas.documentos` column says which ones each version covers).
+// The consent pages pass it to provision_negocio / redeem_invite, the policy pages show it, and the
+// migration seeds the same string into `politicas` (tests/security/consent.test.mjs fails if they drift).
 // DRAFT: pending legal review. Bump the version (and add a `politicas` row) whenever the text changes.
-export const POLITICA_VERSION = "2026-10-20-borrador";
+export const POLITICA_VERSION = "2026-10-20b-borrador";
 
 export function politicaVersion() {
   return POLITICA_VERSION;

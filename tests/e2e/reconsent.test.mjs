@@ -10,7 +10,7 @@ import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 // The version S7 seeded and S5b retired (still in `politicas`, vigente = false).
 const OLD = '2026-10-14-borrador'
-const GATE = 'Actualizamos nuestra Política de tratamiento de datos'
+const GATE = 'Actualizamos nuestros Términos y Política de tratamiento de datos'
 let app
 
 before(async () => {
@@ -96,7 +96,7 @@ test('outdated consent: the policy opens in a modal, closing it accepts nothing,
     await page.waitForURL('**/aceptar-politica', { timeout: 60_000 })
     await consentLine(page).click()
     assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de la política: ${POLITICA_VERSION}`))
-    await page.getByRole('button', { name: 'Cerrar la política' }).click()
+    await page.getByRole('button', { name: 'Cerrar los documentos' }).click()
     await policyDoc(page).waitFor({ state: 'detached' })
     assert.equal(await isAccepted(page), false)
     assert.equal(await continueButton(page).isDisabled(), true)
