@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, tempUser } from '../security/_actors.mjs'
 import { autoconfirmSignup, startApp } from './_app.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
 before(async () => { app = await startApp() }, { timeout: 120_000 })
@@ -31,6 +32,7 @@ async function signUp(rol, negocio) {
   await page.getByPlaceholder('tu@correo.com').fill(email)
   await page.getByPlaceholder('••••••••').fill(PASSWORD)
   await page.getByPlaceholder('DevDogs Poblado').fill(negocio)
+  await page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ }).check()
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
   return { page, email }
 }
@@ -94,7 +96,7 @@ test('TI-1b: an independent-walker signup provisions an independiente and lands 
 test('an existing account can still log in and reaches its portal', async () => {
   const u = await tempUser()
   try {
-    assert.equal((await u.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'Login E2E' })).error, null)
+    assert.equal((await u.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'Login E2E', p_politica: POLITICA_VERSION })).error, null)
     const page = await newPage('/login')
     await page.getByPlaceholder('tu@correo.com').fill(u.email)
     await page.getByPlaceholder('••••••••').fill(u.password)

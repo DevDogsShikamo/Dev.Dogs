@@ -91,6 +91,7 @@ async function join(code, email) {
   await page.getByPlaceholder('Ana Rondón').fill('Cliente E2E')
   await page.getByPlaceholder('tu@correo.com').fill(email)
   await page.getByPlaceholder('••••••••').fill('Abcdefg1')
+  await page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ }).check()
   await page.getByRole('button', { name: 'Unirme' }).click()
   return page
 }
