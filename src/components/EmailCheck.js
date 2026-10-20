@@ -21,7 +21,7 @@ function mount(el, inputs, on) {
         "apikey": cfg.key,
         "Authorization": "Bearer " + cfg.key
       },
-      body: JSON.stringify({ email: email }),
+      body: JSON.stringify({ domain: domain }), // the address itself never leaves the page
     })
       .then(function (r) { return r.json(); })
       .then(function (d) {

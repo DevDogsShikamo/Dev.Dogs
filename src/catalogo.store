@@ -32,11 +32,11 @@ entity Relacion {
 }
 
 state {
-  # persist = SWR: al recargar pinta del cache de localStorage al instante y
-  # DataBootstrap revalida contra la red por detrás (Fase 3). Se limpia en logout.
-  perros    = [] : list<PerroCat> persist
-  relaciones = [] : list<Relacion> persist
-  loaded    = false : bool persist
+  # Sin persist (data-protection P8): nada de esto queda en el dispositivo. DataBootstrap lo
+  # carga una vez por sesión; se limpia en logout.
+  perros    = [] : list<PerroCat>
+  relaciones = [] : list<Relacion>
+  loaded    = false : bool
 }
 
 get total = perros.length

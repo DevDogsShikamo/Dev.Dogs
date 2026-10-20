@@ -3,7 +3,7 @@
 # app.muten routes each rol to its portal.
 use signOut from "~/lib/authActions.ts"
 
-entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  slug text  isOwner bool }
+entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  isOwner bool }
 
 state {
   loggedIn  = false : bool persist
@@ -11,7 +11,6 @@ state {
   userName  = ""    : text persist
   rol       = ""    : text persist
   negocioId = ""    : text persist
-  slug      = ""    : text persist
   isOwner   = false : bool persist   # dueño del negocio (jefe) vs empleado de gestión
   authError = ""    : text
   # Permiso de finanzas (lo informa ReportesBridge desde has_finanzas()). Solo gobierna la UI; el servidor decide.
@@ -31,13 +30,12 @@ get canWalker   = loggedIn and rol == "paseador"
 get canBusiness = loggedIn and rol == "empresa"
 get canClient   = loggedIn and rol == "cliente"
 
-action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, isOwner, authError {
   loggedIn.set(s.loggedIn)
   userId.set(s.userId)
   userName.set(s.userName)
   rol.set(s.rol)
   negocioId.set(s.negocioId)
-  slug.set(s.slug)
   isOwner.set(s.isOwner)
   authError.set("")
 }
@@ -45,7 +43,7 @@ action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId
 action setError(msg: text) mutates authError { authError.set(msg) }
 action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
 
-action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError, finanzas {
+action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, authError, finanzas {
   finanzas.set(false)
   signOut()
   loggedIn.set(false)
@@ -53,7 +51,6 @@ action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner,
   userName.set("")
   rol.set("")
   negocioId.set("")
-  slug.set("")
   isOwner.set(false)
   authError.set("")
 }

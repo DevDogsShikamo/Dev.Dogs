@@ -50,32 +50,32 @@ entity AgendaDia  { fecha text  label text  count number }
 entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text  color text }
 
 state {
-  # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.
-  paseadores  = [] : list<PaseadorRow> persist
-  clientes    = [] : list<ClienteRow> persist
-  gestion     = [] : list<GestionRow> persist
+  # Sin persist (data-protection P8): el portal empresa no guarda nada en el dispositivo ni abre offline.
+  paseadores  = [] : list<PaseadorRow>
+  clientes    = [] : list<ClienteRow>
+  gestion     = [] : list<GestionRow>
   # Métricas de hoy (todos los paseadores del negocio).
-  paseosHoy   = 0 : number persist
-  programados = 0 : number persist
-  enCurso     = 0 : number persist
-  finalizados = 0 : number persist
-  perrosTot   = 0 : number persist
+  paseosHoy   = 0 : number
+  programados = 0 : number
+  enCurso     = 0 : number
+  finalizados = 0 : number
+  perrosTot   = 0 : number
   invitaciones = [] : list<Invitacion>
   codigoNuevo  = "" : text
   codigoEmail  = "" : text
   duenos      = [] : list<Dueno>
   # Finanzas del período (últimos 30 días).
-  facturado    = 0 : number persist
-  cobrado      = 0 : number persist
-  pendiente    = 0 : number persist
-  ingresosDia  = [] : list<IngresoDia> persist
-  topServicios = [] : list<TopServicio> persist
-  porPaseador  = [] : list<PaseadorIng> persist
-  salidas      = [] : list<Salida> persist
-  pendientes   = [] : list<Pendiente> persist
-  agendaDias   = [] : list<AgendaDia> persist
-  agenda       = [] : list<AgendaItem> persist
-  loaded       = false : bool persist
+  facturado    = 0 : number
+  cobrado      = 0 : number
+  pendiente    = 0 : number
+  ingresosDia  = [] : list<IngresoDia>
+  topServicios = [] : list<TopServicio>
+  porPaseador  = [] : list<PaseadorIng>
+  salidas      = [] : list<Salida>
+  pendientes   = [] : list<Pendiente>
+  agendaDias   = [] : list<AgendaDia>
+  agenda       = [] : list<AgendaItem>
+  loaded       = false : bool
 }
 
 get pendienteTotal = pendientes.sum by monto

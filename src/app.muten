@@ -21,7 +21,8 @@ shell {
     when not net.online {
       Stack class("dd-netbar dd-netbar-off") {
         Icon "lucide:wifi-off"
-        Span "Sin conexión — los cambios se guardan y se sincronizan al volver"
+        when auth.isPaseador { Span "Sin conexión — los cambios se guardan y se sincronizan al volver" }
+        when not auth.isPaseador { Span "Se necesita conexión para ver tus datos" }
         when net.pending > 0 { Span "· {net.pending} sin enviar" class("dd-netbar-n") }
       }
     }

@@ -10,8 +10,8 @@ entity Servicio {
 }
 
 state {
-  servicios = [] : list<Servicio> persist
-  zonas     = [] : list<text> persist
+  servicios = [] : list<Servicio>
+  zonas     = [] : list<text>
 }
 
 get total = servicios.length

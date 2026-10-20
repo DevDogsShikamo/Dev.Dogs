@@ -63,10 +63,10 @@ entity GrupoAdmin {
 state {
   grupos      = [] : list<Grupo> persist
   fecha       = "" : text persist
-  todos       = [] : list<GrupoAdmin> persist
+  todos       = [] : list<GrupoAdmin>
   perrosHoy   = [] : list<PerroHoy> persist
   perrosPaseo = [] : list<PerroPaseo> persist
-  conflictos  = [] : list<Conflicto> persist
+  conflictos  = [] : list<Conflicto>
   # Modo paseo: sheet del grupo seleccionado (el paseador ejecuta el paseo).
   modoOpen    = false : bool
   modoId      = "" : text
