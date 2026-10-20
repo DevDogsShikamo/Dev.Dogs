@@ -1,7 +1,10 @@
 // Browser E2E harness: starts its OWN `muten dev` server, opens Chromium and points
 // the app at STAGING through window.__DD_CFG (honoured by src/lib/authActions.ts only
 // on localhost / 127.0.0.1). Import-safe: nothing starts until startApp() is called.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { createServer } from 'node:http'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { loadConfig } from '../security/_env.mjs'
@@ -29,23 +32,56 @@ function startServer() {
   return { child, url }
 }
 
-export async function startApp() {
+// Production build served statically (dist/ from `muten bundle`), with the SPA fallback hosting gives.
+// The dev server injects inline scripts of its own (error overlay), which no CSP can allow, so the
+// CSP spec runs against the bundle: that is what ships.
+function startBundle() {
+  const build = spawnSync(process.execPath, [MUTEN, 'bundle', ROOT], { cwd: ROOT, encoding: 'utf8' })
+  if (build.status !== 0) throw new Error(`muten bundle failed:
+${build.stdout}
+${build.stderr}`)
+  const dist = join(ROOT, 'dist')
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' }
+  const http = createServer((req, res) => {
+    const file = normalize(join(dist, decodeURIComponent(new URL(req.url, 'http://x').pathname)))
+    const hit = file.startsWith(dist) && existsSync(file) && statSync(file).isFile() ? file : join(dist, 'index.html')
+    res.writeHead(200, { 'content-type': types[extname(hit)] || 'application/octet-stream' })
+    res.end(readFileSync(hit))
+  })
+  const url = new Promise((resolve) => http.listen(0, '127.0.0.1', () => resolve(`http://localhost:${http.address().port}`)))
+  return { child: { kill: () => http.close() }, url, http }
+}
+
+export async function startApp({ bundle = false } = {}) {
   const cfg = loadConfig() // refuses production values
-  const server = startServer()
+  const server = bundle ? startBundle() : startServer()
   const url = await server.url
   const browser = await chromium.launch()
   return {
     url,
     // One context per page: sessions in localStorage must not leak between tests.
-    async newPage() {
-      const context = await browser.newContext()
+    // The page CSP (meta in index.html) is bypassed except for the CSP spec ({ csp: true }), which
+    // runs under the real policy; there the production Supabase origin in the meta is swapped for the
+    // staging one (the only edit), because the app talks to staging through __DD_CFG.
+    async newPage({ csp = false } = {}) {
+      const context = await browser.newContext({ bypassCSP: !csp })
       await context.addInitScript(({ url, key }) => { window.__DD_CFG = { url, key } }, { url: cfg.url, key: cfg.publishableKey })
+      if (csp) {
+        const stagingHost = new URL(cfg.url).host
+        await context.route(/^https?:\/\/(localhost|127\.0\.0\.1)[:/][^?]*$/, async (route) => {
+          if (route.request().resourceType() !== 'document') return route.continue()
+          const res = await route.fetch()
+          const body = (await res.text()).replaceAll('agutaluxzruuthbbagkh.supabase.co', stagingHost)
+          return route.fulfill({ response: res, body })
+        })
+      }
       return context.newPage()
     },
     async stop() {
       await browser.close()
       // taskkill /T because the dev server is a child of node on Windows too.
-      if (process.platform === 'win32') spawn('taskkill', ['/PID', String(server.child.pid), '/T', '/F'], { stdio: 'ignore' })
+      if (bundle) server.http.close()
+      else if (process.platform === 'win32') spawn('taskkill', ['/PID', String(server.child.pid), '/T', '/F'], { stdio: 'ignore' })
       else server.child.kill()
     },
   }
