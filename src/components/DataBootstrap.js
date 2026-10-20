@@ -258,7 +258,21 @@ function mount(el, inputs, on) {
     });
   }
 
+  // ---------- LEGAL IDENTITY (Ley 1480 art. 50 and 53; the independent walker owns his business) ----------
+  function loadIdentidad() {
+    var supa = globalThis.__supa;
+    if (!supa || !on.identidad) return;
+    globalThis.__ddSesion().then(function (s) {
+      if (!s.negocioId) return;
+      supa.from("negocio_identidad").select("razon_social,doc_tipo,doc_numero,direccion,telefono,correo").eq("negocio_id", s.negocioId).maybeSingle().then(function (ir) {
+        if (ir && ir.error) return;   // SWR: keep what is shown if the network failed
+        on.identidad(ir.data ? [ir.data] : []);
+      });
+    });
+  }
+
   function loadAll() {
+    loadIdentidad();
     loadInvitaciones();
     loadPerros();
     loadServicios();

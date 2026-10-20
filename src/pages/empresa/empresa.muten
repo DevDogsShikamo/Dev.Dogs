@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar, negocioIdentidadGuardar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 use estadoCertificado from "~/lib/kiara.js"
@@ -26,6 +26,9 @@ entity PerroDraft {
   tips         text
   foto         text
 }
+
+# Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row from the bridge.
+entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direccion text  telefono text  correo text }
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -57,10 +60,25 @@ state {
   gcolor   = "purple" : text
   gedit    = "" : text
   gform    = false : bool
+  # Legal identity editor (owner only; not persisted).
+  lrazon  = "" : text
+  ltipo   = "NIT" : text
+  lnum    = "" : text
+  ldir    = "" : text
+  ltel    = "" : text
+  lcorreo = "" : text
+  lhay    = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 # Logout: limpia el cache del negocio (dispositivo compartido) y cierra sesión.
 action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  auth.logout() }
+
+# ---- Legal identity of the business (owner only; the RPC validates) ----
+action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, ltel, lcorreo, lhay {
+  if rows.length > 0 { lrazon.set(rows.at(0).razon_social)  ltipo.set(rows.at(0).doc_tipo)  lnum.set(rows.at(0).doc_numero)  ldir.set(rows.at(0).direccion)  ltel.set(rows.at(0).telefono)  lcorreo.set(rows.at(0).correo)  lhay.set(true) }
+}
+action idTipo(t: text) mutates ltipo { ltipo.set(t) }
+action idGuardar { negocioIdentidadGuardar(lrazon, ltipo, lnum, ldir, ltel, lcorreo) }
 
 # ---- Catálogo de servicios (ABM del jefe) ----
 action servicioNuevo mutates sdraft, sedit, sform { sdraft.reset()  sedit.set("")  sform.set(true) }
@@ -143,7 +161,7 @@ action moderar(id: text, estado: text) { empresa.resenaSet(id, estado)  resenaMo
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
@@ -629,6 +647,35 @@ Stack class("dd-app") {
                     Checkbox checked(g.finanzas) -> finanzasToggle(g.id, not g.finanzas) "Finanzas"
                   }
                 }
+              }
+            }
+          }
+
+          # ---- Datos legales del negocio (Ley 1480 art. 50 and 53) — only the owner writes them ----
+          when auth.isOwner {
+            Stack class("dd-pf-team") {
+              Title "Datos legales del negocio" h2
+              Text "Tus clientes los ven en su portal; la ley pide que el proveedor se identifique." class("dd-rel-hint")
+              when not lhay { Text "Aún no registras los datos legales de tu negocio." class("dd-rel-hint") }
+              Stack class("dd-gform") {
+                Span "Nombre o razón social" class("dd-hor-lbl")
+                SearchField bind(lrazon) "Nombre o razón social"
+                Span "Tipo de documento" class("dd-hor-lbl")
+                Stack class("dd-gsvc") {
+                  Button "NIT" -> idTipo("NIT") class("dd-gchip") class("on" when ltipo == "NIT")
+                  Button "Cédula de ciudadanía" -> idTipo("CC") class("dd-gchip") class("on" when ltipo == "CC")
+                  Button "Cédula de extranjería" -> idTipo("CE") class("dd-gchip") class("on" when ltipo == "CE")
+                  Button "Pasaporte" -> idTipo("PAS") class("dd-gchip") class("on" when ltipo == "PAS")
+                }
+                Span "Número de documento" class("dd-hor-lbl")
+                SearchField bind(lnum) "Número de documento"
+                Span "Dirección de notificaciones" class("dd-hor-lbl")
+                SearchField bind(ldir) "Dirección de notificaciones"
+                Span "Teléfono" class("dd-hor-lbl")
+                SearchField bind(ltel) "Teléfono"
+                Span "Correo" class("dd-hor-lbl")
+                SearchField bind(lcorreo) "correo@ejemplo.com"
+                Button "Guardar" -> idGuardar class("dd-cat-add dd-hor-save")
               }
             }
           }

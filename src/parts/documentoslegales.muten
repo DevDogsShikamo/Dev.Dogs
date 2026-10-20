@@ -40,7 +40,8 @@ part DocumentosLegales(version: text) {
         Text "DevDogs es una plataforma de software que se usa en el navegador y como aplicación instalable. Sirve para que un negocio de cuidado de perros registre a sus clientes y perros, arme grupos y agendas de paseo, publique su catálogo de servicios y productos, registre lo que se presta y lo que se cobra, y para que los dueños consulten y reserven los servicios de su negocio."
         Text "DevDogs no presta servicios de paseo, guardería, baño, corte, adiestramiento, veterinaria ni venta de productos. Esos servicios los ofrece y los presta cada negocio que usa la plataforma (en adelante, el negocio), que es quien contrata con el dueño del perro y responde por la prestación."
         Text "DevDogs no es un buscador ni un mercado abierto de prestadores: cada dueño entra a la plataforma solo por invitación del negocio con el que ya tiene relación."
-        Text "[COMPLETAR: el abogado debe definir si, por la forma en que opera, DevDogs puede considerarse un portal de contacto en los términos del artículo 53 de la Ley 1480 de 2011 y, en ese caso, qué datos de identificación de cada negocio deben registrarse y ponerse a disposición de los dueños.]"
+        Text "Cada negocio registra en la plataforma su nombre o razón social, su documento de identificación (NIT, cédula o pasaporte), su dirección de notificaciones, su teléfono y su correo, y sus clientes pueden consultarlos en su portal (artículos 50 y 53 de la Ley 1480 de 2011)."
+        Text "[COMPLETAR: si registrar estos datos debe ser obligatorio para operar en la plataforma.]"
       }
 
       Stack class("pl-sub") {

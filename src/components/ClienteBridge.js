@@ -129,6 +129,14 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row, read-only for the client.
+      if (on.identidad && s.negocioId) {
+        supa.from("negocio_identidad").select("razon_social,doc_tipo,doc_numero,direccion,telefono,correo").eq("negocio_id", s.negocioId).maybeSingle().then(function (ir) {
+          if (ir && ir.error) return;
+          on.identidad(ir.data ? [ir.data] : []);
+        });
+      }
+
       // Catálogo de servicios del negocio (para pedir baño/guardería/corte/etc.).
       if (on.servicios && s.negocioId) {
         supa.from("servicios").select("id,nombre,tipo,modelo_cobro,tarifas(precio)").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {

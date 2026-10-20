@@ -46,6 +46,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
         Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
+        Text "Datos legales del negocio, que registra el jefe para identificarse ante sus clientes (artículos 50 y 53 de la Ley 1480 de 2011): nombre o razón social, tipo y número de documento (NIT, cédula o pasaporte), dirección de notificaciones, teléfono y correo. En el caso del paseador independiente, el documento es su número de identificación personal."
         Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, la fecha de expedición del certificado de salud, observaciones y enlace a la foto de perfil."
         Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, hora de recogida y de entrega, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
@@ -53,7 +54,7 @@ part PoliticaTexto(version: text) {
         Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
         Text "Aceptación de esta política: identificador de usuario, versión aceptada y fecha y hora registradas por el servidor. No se guarda la dirección IP ni datos del navegador."
       }
-      Text "No se solicita cédula, documento de identidad ni NIT personal, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
+      Text "Fuera de los datos legales del negocio no se solicita cédula, documento de identidad ni NIT, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
       Text "[COMPLETAR: el abogado debe indicar si alguna información, por ejemplo fotos en las que aparezcan personas o menores, requiere un tratamiento especial.]"
     }
 
@@ -66,6 +67,7 @@ part PoliticaTexto(version: text) {
         Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios ni teléfonos de clientes."
         Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
         Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Ningún cliente edita los datos del perro: los administra el negocio. Un co-dueño puede ver y reservar, pero no comprar productos."
+        Text "Datos legales del negocio: todos los miembros de ese negocio, incluidos sus clientes, pueden verlos; solo el jefe los registra y los cambia."
         Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
