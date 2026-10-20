@@ -1,16 +1,14 @@
-# Item de una invitación pendiente: código + acciones (copiar código, copiar link, quitar).
-# Reutilizado en Paseadores, Clientes y Equipo de gestión del portal empresa.
-part InviteItem(iv: Invitacion, onCopyCode: action, onCopyLink: action, onDelete: action) {
+# Item de una invitación pendiente: correo, vencimiento y revocar. Nunca muestra el código
+# (el servidor solo guarda su hash). Reutilizado en el portal empresa y en el del paseador independiente.
+part InviteItem(iv: Invitacion, onDelete: action) {
   Stack class("dd-inv-item") {
     Icon "lucide:mail" class("ic")
     Stack class("dd-inv-info") {
-      when $iv.email { Span "{$iv.email}" class("em") }
-      Span "Código: {$iv.codigo}" class("code")
+      Span "{$iv.email}" class("em")
+      Span "Vence {$iv.vence}" class("code")
     }
     Stack class("dd-inv-acts") {
-      Button -> $onCopyCode($iv.codigo) class("dd-cat-icon") aria(label: "Copiar código") { Icon "lucide:copy" }
-      Button -> $onCopyLink($iv.codigo) class("dd-cat-icon") aria(label: "Copiar link de invitación") { Icon "lucide:link" }
-      Button -> $onDelete($iv.id) class("dd-cat-icon dd-danger") aria(label: "Quitar invitación") { Icon "lucide:x" }
+      Button -> $onDelete($iv.id) class("dd-cat-icon dd-danger") aria(label: "Revocar invitación") { Icon "lucide:x" }
     }
   }
 }

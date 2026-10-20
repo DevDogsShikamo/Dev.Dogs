@@ -114,10 +114,11 @@ action salGuardar mutates salForm { empresa.salarioSet(salEdit, salVal)  paseado
 
 # ---- Invitar paseador / cliente ----
 action invAbrir(rol: text) mutates invRol, invEmail, invForm { invRol.set(rol)  invEmail.set("")  invForm.set(true) }
+get invValido = invEmail.length > 4
 action invCerrar mutates invForm { invForm.set(false) }
 action invGuardar mutates invForm { invitarCrear(invRol, invEmail)  invForm.set(false) }
 action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
-# Compartir invitación: copiar el código o un link con el código precargado.
+# El código recién creado se muestra una vez (empresa.codigoNuevo): copiar el código o un link con el código precargado.
 action copCod(c: text) { copiarCodigo(c) }
 action copLink(c: text) { copiarLink(c) }
 
@@ -132,7 +133,7 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
@@ -231,7 +232,7 @@ Stack class("dd-app") {
           # Invitaciones pendientes (paseador) — solo el jefe las gestiona.
           when auth.isOwner {
             each empresa.invitaciones as iv where iv.rol == "paseador" {
-              InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+              InviteItem(iv: iv, onDelete: invBorrar)
             }
           }
           when empresa.nPaseadores == 0 {
@@ -270,7 +271,7 @@ Stack class("dd-app") {
             Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
           }
           each empresa.invitaciones as iv where iv.rol == "cliente" {
-            InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+            InviteItem(iv: iv, onDelete: invBorrar)
           }
           when empresa.nClientes == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invitá a tu primer cliente con el botón de arriba." }
@@ -573,7 +574,7 @@ Stack class("dd-app") {
               }
               # Invitaciones de gestión pendientes.
               each empresa.invitaciones as iv where iv.rol == "empresa" {
-                InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+                InviteItem(iv: iv, onDelete: invBorrar)
               }
               when empresa.nGestion == 0 {
                 Text "Aún no hay empleados de gestión. Invitá a alguien para compartir la oficina." class("dd-rel-hint")
@@ -626,11 +627,20 @@ Stack class("dd-app") {
               Button -> invCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
-              Span "Email (opcional)" class("dd-hor-lbl")
+              Span "Correo del invitado" class("dd-hor-lbl")
               SearchField bind(invEmail) "correo@ejemplo.com"
-              Text "Se genera un código único para que se una al negocio." class("dd-rel-hint")
-              Button "Crear invitación" -> invGuardar class("dd-cat-add dd-hor-save")
+              Text "El código queda atado a este correo, vence en 7 días y se muestra una sola vez." class("dd-rel-hint")
+              Button "Crear invitación" -> invGuardar class("dd-cat-add dd-hor-save") disabled when not invValido
             }
+          }
+        }
+      }
+
+      # ---- Código recién creado: se ve una vez y se descarta ----
+      when empresa.codigoNuevo.length > 0 {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            InviteCode(code: empresa.codigoNuevo, email: empresa.codigoEmail, onCopyCode: copCod, onCopyLink: copLink, onClose: empresa.codigoCerrar)
           }
         }
       }

@@ -113,14 +113,13 @@ function mount(el, inputs, on) {
         });
       }
 
-      // Invitaciones pendientes (paseador/cliente) para compartir el código.
+      // Invitaciones pendientes y vigentes: correo y vencimiento, nunca el código (solo existe su hash).
       if (on.invitaciones) {
-        supa.from("invitaciones").select("id,rol,email,codigo,estado").eq("negocio_id", neg).eq("estado", "pendiente").order("created_at").then(function (ir) {
+        supa.from("invitaciones").select("id,rol,email,estado,expires_at").eq("negocio_id", neg).eq("estado", "pendiente").gt("expires_at", new Date().toISOString()).order("created_at").then(function (ir) {
           if (ir && ir.error) return;
-          var inv = (ir.data || []).map(function (i) {
-            return { id: i.id, rol: i.rol || "", email: i.email || "", codigo: i.codigo || "", estado: i.estado || "" };
-          });
-          on.invitaciones(inv);
+          on.invitaciones((ir.data || []).map(function (i) {
+            return { id: i.id, rol: i.rol || "", email: i.email || "", estado: i.estado || "", vence: new Date(i.expires_at).toLocaleDateString("es") };
+          }));
         });
       }
     });
@@ -128,4 +127,6 @@ function mount(el, inputs, on) {
 
   load();
   window.addEventListener("supa:refresh", load);
+  // Código recién creado (data.ts invitarCrear): llega una vez y se entrega a la página para mostrarlo.
+  window.addEventListener("invite:code", function (e) { if (on.codigoNuevo) on.codigoNuevo(e.detail); });
 }

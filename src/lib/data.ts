@@ -3,6 +3,7 @@
 // (DataBootstrap, etc.) re-read and update the stores reactively.
 import { supa, toast, resolveSesion } from "./authActions";
 import { rpcOrQueue } from "./outbox";
+import { copiarCodigo } from "./share";
 
 function refresh(): void {
   if (typeof window !== "undefined") {
@@ -290,28 +291,22 @@ export function paseadorSalario(id: string, salario: number): void {
   supa.from("profiles").update({ salario_fijo: salario || 0 }).eq("id", id).then(done("No se pudo actualizar el salario"));
 }
 
-// Código de invitación legible (sin caracteres ambiguos).
-function genCodigo(): string {
-  const s = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  let c = "";
-  for (let i = 0; i < 6; i++) c += s.charAt(Math.floor(Math.random() * s.length));
-  return c;
-}
-
-// Crea una invitación (paseador o cliente) con un código único para compartir.
-// La ACEPTACIÓN (signup con código → linkear al negocio) es un flujo aparte, pendiente.
+// Crea una invitación por RPC: el servidor genera el código (14 símbolos, solo se guarda su hash) y lo
+// devuelve UNA vez. Se copia al portapapeles y se avisa a la página ("invite:code") para mostrarlo; no se
+// guarda en ningún store. Código perdido = revocar y crear otra.
 export function invitarCrear(rol: string, email: string): void {
-  resolveSesion().then(function (s) {
-    if (!s.uid || !s.negocioId) return;
-    supa.from("invitaciones").insert({
-      negocio_id: s.negocioId, rol: rol, email: email || null, codigo: genCodigo(), estado: "pendiente", invitado_por: s.uid,
-    }).then(done("No se pudo crear la invitación", refresh));
+  const correo = (email || "").trim();
+  supa.rpc("invitacion_crear", { p_rol: rol, p_email: correo }).then(function (res) {
+    if (res.error || !res.data) { toast(/email_invalido/.test((res.error && res.error.message) || "") ? "El correo no es válido" : "No se pudo crear la invitación"); return; }
+    copiarCodigo(res.data as string);
+    window.dispatchEvent(new CustomEvent("invite:code", { detail: { codigo: res.data, email: correo.toLowerCase() } }));
+    refresh();
   });
 }
 
-// Da de baja una invitación pendiente (soft: estado 'expirada').
+// Revoca una invitación pendiente (el código deja de servir).
 export function invitacionQuitar(id: string): void {
-  supa.from("invitaciones").update({ estado: "expirada" }).eq("id", id).then(done("No se pudo quitar la invitación"));
+  supa.rpc("invitacion_revocar", { p_id: id }).then(done("No se pudo revocar la invitación", refresh));
 }
 
 // Asigna un paseador a una salida (grupos.cuidador_id) vía el RPC grupo_asignar: dueño u
