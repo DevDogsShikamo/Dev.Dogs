@@ -4,7 +4,7 @@
 import { after, before, test } from 'node:test'
 import { randomUUID } from 'node:crypto'
 import assert from 'node:assert/strict'
-import { admin, as, day, ids, seed } from './_actors.mjs'
+import { admin, as, day, ids, seed, writePrestaciones } from './_actors.mjs'
 import { dropDog, makeDog } from './_attacks.mjs'
 
 const u = ids.users
@@ -20,7 +20,11 @@ const refused = (res, message) => {
   assert.equal(res.error?.code, 'P0001', `expected a raised error, got ${res.error?.code ?? 'no error'}`)
   assert.match(res.error.message, message)
 }
-const row = async (id) => (await db().from('prestaciones').select('*').eq('id', id).single()).data
+// A booking with its charge flattened in: money lives in `cobros` since S4b.
+const row = async (id) => {
+  const r = (await db().from('prestaciones').select('*, cobros(*)').eq('id', id).single()).data
+  return { ...r.cobros, ...r, cobros: undefined }
+}
 const count = async (perro) => (await db().from('prestaciones').select('id', { count: 'exact', head: true }).eq('perro_id', perro)).count
 
 // Throwaway catalogue rows (fixed ids so a crashed run is cleaned by the next one).
@@ -38,12 +42,15 @@ async function cleanup() {
 before(async () => {
   await seed()
   await cleanup()
-  const r = await db().from('servicios').insert([
+  const rows = [
     svc('comida', A, 'comida', 7000), svc('accesorio', A, 'accesorio', 15000), svc('bano', A, 'bano', 4000),
     svc('mensual', A, 'bano', 0, { modelo_cobro: 'mensual', precio_mensual: 90000 }),
     svc('inactivo', A, 'bano', 4000, { activo: false }), svc('foraneo', B, 'bano', 100), svc('comidaB', B, 'comida', 100),
-  ])
+  ]
+  const r = await db().from('servicios').insert(rows.map(({ precio, precio_mensual, ...service }) => service))
   assert.equal(r.error, null, r.error?.message)
+  const t = await db().from('tarifas').insert(rows.map((x) => ({ servicio_id: x.id, negocio_id: x.negocio_id, precio: x.precio, precio_mensual: x.precio_mensual })))
+  assert.equal(t.error, null, t.error?.message)
   const g = await db().from('grupos').insert({ id: gB, negocio_id: B, nombre: 'GB', servicio_id: paseoA, hora: '09:00' })
   assert.equal(g.error, null, g.error?.message)
 })
@@ -73,7 +80,7 @@ for (const b of bookings) {
 }
 
 test('reservar prices from the live catalogue, and a monthly service is not charged per use', async () => {
-  await db().from('servicios').update({ precio: 4500 }).eq('id', sid.bano)
+  await db().from('tarifas').update({ precio: 4500 }).eq('servicio_id', sid.bano)
   const client = await as('CLIENT')
   const per = await client.rpc('reservar', { p_perro: d2, p_servicio: sid.bano, p_grupo: null, p_fecha: day(4) })
   const men = await client.rpc('reservar', { p_perro: d2, p_servicio: sid.mensual, p_grupo: null, p_fecha: day(4) })
@@ -81,7 +88,7 @@ test('reservar prices from the live catalogue, and a monthly service is not char
   assert.equal((await row(per.data)).precio_aplicado, 4500)
   const m = await row(men.data)
   assert.deepEqual([m.precio_aplicado, m.cobrable], [0, false])
-  await db().from('servicios').update({ precio: 4000 }).eq('id', sid.bano)
+  await db().from('tarifas').update({ precio: 4000 }).eq('servicio_id', sid.bano)
 })
 
 test('the browser cannot send a price: reservar and comprar_producto take no price argument', async () => {
@@ -182,35 +189,30 @@ for (const [name, patch, message] of [
 for (const actor of ['CLIENT', 'COOWNER', 'WALKER_CO']) {
   test(`${actor} cannot insert into prestaciones, whatever price or state it sends`, async () => {
     const before = await count(d1)
-    const forged = { negocio_id: A, perro_id: d1, servicio_id: paseoA, tipo: 'paseo', estado: 'finalizado', precio_aplicado: 1, cobrable: true, cobrado: true, fecha: day(3) }
+    const forged = { negocio_id: A, perro_id: d1, servicio_id: paseoA, tipo: 'paseo', estado: 'finalizado', fecha: day(3) }
     denied(await (await as(actor)).from('prestaciones').insert(forged))
     assert.equal(await count(d1), before)
   })
 }
 
-test('prestacion_precio: an owner-created entry is priced from the catalogue and cannot start paid', async () => {
+test('prestacion_cobro: an owner-created entry gets its charge from the catalogue, unpaid, and the API has no price column to send', async () => {
   const owner = await as('OWNER')
-  const res = await owner.from('prestaciones')
-    .insert({ negocio_id: A, perro_id: d2, servicio_id: paseoA, tipo: 'paseo', precio_aplicado: 1, cobrado: true, confirmado_por: u.OWNER, fecha: day(3) })
-    .select('*').single()
+  const forged = await owner.from('prestaciones').insert({ negocio_id: A, perro_id: d2, servicio_id: paseoA, tipo: 'paseo', precio_aplicado: 1, fecha: day(3) })
+  assert.ok(forged.error, 'precio_aplicado is not a prestaciones column any more')
+  const res = await owner.from('prestaciones').insert({ negocio_id: A, perro_id: d2, servicio_id: paseoA, tipo: 'paseo', fecha: day(3) }).select('id').single()
   assert.equal(res.error, null, res.error?.message)
-  assert.deepEqual(
-    [res.data.precio_aplicado, res.data.cobrado, res.data.confirmado_por, res.data.confirmado_at],
-    [20000, false, null, null],
-  )
+  const r = await row(res.data.id)
+  assert.deepEqual([r.precio_aplicado, r.cobrable, r.cobrado, r.confirmado_por, r.confirmado_at], [20000, true, false, null, null])
   const bulk = await owner.from('prestaciones')
-    .insert({ negocio_id: A, perro_id: d2, servicio_id: sid.comida, tipo: 'comida', precio_aplicado: 1, detalle: { cantidad: 4 }, fecha: day(3) })
-    .select('precio_aplicado').single()
-  assert.equal(bulk.data.precio_aplicado, 28000)
+    .insert({ negocio_id: A, perro_id: d2, servicio_id: sid.comida, tipo: 'comida', detalle: { cantidad: 4 }, fecha: day(3) })
+    .select('id').single()
+  assert.equal((await row(bulk.data.id)).precio_aplicado, 28000)
 })
 
 // ---- cobro_marcar --------------------------------------------------------------------------------
 async function charge(fn, patch = {}) {
-  const r = await db().from('prestaciones')
-    .insert({ negocio_id: A, perro_id: d2, servicio_id: paseoA, tipo: 'paseo', estado: 'finalizado', precio_aplicado: 20000, fecha: day(-1), ...patch })
-    .select('*').single()
-  assert.equal(r.error, null, r.error?.message)
-  return fn(r.data.id, r.data)
+  const r = await writePrestaciones({ negocio_id: A, perro_id: d2, servicio_id: paseoA, tipo: 'paseo', estado: 'finalizado', precio_aplicado: 20000, fecha: day(-1), ...patch })
+  return fn(r.data[0].id, await row(r.data[0].id))
 }
 
 test('cobro_marcar: the owner marks a finished charge paid; who and when come from the server', () =>
@@ -250,19 +252,25 @@ test('cobro_marcar refuses what is not a payable charge, and an unknown id looks
 })
 
 // ---- money sanity ----------------------------------------------------------------------------------
-for (const [table, row_] of [
-  ['prestaciones', { negocio_id: A, perro_id: d2, tipo: 'paseo', precio_aplicado: -1 }],
-  ['servicios', { negocio_id: A, tipo: 'bano', nombre: 'neg', precio: -1 }],
-  ['servicios', { negocio_id: A, tipo: 'bano', nombre: 'neg', precio_mensual: -1 }],
-  ['suscripciones', { negocio_id: A, precio_mensual: -1 }],
+for (const [table, key, id, patch] of [
+  ['cobros', 'prestacion_id', ids.prestaciones.p1, { precio_aplicado: -1 }],
+  ['tarifas', 'servicio_id', paseoA, { precio: -1 }],
+  ['tarifas', 'servicio_id', paseoA, { precio_mensual: -1 }],
 ]) {
-  test(`money: a negative amount in ${table}.${Object.keys(row_).at(-1)} violates a CHECK`, async () => {
-    const id = randomUUID()
-    try {
-      const res = await db().from(table).insert({ id, ...row_ })
-      assert.equal(res.error?.code, '23514', `expected check_violation, got ${res.error?.code ?? 'no error'}`)
-    } finally {
-      await db().from(table).delete().eq('id', id)
-    }
+  test(`money: a negative amount in ${table}.${Object.keys(patch)[0]} violates a CHECK and changes nothing`, async () => {
+    const before = (await db().from(table).select('*').eq(key, id).single()).data
+    const res = await db().from(table).update(patch).eq(key, id)
+    assert.equal(res.error?.code, '23514', `expected check_violation, got ${res.error?.code ?? 'no error'}`)
+    assert.deepEqual((await db().from(table).select('*').eq(key, id).single()).data, before)
   })
 }
+
+test('money: a negative monthly price in suscripciones violates a CHECK', async () => {
+  const id = randomUUID()
+  try {
+    const res = await db().from('suscripciones').insert({ id, negocio_id: A, precio_mensual: -1 })
+    assert.equal(res.error?.code, '23514', `expected check_violation, got ${res.error?.code ?? 'no error'}`)
+  } finally {
+    await db().from('suscripciones').delete().eq('id', id)
+  }
+})
