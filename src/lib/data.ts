@@ -11,11 +11,13 @@ function refresh(): void {
   }
 }
 
-// Ley 2480 de 2025 rejections (trg_prestacion_ley_kiara) replace the generic message: they say what to change.
+// Ley 2480 de 2025 rejections (trg_prestacion_ley_kiara) and invalid legal data replace the generic message:
+// they say what to change.
 function errMsg(err: unknown, msg: string): string {
   const m = String((err as { message?: unknown }).message || "");
   if (m.indexOf("paseador_lleno") >= 0) return "Ese paseador ya tiene 8 perros en esa salida. La Ley 2480 de 2025 permite máximo 8 por paseador.";
   if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede salir a paseo ni a guardería.";
+  if (m.indexOf("datos_invalidos") >= 0) return "Revisa los datos legales: algún campo no tiene un formato válido.";
   return msg;
 }
 
@@ -281,6 +283,15 @@ export function perroNoSalio(presId: string, motivo: string): void {
 }
 
 // ---- Gestión del negocio (portal EMPRESA) --------------------------------
+// Legal identity of the business (Ley 1480 art. 50 lit. a and art. 53): owner only; the RPC validates and
+// upserts the caller's own business. Clients read it in their portal.
+export function negocioIdentidadGuardar(razon: string, tipo: string, numero: string, direccion: string, telefono: string, correo: string): void {
+  supa.rpc("negocio_identidad_guardar", {
+    p_razon_social: razon || "", p_doc_tipo: tipo || "", p_doc_numero: numero || "",
+    p_direccion: direccion || "", p_telefono: telefono || "", p_correo: correo || "",
+  }).then(done("No se pudieron guardar los datos legales", function () { toast("Datos legales guardados"); refresh(); }));
+}
+
 // Salario mensual fijo de un paseador empleado: vive en `nomina` (solo lo escribe el dueño).
 export function paseadorSalario(id: string, salario: number): void {
   resolveSesion().then(function (s) {

@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -25,6 +25,8 @@ entity PerroDraft {
 entity MovePayload { perro text  desde text  hacia text  modo text  fecha text }
 entity GrupoHoraPayload { grupo text  hora text  fecha text }
 entity ReprogPayload { grupo text  fechaOld text  fechaNew text  hora text  modo text }
+# Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row from the bridge.
+entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direccion text  telefono text  correo text }
 # Horario laboral (editor). Horas como número (7 = 07:00).
 entity Franja { desde number  hasta number }
 # Servicio (oferta + precio). Duración en minutos, precio en COP.
@@ -77,6 +79,14 @@ state {
   vnota   = "" : text
   vform   = false : bool
   invEmail = "" : text
+  # Legal identity editor (owner only; not persisted).
+  lrazon  = "" : text
+  ltipo   = "NIT" : text
+  lnum    = "" : text
+  ldir    = "" : text
+  ltel    = "" : text
+  lcorreo = "" : text
+  lhay    = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
@@ -116,6 +126,13 @@ get fotoTags = grupos.perrosPaseo where gkey == grupos.modoKey and estado != "no
 action fotoMarca(pid: text) mutates fotoSin { fotoSin.toggle(pid) }
 # Foto subida (por FotoUpload): se ve al instante en la galería de la sesión (vista previa local).
 action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url) }
+
+# ---- Legal identity of the business (owner only; the RPC validates) ----
+action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, ltel, lcorreo, lhay {
+  if rows.length > 0 { lrazon.set(rows.at(0).razon_social)  ltipo.set(rows.at(0).doc_tipo)  lnum.set(rows.at(0).doc_numero)  ldir.set(rows.at(0).direccion)  ltel.set(rows.at(0).telefono)  lcorreo.set(rows.at(0).correo)  lhay.set(true) }
+}
+action idTipo(t: text) mutates ltipo { ltipo.set(t) }
+action idGuardar { negocioIdentidadGuardar(lrazon, ltipo, lnum, ldir, ltel, lcorreo) }
 
 # ---- Horario laboral (editor) ----
 action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
@@ -212,7 +229,7 @@ Stack class("dd-app") {
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -764,6 +781,7 @@ Stack class("dd-app") {
             Button -> go("gruposadmin") class("dd-pf-opt") { Icon "lucide:layout-grid"  Span "{i18n.d.pf.grupos}"  Icon "lucide:chevron-right" class("chev") }
             when auth.isOwner {
               Button -> go("invitar") class("dd-pf-opt") { Icon "lucide:user-plus"  Span "Invitar clientes"  Icon "lucide:chevron-right" class("chev") }
+              Button -> go("legales") class("dd-pf-opt") { Icon "lucide:building-2"  Span "Datos legales del negocio"  Icon "lucide:chevron-right" class("chev") }
             }
             Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
@@ -801,6 +819,40 @@ Stack class("dd-app") {
           Span "Invitaciones pendientes" class("dd-hor-lbl")
           each empresa.invitaciones as iv {
             InviteItem(iv: iv, onDelete: invBorrar)
+          }
+        }
+      }
+
+      # ==== DATOS LEGALES DEL NEGOCIO (Ley 1480 art. 50 and 53; the independent walker owns his business) ====
+      when section == "legales" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+          }
+          Stack class("dd-pf-team") {
+            Title "Datos legales del negocio" h2
+            Text "Tus clientes los ven en su portal; la ley pide que el proveedor se identifique." class("dd-rel-hint")
+            when not lhay { Text "Aún no registras los datos legales de tu negocio." class("dd-rel-hint") }
+            Stack class("dd-gform") {
+              Span "Nombre o razón social" class("dd-hor-lbl")
+              SearchField bind(lrazon) "Nombre o razón social"
+              Span "Tipo de documento" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                Button "NIT" -> idTipo("NIT") class("dd-gchip") class("on" when ltipo == "NIT")
+                Button "Cédula de ciudadanía" -> idTipo("CC") class("dd-gchip") class("on" when ltipo == "CC")
+                Button "Cédula de extranjería" -> idTipo("CE") class("dd-gchip") class("on" when ltipo == "CE")
+                Button "Pasaporte" -> idTipo("PAS") class("dd-gchip") class("on" when ltipo == "PAS")
+              }
+              Span "Número de documento" class("dd-hor-lbl")
+              SearchField bind(lnum) "Número de documento"
+              Span "Dirección de notificaciones" class("dd-hor-lbl")
+              SearchField bind(ldir) "Dirección de notificaciones"
+              Span "Teléfono" class("dd-hor-lbl")
+              SearchField bind(ltel) "Teléfono"
+              Span "Correo" class("dd-hor-lbl")
+              SearchField bind(lcorreo) "correo@ejemplo.com"
+              Button "Guardar" -> idGuardar class("dd-cat-add dd-hor-save")
+            }
           }
         }
       }

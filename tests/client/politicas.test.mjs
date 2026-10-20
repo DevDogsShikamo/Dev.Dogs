@@ -36,6 +36,7 @@ test('the product facts match the app', () => {
   assert.match(section('terminos'), /DevDogs no presta servicios de paseo/)
   assert.match(section('terminos'), /solo por invitación/)
   assert.match(section('terminos'), /artículo 48 de la Ley 1480/, 'acceptance is recorded')
+  assert.match(section('terminos'), /artículos 50 y 53 de la Ley 1480/, 'negocio_identidad, shown in the client portal')
   assert.match(section('servicios'), /DevDogs no recibe, retiene ni transfiere dinero/)
   assert.match(section('servicios'), /Este documento no es una factura electrónica/)
   assert.match(section('servicios'), /no tiene un botón para cancelar/, 'no in-app cancellation exists today')
