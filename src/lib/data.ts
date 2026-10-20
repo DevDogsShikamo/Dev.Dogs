@@ -375,3 +375,26 @@ export function venderProducto(perroId: string, servicioId: string, cantidad: nu
   const qty = Math.min(20, Math.max(1, Math.floor(cantidad) || 1));
   supa.rpc("comprar_producto", { p_perro: perroId, p_servicio: servicioId, p_cantidad: qty }).then(done("No se pudo registrar la compra", refresh));
 }
+
+// ---- Mis datos (Ley 1581): the signed-in user's own corrections and data-rights requests ----------
+// Name: own-row profile update (RLS "profiles update self"; 1..100 characters, CHECK profiles_nombre_len).
+// Phone: contacto_set. Request: solicitud_datos_crear (server timestamp and due date). Each re-reads on success.
+function avisar(msg: string) {
+  return function (): void { toast(msg); refresh(); };
+}
+
+export function miNombreGuardar(nombre: string): void {
+  resolveSesion().then(function (s) {
+    if (!s.uid) return;
+    supa.from("profiles").update({ nombre: nombre.trim() }).eq("id", s.uid).then(done("No se pudo guardar el nombre", avisar("Nombre actualizado")));
+  });
+}
+
+export function miTelefonoGuardar(telefono: string): void {
+  supa.rpc("contacto_set", { p_telefono: telefono.trim() }).then(done("No se pudo guardar el teléfono", avisar("Teléfono actualizado")));
+}
+
+export function solicitudDatosCrear(tipo: string, detalle: string): void {
+  supa.rpc("solicitud_datos_crear", { p_tipo: tipo, p_detalle: detalle })
+    .then(done("No se pudo registrar la solicitud", avisar("Tu solicitud quedó registrada. Te responderemos dentro del plazo legal.")));
+}

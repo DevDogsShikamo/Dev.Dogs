@@ -35,6 +35,8 @@ get verFinanzas = isOwner or finanzas
 get canWalker   = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "paseador"
 get canBusiness = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "empresa"
 get canClient   = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "cliente"
+# /mis-datos: any role with a profile and the current policy accepted.
+get canMisDatos = loggedIn and not sinPerfil and politicaPendiente == ""
 # Sesión activa sin perfil: solo se abre /completar-registro.
 get debeCompletar = loggedIn and sinPerfil
 # Sesión activa con una política nueva sin aceptar: solo se abre /aceptar-politica.
@@ -53,6 +55,8 @@ action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId
 }
 
 action setError(msg: text) mutates authError { authError.set(msg) }
+# /mis-datos reports the stored name, so a correction shows in the portals without a new login.
+action setUserName(n: text) mutates userName { userName.set(n) }
 action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
 
 action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, sinPerfil, authError, finanzas {

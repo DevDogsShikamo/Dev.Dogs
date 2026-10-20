@@ -389,7 +389,7 @@ Page class("lp2") {
         Link "Iniciar sesión" -> "/login" class("gf-link")
         Link "Registrarse" -> "/signup" class("gf-link")
         Link "Unirme con código" -> "/unirse" class("gf-link")
-        Link "Contacto" -> "/signup" class("gf-link")
+        Link "Contacto" -> "/privacidad#derechos" class("gf-link")
       }
       Nav class("gf-col") aria(label: "DevDogs") {
         Span "DevDogs" class("gf-colh")

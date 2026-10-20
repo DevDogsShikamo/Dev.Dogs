@@ -759,6 +759,7 @@ Stack class("dd-app") {
             when auth.isOwner {
               Button -> go("invitar") class("dd-pf-opt") { Icon "lucide:user-plus"  Span "Invitar clientes"  Icon "lucide:chevron-right" class("chev") }
             }
+            Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:pencil"  Span "{i18n.d.pf.editar}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:bell"  Span "{i18n.d.pf.notif}"  Icon "lucide:chevron-right" class("chev") }
