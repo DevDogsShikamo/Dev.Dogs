@@ -91,6 +91,16 @@ test('RV-8c: office sees the phones of walkers and no client phone', async () =>
   await page.close()
 })
 
+test('RV-7c: office opens the client list and sees names, never a phone', async () => {
+  const page = await loginAs('OFFICE', 'empresa', 'Clientes')
+  await go(page, 'Clientes')
+  assert.ok(await shown(page.getByText('Client', { exact: true })), 'client names are listed')
+  assert.equal(await page.getByText('Invitar').count(), 0, 'inviting is for the owner only')
+  assert.equal(await page.getByText(PHONE.CLIENT).count(), 0)
+  assert.ok(!seen(page, PHONE.CLIENT), 'a client phone reached the office browser')
+  await page.close()
+})
+
 test('RV-7b: the day of a company walker carries no price and no client contact', async () => {
   // The app's "today" is the Bogota date; the fixture walk is dated by UTC, so pin it to the app's day.
   const today = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10)
