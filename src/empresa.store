@@ -4,7 +4,6 @@ entity PaseadorRow {
   id        text
   nombre    text
   telefono  text
-  zona      text
   salario   number
   verificado bool
   paseosHoy number
@@ -19,6 +18,7 @@ entity GestionRow {
   id       text
   nombre   text
   telefono text
+  finanzas bool
 }
 # Dueños (principal y co) de cada perro del negocio. Solo el jefe los lee (RLS); no se persiste.
 entity Dueno {
@@ -94,6 +94,8 @@ action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitacion
 action setCodigoNuevo(c: CodigoNuevo) mutates codigoNuevo, codigoEmail { codigoNuevo.set(c.codigo)  codigoEmail.set(c.email) }
 action codigoCerrar mutates codigoNuevo, codigoEmail { codigoNuevo.set("")  codigoEmail.set("") }
 action setDuenos(rows: list<Dueno>) mutates duenos { duenos.set(rows) }
+# Optimista: el permiso de finanzas cambia al instante (el RPC lo confirma).
+action finanzasSet(pid: text, on: bool) mutates gestion { gestion.patch where id == pid with { finanzas: on } }
 # Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
 action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
 action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
