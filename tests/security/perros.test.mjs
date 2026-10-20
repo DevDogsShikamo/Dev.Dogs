@@ -5,6 +5,7 @@ import { afterEach, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, as, day, ids, seed, tempUser, writePrestaciones } from './_actors.mjs'
 import { dropDog, makeDog } from './_attacks.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 before(() => seed())
 
@@ -198,7 +199,7 @@ test('FK: a dog with prestaciones cannot be hard-deleted even by the service rol
 test('FK: deleting a whole tenant still cascades through its dogs and their history', async () => {
   const owner = await tempUser()
   try {
-    const neg = (await owner.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'Ana Prueba', p_negocio: 'Cascada SAS' })).data
+    const neg = (await owner.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'Ana Prueba', p_negocio: 'Cascada SAS', p_politica: POLITICA_VERSION })).data
     assert.ok(neg, 'provisioning failed')
     const { data: perro } = await admin().from('perros').insert({ negocio_id: neg, nombre: 'Con historial' }).select('id').single()
     await admin().from('prestaciones').insert({ negocio_id: neg, perro_id: perro.id, tipo: 'paseo', estado: 'finalizado', fecha: day(-1) })

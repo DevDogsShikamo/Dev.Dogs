@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { admin, as, day, ids, seed, tempUser, writePrestaciones } from './_actors.mjs'
 import { sql } from './_sql.mjs'
 import { create } from './_invites.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 const u = ids.users
 const { A } = ids.negocios
@@ -178,7 +179,7 @@ test('RPCs are SECURITY DEFINER with an empty search_path; the trigger functions
 test('provision_negocio stores the phone in contactos; redeem_invite creates the contactos row and no payroll for a client', async () => {
   const t = await tempUser()
   try {
-    ok(await t.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'S4b Ana', p_negocio: 'S4b SAS', p_telefono: '3009998877' }), 'provision')
+    ok(await t.client.rpc('provision_negocio', { p_rol: 'empresa', p_nombre: 'S4b Ana', p_negocio: 'S4b SAS', p_telefono: '3009998877', p_politica: POLITICA_VERSION }), 'provision')
     const prof = await one('profiles', 'id', t.id, 'rol,negocio_id')
     assert.deepEqual(await one('contactos', 'user_id', t.id, 'telefono,rol,negocio_id'), { telefono: '3009998877', ...prof })
   } finally { await t.drop() }
@@ -187,7 +188,7 @@ test('provision_negocio stores the phone in contactos; redeem_invite creates the
   try {
     const inv = await create('OWNER', 'cliente', c.email)
     ok(inv, 'invite')
-    ok(await c.client.rpc('redeem_invite', { p_codigo: inv.data }), 'redeem')
+    ok(await c.client.rpc('redeem_invite', { p_codigo: inv.data, p_politica: POLITICA_VERSION }), 'redeem')
     assert.deepEqual(await one('contactos', 'user_id', c.id, 'telefono,rol,negocio_id'), { telefono: null, rol: 'cliente', negocio_id: A })
     assert.equal(await one('nomina', 'user_id', c.id), null, 'clients have no payroll row')
   } finally { await c.drop() }

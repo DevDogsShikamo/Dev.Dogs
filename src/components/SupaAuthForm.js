@@ -28,12 +28,17 @@ function mount(el, inputs, on) {
     }).catch(function () { /* keep logged-in with empty rol */ });
   }
 
+  // The server refuses a policy version that is not the current one (politica_invalida).
+  function failMsg(m) {
+    return /politica_invalida/.test(m || "") ? "La política cambió. Recarga la página y vuelve a aceptarla." : m;
+  }
+
   // Alta de negocio (empresa o paseador independiente) por RPC: el servidor crea el
   // negocio y el perfil del usuario como su dueño. Ya no hay INSERT directo en profiles
   // ni negocios, y "Dueño" entra por /unirse con invitación (nunca desde el signup).
   function provision(inp, user) {
-    supa.rpc("provision_negocio", { p_rol: mapRol(inp.rol), p_nombre: inp.nombre || "", p_negocio: inp.negocioNombre || "", p_telefono: inp.telefono || "" })
-      .then(function (r) { r.error ? on.failed(r.error.message) : reportSession(user); })
+    supa.rpc("provision_negocio", { p_rol: mapRol(inp.rol), p_nombre: inp.nombre || "", p_negocio: inp.negocioNombre || "", p_telefono: inp.telefono || "", p_politica: inp.politica })
+      .then(function (r) { r.error ? on.failed(failMsg(r.error.message)) : reportSession(user); })
       .catch(function () { on.failed("No pudimos crear tu cuenta."); });
   }
 
@@ -41,8 +46,8 @@ function mount(el, inputs, on) {
   // con el rol de la invitación (redeem_invite exige que el correo sea el invitado). Luego setea el
   // nombre en su profile y reporta la sesión (la cadena de guards la rutea a su portal).
   function join(inp, user) {
-    supa.rpc("redeem_invite", { p_codigo: (inp.codigo || "").trim() }).then(function (r) {
-      if (r.error) return on.failed(r.error.message || "Invitación inválida o expirada.");
+    supa.rpc("redeem_invite", { p_codigo: (inp.codigo || "").trim(), p_politica: inp.politica }).then(function (r) {
+      if (r.error) return on.failed(failMsg(r.error.message) || "Invitación inválida o expirada.");
       if (!r.data || !r.data.ok) {
         var e = r.data && r.data.error;
         return on.failed(e === "demasiados_intentos" ? "Demasiados intentos. Probá de nuevo en 15 minutos."
@@ -60,6 +65,9 @@ function mount(el, inputs, on) {
 
   function submit(inp) {
     if (!supa) return on.failed("Cliente no disponible.");
+    // Signup and join need the accepted policy version (empty until the box is ticked): without it
+    // no account is created, so no profile-less user is left behind.
+    if (inp.mode !== "login" && !inp.politica) return on.failed("Acepta la Política de tratamiento de datos para continuar.");
     if (inp.mode === "login") {
       supa.auth.signInWithPassword({ email: inp.email, password: inp.pw })
         .then(function (res) {

@@ -6,12 +6,13 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, ids, seed, tempUser } from './_actors.mjs'
 import { sql } from './_sql.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 before(() => seed())
 
 const { A, B } = ids.negocios
 const profileOf = async (id) => (await admin().from('profiles').select('*').eq('id', id).maybeSingle()).data
-const PROVISION = { p_rol: 'empresa', p_nombre: 'Ana Prueba', p_negocio: 'Peludos SAS', p_telefono: '3001234567' }
+const PROVISION = { p_rol: 'empresa', p_nombre: 'Ana Prueba', p_negocio: 'Peludos SAS', p_telefono: '3001234567', p_politica: POLITICA_VERSION }
 
 // Runs `fn` with a fresh auth user without a profile, then deletes it.
 async function withUser(fn) {

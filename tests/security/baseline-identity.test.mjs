@@ -4,6 +4,7 @@ import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, as, ids, seed } from './_actors.mjs'
 import { GUARDED_RPCS, attack } from './_attacks.mjs'
+import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 before(() => seed())
 
@@ -51,7 +52,7 @@ test('C2 TI-3a: OTHER reads only its own negocio', async () => {
 
 // N2 anon half / TI-6a: functions are executable by the anonymous role.
 const ANON_ONLY = [
-  { name: 'redeem_invite', args: { p_codigo: 'NO-SUCH-CODE' } },
+  { name: 'redeem_invite', args: { p_codigo: 'NO-SUCH-CODE', p_politica: POLITICA_VERSION } },
   { name: 'paseo_marcar', args: { p_ids: [ids.prestaciones.p1], p_estado: 'en_curso' } },
   { name: 'paseo_no_salio', args: { p_id: ids.prestaciones.p1, p_motivo: 'x' } },
 ].map((a) => ({ ...a, damage: async () => null, undo: async () => {} }))
