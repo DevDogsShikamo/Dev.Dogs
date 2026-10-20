@@ -87,17 +87,18 @@ export function signOut(): void {
   sesionMemo = null;
 }
 
-// "Continuar con Google/Apple/Microsoft": a top-level navigation to Supabase /auth/v1/authorize, then the
-// provider, then back to /login with the session in the URL. supabase-js stores it on load and
-// SupaAuthForm reports it (a first-time user has no profile yet and lands on /completar-registro).
-// Fire-and-forget: `use` is sync. Microsoft is "azure" in Supabase and needs the email scope.
-export function entrarCon(proveedor: string): void {
-  if (proveedor !== "google" && proveedor !== "apple" && proveedor !== "azure") return;
-  supa.auth.signInWithOAuth({
-    provider: proveedor,
-    options: { redirectTo: location.origin + "/login", ...(proveedor === "azure" ? { scopes: "email" } : {}) },
-  });
-}
+// OAuth sign-in is commented out until the providers are enabled in Supabase.
+// // "Continuar con Google/Apple/Microsoft": a top-level navigation to Supabase /auth/v1/authorize, then the
+// // provider, then back to /login with the session in the URL. supabase-js stores it on load and
+// // SupaAuthForm reports it (a first-time user has no profile yet and lands on /completar-registro).
+// // Fire-and-forget: `use` is sync. Microsoft is "azure" in Supabase and needs the email scope.
+// export function entrarCon(proveedor: string): void {
+//   if (proveedor !== "google" && proveedor !== "apple" && proveedor !== "azure") return;
+//   supa.auth.signInWithOAuth({
+//     provider: proveedor,
+//     options: { redirectTo: location.origin + "/login", ...(proveedor === "azure" ? { scopes: "email" } : {}) },
+//   });
+// }
 
 // ---- End of session: purge what is on the device (design section 7) ----------
 // The auth session key supabase-js uses; its presence tells "token gone" from "network down".
