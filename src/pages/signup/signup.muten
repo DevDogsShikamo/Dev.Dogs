@@ -10,12 +10,7 @@ state {
   telefono  = "" : text
   email     = "" : text
   pw        = "" : text
-  ciudad    = "Medellin" : text
-  zona      = "Elegir" : text
   negocio   = "" : text
-  docTipo   = "Cedula" : text
-  docNumero = "" : text
-  nit       = "" : text
   nonce     = 0  : number
   menuOpen  = false : boolean
 }
@@ -25,15 +20,12 @@ action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
 get phoneOk  = okPhone(telefono)
 get pwOk     = okPw(pw)
 
-get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk) or (step == 2 and zona != "Elegir") or (step == 3 and docNumero.length > 3)
+get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk)
 
 action pick(r: text) mutates rol { rol.set(r) }
 action next mutates step { step.set(step + 1) }
 action back mutates step { step.set(step - 1) }
-action finish mutates nonce {
-  signup.save({ rol: rol, nombre: nombre, telefono: telefono, ciudad: ciudad, zona: zona, negocio: negocio, docTipo: docTipo, docNumero: docNumero, nit: nit })
-  nonce.set(nonce + 1)
-}
+action finish mutates nonce { nonce.set(nonce + 1) }
 
 Page class("su") {
 
@@ -76,7 +68,7 @@ Page class("su") {
               Stack class("su-role-ic") { Icon "lucide:building-2" }
               Span "Empresa" class("su-role-name")
             }
-            Button -> pick("DUENO") class("su-role") class("su-role-on" when rol == "DUENO") {
+            Link "" -> "/unirse" class("su-role") {
               Stack class("su-role-ic") { Icon "lucide:heart" }
               Span "Dueño" class("su-role-name")
             }
@@ -128,72 +120,11 @@ Page class("su") {
                 Text "Usa mayúscula y número" class("gfield-hint")
               }
             }
-          }
-          Stack class("su-nav") {
-            Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
-            Button -> next class("su-cta") disabled when not validStep { Span "Seguir" }
-          }
-        }
-      }
-
-      when step == 2 {
-        Stack class("su-step") {
-          Stack class("su-fields") {
             Stack class("gfield") {
-              Stack class("gfield-ic") { Icon "lucide:map-pin" }
+              Stack class("gfield-ic") { Icon "lucide:store" }
               Stack class("gfield-body") {
-                Text "Ciudad" class("gfield-label")
-                Select bind(ciudad) options(Medellin, Bogota, Cali, Otra) class("gfield-input")
-              }
-            }
-            Stack class("gfield") {
-              Stack class("gfield-ic") { Icon "lucide:navigation" }
-              Stack class("gfield-body") {
-                Text "Zona / barrio" class("gfield-label")
-                Select bind(zona) options(Elegir, Poblado, Laureles, Envigado, Sabaneta, Belen, Otra) class("gfield-input")
-              }
-            }
-            when rol != "DUENO" {
-              Stack class("gfield") {
-                Stack class("gfield-ic") { Icon "lucide:store" }
-                Stack class("gfield-body") {
-                  Text "Nombre del negocio (opcional)" class("gfield-label")
-                  SearchField bind(negocio) "DevDogs Poblado" class("gfield-input")
-                }
-              }
-            }
-          }
-          Stack class("su-nav") {
-            Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
-            Button -> next class("su-cta") disabled when not validStep { Span "Seguir" }
-          }
-        }
-      }
-
-      when step == 3 {
-        Stack class("su-step") {
-          Stack class("su-fields") {
-            Stack class("gfield") {
-              Stack class("gfield-ic") { Icon "lucide:contact" }
-              Stack class("gfield-body") {
-                Text "Tipo de documento" class("gfield-label")
-                Select bind(docTipo) options(Cedula, NIT, Pasaporte) class("gfield-input")
-              }
-            }
-            Stack class("gfield") {
-              Stack class("gfield-ic") { Icon "lucide:hash" }
-              Stack class("gfield-body") {
-                Text "Número de identificación" class("gfield-label")
-                SearchField bind(docNumero) "1.020.345.678" class("gfield-input")
-              }
-            }
-            when rol != "DUENO" {
-              Stack class("gfield") {
-                Stack class("gfield-ic") { Icon "lucide:receipt" }
-                Stack class("gfield-body") {
-                  Text "NIT (opcional)" class("gfield-label")
-                  SearchField bind(nit) "900.123.456-7" class("gfield-input")
-                }
+                Text "Nombre del negocio (opcional)" class("gfield-label")
+                SearchField bind(negocio) "DevDogs Poblado" class("gfield-input")
               }
             }
           }
@@ -227,5 +158,5 @@ Page class("su") {
     }
   }
 
-  Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, telefono: @telefono, rol: @rol, negocioNombre: @negocio, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
 }

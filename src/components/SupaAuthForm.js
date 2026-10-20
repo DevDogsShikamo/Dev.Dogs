@@ -7,11 +7,6 @@ function mount(el, inputs, on) {
   var supa = globalThis.__supa;
   var last = inputs.nonce;
 
-  function slugify(s) {
-    return (s || "negocio").toString().toLowerCase().normalize("NFD")
-      .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "").slice(0, 40) || "negocio";
-  }
   function mapRol(r) {
     if (r === "EMPRESA") return "empresa";
     if (r === "DUENO") return "cliente";
@@ -35,35 +30,24 @@ function mount(el, inputs, on) {
     }).catch(function () { /* keep logged-in with empty rol */ });
   }
 
+  // Alta de negocio (empresa o paseador independiente) por RPC: el servidor crea el
+  // negocio y el perfil del usuario como su dueño. Ya no hay INSERT directo en profiles
+  // ni negocios, y "Dueño" entra por /unirse con invitación (nunca desde el signup).
   function provision(inp, user) {
     var rol = mapRol(inp.rol);
-    if (rol === "cliente") {
-      var slug = (inp.slug || "").trim();
-      if (!slug) { on.failed("Falta el link del negocio para registrarte como cliente."); return; }
-      supa.from("negocios").select("id").eq("slug", slug).maybeSingle().then(function (ng) {
-        if (!ng.data) { on.failed("No encontramos ese negocio."); return; }
-        supa.from("profiles").insert({ id: user.id, rol: "cliente", negocio_id: ng.data.id, nombre: inp.nombre || "" })
-          .then(function (r) { r.error ? on.failed(r.error.message) : reportSession(user); });
-      });
-      return;
-    }
-    var base = slugify(inp.negocioNombre || inp.nombre);
-    var slug = base + "-" + Math.random().toString(36).slice(2, 6);
-    var tipo = rol === "empresa" ? "empresa" : "independiente";
-    supa.from("negocios").insert({ slug: slug, tipo: tipo, nombre: inp.negocioNombre || inp.nombre || "Mi negocio" })
-      .select("id").maybeSingle().then(function (ng) {
-        if (ng.error || !ng.data) { on.failed(ng.error ? ng.error.message : "No se pudo crear el negocio."); return; }
-        supa.from("profiles").insert({ id: user.id, rol: rol, negocio_id: ng.data.id, nombre: inp.nombre || "", telefono: inp.telefono || "" })
-          .then(function (r) { r.error ? on.failed(r.error.message) : reportSession(user); });
-      });
+    if (rol === "cliente") { on.failed("Para registrarte como dueño necesitas una invitación."); return; }
+    supa.rpc("provision_negocio", { p_rol: rol, p_nombre: inp.nombre || "", p_negocio: inp.negocioNombre || "", p_telefono: inp.telefono || "" })
+      .then(function (r) { r.error ? on.failed(r.error.message) : reportSession(user); })
+      .catch(function () { on.failed("No pudimos crear tu cuenta."); });
   }
 
   // Canje de invitación: crea la cuenta y, con el código, queda asociada al negocio
-  // con el rol de la invitación (redeem_invite es SECURITY DEFINER). Luego setea el
+  // con el rol de la invitación (redeem_invite es SECURITY DEFINER y devuelve {ok,error}). Luego setea el
   // nombre en su profile y reporta la sesión (la cadena de guards la rutea a su portal).
   function join(inp, user) {
     supa.rpc("redeem_invite", { p_codigo: (inp.codigo || "").trim() }).then(function (r) {
       if (r.error) return on.failed(r.error.message || "Invitación inválida o expirada.");
+      if (!r.data || !r.data.ok) return on.failed("Invitación inválida, expirada o esta cuenta ya tiene perfil.");
       var nombre = (inp.nombre || "").trim();
       if (nombre) {
         supa.from("profiles").update({ nombre: nombre }).eq("id", user.id)
