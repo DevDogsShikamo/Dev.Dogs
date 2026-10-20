@@ -1,0 +1,59 @@
+screen aceptar
+use politicaVersion, abrirPolitica from "~/lib/politica.js"
+
+# Re-consent gate (/aceptar-politica). The server reported a current policy version this user has not
+# accepted (auth.politicaPendiente), so every portal guard is closed. "Aceptar y continuar" sends the
+# version to consentimiento_aceptar through SupaAuthForm, which then reports the session again with
+# nothing pending: the guard of this route turns false and the chain lands in the portal of the role.
+
+state {
+  acepta = false : bool
+  nonce  = 0     : number
+}
+
+# The version travels to the server only while the box is ticked.
+get politicaAceptada = acepta ? politicaVersion() : ""
+action aceptar mutates nonce { nonce.set(nonce + 1) }
+action leerPolitica { abrirPolitica() }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gback-wm")
+    }
+    Stack class("glogin-photo-in") {
+      Title "Antes de continuar" h1 class("glogin-h")
+      Text "Revisa la versión vigente de nuestra Política de tratamiento de datos." class("glogin-sub")
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+      Title "Actualizamos nuestra Política de tratamiento de datos" h2 class("pv-h1")
+      Text "Para seguir usando DevDogs, lee la versión vigente y acéptala. Si no deseas aceptarla, puedes cerrar sesión." class("muted t-sm")
+
+      Stack class("gconsent") {
+        Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
+        Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
+        Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
+        Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
+      }
+
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
+      Stack class("gsignup") {
+        Button "Cerrar sesión" -> auth.logout class("glink t-sm")
+      }
+    }
+
+    Stack class("gbar") {
+      Button -> aceptar class("gbar-cta") disabled when not acepta {
+        Span "Aceptar y continuar"
+        Icon "lucide:arrow-right"
+      }
+    }
+
+    Custom SupaAuthForm inputs(mode: "aceptar", politica: @politicaAceptada, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  }
+}

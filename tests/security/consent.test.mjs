@@ -150,8 +150,8 @@ test('PC-2b: a user reads only its own consent records; OTHER and the tenant own
     const mine = await a.client.from('consentimientos').select('user_id, policy_version')
     assert.deepEqual(mine.data, [{ user_id: a.id, policy_version: POLITICA_VERSION }])
     assert.ok((await admin().from('consentimientos').select('id', { count: 'exact', head: true })).count >= 2, 'table not populated')
-    const other = await (await as('OTHER')).from('consentimientos').select('*')
-    assert.deepEqual(other.data, [])
+    const other = await (await as('OTHER')).from('consentimientos').select('user_id')
+    assert.deepEqual(other.data, [{ user_id: ids.users.OTHER }]) // only its own fixture record (seed)
     assert.equal(other.error, null)
     const peek = await a.client.from('consentimientos').select('*').eq('user_id', b.id)
     assert.deepEqual(peek.data, [])
@@ -188,8 +188,9 @@ test('PC-2b: update, delete and insert on consent records are denied for the own
 
 test('PC-2b: a user cannot forge a consent record for someone else', () =>
   withUser(async (u) => {
+    const before = await consents(ids.users.CLIENT) // the fixture's own record (seed) stays as it was
     denied(await u.client.from('consentimientos').insert({ user_id: ids.users.CLIENT, policy_version: POLITICA_VERSION }))
-    assert.deepEqual(await consents(ids.users.CLIENT), [])
+    assert.deepEqual(await consents(ids.users.CLIENT), before)
   }))
 
 test('PC-2b: ANON reads nothing and the policy catalogue is closed to API callers', async () => {

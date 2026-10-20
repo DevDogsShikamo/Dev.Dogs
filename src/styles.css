@@ -1796,4 +1796,4 @@ body.dd-org-grabbing{cursor:grabbing}
 .pv-sec li{ font-size:15px; line-height:1.5; }
 .pv-sec li p{ font-size:inherit; }
 .gconsent .glink{ align-self:flex-start; }
-.gconsent button.glink{ background:none; border:none; padding:0; font:inherit; font-weight:800; text-align:left; }
+.gconsent button.glink, .gsignup button.glink{ background:none; border:none; padding:0; font:inherit; font-weight:800; text-align:left; }
