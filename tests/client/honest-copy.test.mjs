@@ -94,3 +94,14 @@ test('the landing reviews section is fed by ResenasBridge and holds no hardcoded
   assert.deepEqual(numeric, [])
   assert.match(readFileSync(join(SRC, 'pages/landing/landing.muten'), 'utf8'), /Custom ResenasBridge on\(total: \w+, promedio: \w+, items: \w+\)/)
 })
+
+// The landing describes the software a business uses, not a care service DevDogs provides (DevDogs walks
+// no dog, has no boarding, no live tracking and no marketplace search), and it speaks in the neutral
+// tú/usted of the Colombian audience, without voseo.
+test('the landing promises no service or feature the app does not have, and uses no voseo', () => {
+  const landing = all.filter(({ file }) => file.replace(/\\/g, '/').endsWith('pages/landing/landing.muten')).map(({ s }) => s)
+  const claims = landing.filter((s) => /hospedaje|dormir con nosotros|en vivo|buscador|busc[aá] y reserv|agendar servicio|nuestros servicios|cerca tuyo/i.test(s))
+  assert.deepEqual(claims, [])
+  const voseo = landing.filter((s) => /\b(llevá|cerrá|elegí|abrís|necesitás|buscá|encontrá|escribí|tocá|creá|probá|tenés|podés|querés|sos|vos)\b/i.test(s))
+  assert.deepEqual(voseo, [])
+})
