@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
+use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -85,6 +85,9 @@ action perroGuardar(p: PerroDraft) mutates pform {
   pform.set(false)
 }
 action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
+# Co-dueños: solo el jefe (RPC coduenio_*); el perro es el que está abierto en el form.
+action coAgregar(did: text) { coduenioAgregar(pedit, did) }
+action coQuitar(did: text) { coduenioQuitar(pedit, did) }
 
 # ---- Salidas / grupos (ABM del jefe) ----
 action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
@@ -129,7 +132,7 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
@@ -474,6 +477,28 @@ Stack class("dd-app") {
                   Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
                 Form bind(pdraft) submit(perroGuardar) "Guardar perro"
+                when pedit {
+                  when auth.isOwner {
+                    Stack class("dd-cat-list") {
+                      Title "Dueños" h4
+                      each empresa.duenos as d where d.perroId == pedit {
+                        Stack class("dd-cat-item") {
+                          Stack class("dd-cat-info") { Stack class("nmline") { Span "{d.nombre}" class("nm")  Span "{d.rol}" class("cd") } }
+                          when d.rol == "co" {
+                            Stack class("acts") { Button -> coQuitar(d.id) class("dd-cat-icon dd-danger") aria(label: "Quitar co-dueño") { Icon "lucide:user-minus" } }
+                          }
+                        }
+                      }
+                      Title "Agregar co-dueño" h4
+                      each empresa.clientes as c {
+                        Stack class("dd-cat-item") {
+                          Stack class("dd-cat-info") { Span "{c.nombre}" class("nm") }
+                          Stack class("acts") { Button -> coAgregar(c.id) class("dd-cat-icon") aria(label: "Agregar co-dueño") { Icon "lucide:user-plus" } }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }

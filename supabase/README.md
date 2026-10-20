@@ -107,6 +107,12 @@ S2a rollback (RPC guards): revert the S2a commits (migrations `20261013110001..0
 reset staging. `supabase/rollback/20261013110001_s2a_guards.down.sql` only drops `grupo_asignar`; it never
 recreates the `grupos write office` policy or the unguarded RPC bodies. `data.ts` and the migrations go
 together: without `grupo_asignar` an office member cannot reassign a walker.
+S2b1 rollback (policies, walk state, co-owners): revert the S2b1 commits (migrations `20261013120001..02`,
+`src/lib/data.ts`, `EmpresaBridge.js`, `ClienteBridge.js`, `empresa.store`, `empresa.muten`) and reset staging.
+`supabase/rollback/20261013120001_s2b1_policies.down.sql` only drops `perro_eliminar`, `coduenio_agregar`,
+`coduenio_quitar` and `is_principal`; it never recreates the dropped dog/link/walker policies, the table
+privileges or the old `paseo_*` bodies. `data.ts` and the migrations go together: without the RPCs the owner
+cannot delete a dog or manage co-owners (there is no direct table path any more).
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 

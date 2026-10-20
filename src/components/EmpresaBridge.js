@@ -82,6 +82,17 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Dueños de cada perro (principal y co-dueños) para el control de co-dueños del jefe.
+      // RLS: solo el jefe lee perro_duenos del negocio; para los demás vuelve vacío.
+      if (on.duenos) {
+        supa.from("perro_duenos").select("perro_id,dueno_id,rol,profiles!dueno_id(nombre)").eq("estado", "activo").then(function (dr) {
+          if (dr && dr.error) return;
+          on.duenos((dr.data || []).map(function (d) {
+            return { id: d.dueno_id, perroId: d.perro_id, nombre: (d.profiles && d.profiles.nombre) || "", rol: d.rol || "" };
+          }));
+        });
+      }
+
       // Zonas del negocio (para el picker de zona al crear/editar una salida/grupo).
       if (on.zonas) {
         supa.from("negocios").select("zonas").eq("id", neg).single().then(function (nr) {
