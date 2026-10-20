@@ -1814,6 +1814,21 @@ body.dd-org-grabbing{cursor:grabbing}
 .pv-sec li{ font-size:15px; line-height:1.5; }
 .pv-sec li p{ font-size:inherit; }
 .pv-wrap .pv-doc{ display:flex; flex-direction:column; gap:14px; }
+/* /politicas: one page, several documents. Each document opens with a rule and a bigger h2; the shared
+   data policy keeps its own section styles inside .pl-doc. */
+.pv-lead{ font-size:16px; line-height:1.6; margin:0; max-width:65ch; }
+.pl-toc{ display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px; padding:14px 16px; border:1.5px solid var(--color-border);
+  border-radius:14px; background:var(--color-panel); }
+.pl-toc-t{ font-size:11.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--color-muted); margin-bottom:4px; }
+.pl-toc-a{ padding:5px 0; font-size:14.5px; font-weight:700; color:var(--color-violet); text-decoration:none; }
+.pl-toc-a:hover{ text-decoration:underline; }
+.pl-sum{ padding:16px 18px; border-radius:14px; background:var(--color-primarysoft); }
+.pl-doc{ gap:14px; margin-top:22px; padding-top:22px; border-top:2px solid var(--color-border); scroll-margin-top:16px; }
+.pl-sum, .pv-sec[id]{ scroll-margin-top:16px; }
+.pl-doc > h2{ font:800 clamp(20px,3.4vw,24px)/1.2 var(--font-display); }
+.pl-sub{ display:flex; flex-direction:column; gap:8px; }
+.pl-sub h3{ font:800 16px/1.3 var(--font-display); margin:6px 0 0; }
+.pl-doc .pv-doc{ margin-top:6px; }
 .gsignup button.glink{ background:none; border:none; padding:0; font:inherit; font-weight:800; text-align:left; }
 /* Mis datos */
 .md-dato{ font-size:15px; margin:0; }
