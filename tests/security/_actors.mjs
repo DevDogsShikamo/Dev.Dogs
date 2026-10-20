@@ -78,7 +78,10 @@ export async function tempUser() {
   ok(created, `create ${name}`)
   const client = createClient(cfg().url, cfg().publishableKey, quiet)
   ok(await client.auth.signInWithPassword({ email: email(name), password: password(name) }), `sign in ${name}`)
-  return { id: created.data.user.id, client, drop: () => admin().auth.admin.deleteUser(created.data.user.id) }
+  return {
+    id: created.data.user.id, email: email(name), password: password(name), client,
+    drop: () => admin().auth.admin.deleteUser(created.data.user.id),
+  }
 }
 
 const noneOf = (col, list) =>({ col, list: `(${list.join(',')})` })
