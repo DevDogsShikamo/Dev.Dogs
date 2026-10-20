@@ -1,6 +1,6 @@
 screen cliente
 use reservarPaseo, reservarServicio, venderProducto, crearMiPerro from "~/lib/data.ts"
-use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
+use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -67,9 +67,9 @@ action prodAbrir(id: text, nombre: text) mutates prodId, prodNombre, prodPerro, 
 action prodPickPerro(id: text) mutates prodPerro { prodPerro.set(id) }
 action prodCerrar mutates prodForm { prodForm.set(false) }
 action prodConfirmar mutates prodForm { venderProducto(prodPerro, prodId, prodCantidad)  prodForm.set(false) }
-# Descargar la factura del perro abierto (CSV / Excel).
-action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
-action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
+# Descargar el estado de cuenta del perro abierto (CSV / Excel).
+action facCSV { descargarEstadoCuentaCSV(cliente.facturaPerro, cliente.facturaNombre) }
+action facXLS { descargarEstadoCuentaExcel(cliente.facturaPerro, cliente.facturaNombre) }
 
 Stack class("dd-app") {
 
@@ -179,7 +179,7 @@ Stack class("dd-app") {
           }
           # Estado de cuenta: saldo pendiente (paseos realizados sin cobrar).
           when cliente.saldoPendiente > 0 {
-            Button -> go("perros") class("dd-saldo") aria(label: "Ver facturas") {
+            Button -> go("perros") class("dd-saldo") aria(label: "Ver estados de cuenta") {
               Stack class("dd-saldo-ic") { Icon "lucide:wallet" }
               Stack class("dd-saldo-info") {
                 Span "Saldo pendiente" class("dd-saldo-l")
@@ -227,7 +227,7 @@ Stack class("dd-app") {
                   when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
                 }
                 Stack class("acts") {
-                  Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Factura" }
+                  Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Estado de cuenta" }
                 }
               }
             }
@@ -437,13 +437,13 @@ Stack class("dd-app") {
         }
       }
 
-      # ---- Factura / registro del perro (la "libreta": ver en la app + CSV/Excel) ----
+      # ---- Estado de cuenta / registro del perro (la "libreta": ver en la app + CSV/Excel) ----
       when cliente.facturaPerro != "" {
         Stack class("dd-cal-scrim") {
           Stack class("dd-cal-scrimbg") on(click: cliente.facturaCerrar)
           Stack class("dd-cal-sheet dd-fac-sheet") aria(role: "dialog", modal: true) {
             Stack class("dd-cat-formhead") {
-              Title "Factura · {cliente.facturaNombre}" h3
+              Title "Estado de cuenta · {cliente.facturaNombre}" h3
               Button -> cliente.facturaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-fac-meta") {
@@ -469,6 +469,7 @@ Stack class("dd-app") {
               Span "Total" class("l")
               Span "{cop(cliente.facturaTotal)}" class("v")
             }
+            Text "Este documento no es una factura electrónica." class("dd-fac-legal")
             Stack class("dd-fac-actions") {
               Button -> facCSV class("dd-fac-exp") { Icon "lucide:download"  Span "CSV" }
               Button -> facXLS class("dd-fac-exp") { Icon "lucide:download"  Span "Excel" }

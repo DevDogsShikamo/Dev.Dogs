@@ -352,7 +352,7 @@ export function reservarServicio(perroId: string, servicioId: string, fecha: str
 
 // ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
 // RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
-// como prestación finalizada de hoy, así entra directo a factura/reportes/cobros.
+// como prestación finalizada de hoy, así entra directo al estado de cuenta/reportes/cobros.
 export function venderProducto(perroId: string, servicioId: string, cantidad: number): void {
   if (!perroId || !servicioId) { toast("Elegí producto y perro"); return; }
   const qty = Math.min(20, Math.max(1, Math.floor(cantidad) || 1));

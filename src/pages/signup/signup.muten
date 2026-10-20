@@ -155,19 +155,6 @@ Page class("su") {
     Stack class("su-bot-left") {
       Span "Registro gratuito" class("su-bot-badge")
     }
-    Stack class("su-bot-mid") {
-      Stack class("su-avs") {
-        Span "D" class("su-av")
-        Span "M" class("su-av")
-        Span "A" class("su-av")
-        Span "+" class("su-av")
-      }
-      Span "500+ dueños confían"
-    }
-    Stack class("su-bot-right") {
-      Icon "lucide:shield-check"
-      Span "Datos protegidos"
-    }
   }
 
   Custom SupaAuthForm inputs(mode: "signup", email: @email, pw: @pw, nombre: @nombre, telefono: @telefono, rol: @rol, negocioNombre: @negocio, politica: @politicaAceptada, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
