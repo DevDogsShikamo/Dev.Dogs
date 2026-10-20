@@ -1,4 +1,5 @@
 screen login
+use entrarConGoogle from "~/lib/authActions.ts"
 
 state {
   email = "" : text
@@ -9,6 +10,7 @@ state {
 action clearEmail mutates email { email.set("") }
 action clearPw    mutates pw    { pw.set("") }
 action submit     mutates nonce { nonce.set(nonce + 1) }
+action google { entrarConGoogle() }
 
 Page class("glogin") {
 
@@ -25,9 +27,9 @@ Page class("glogin") {
   Stack class("glogin-form") {
     Stack class("gform-body") {
 
-      Button class("gbtn-google") {
+      Button -> google class("gbtn-google") {
         Image "/google.svg" alt("") class("g-ico")
-        Span "Entrar con Google"
+        Span "Continuar con Google"
       }
 
       Stack class("gdiv") { Span "o con tu correo" }

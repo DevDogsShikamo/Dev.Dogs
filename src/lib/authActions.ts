@@ -87,6 +87,13 @@ export function signOut(): void {
   sesionMemo = null;
 }
 
+// "Continuar con Google": a top-level navigation to Supabase /auth/v1/authorize, then Google, then back
+// to /login with the session in the URL. supabase-js stores it on load and SupaAuthForm reports it (a
+// first-time user has no profile yet and lands on /completar-registro). Fire-and-forget: `use` is sync.
+export function entrarConGoogle(): void {
+  supa.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/login" } });
+}
+
 // ---- End of session: purge what is on the device (design section 7) ----------
 // The auth session key supabase-js uses; its presence tells "token gone" from "network down".
 const authKey = "sb-" + new URL(cfg.url).hostname.split(".")[0] + "-auth-token";

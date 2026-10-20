@@ -1,0 +1,127 @@
+screen completar
+use okPhone from "../../components/validate.js"
+use politicaVersion, abrirPolitica from "~/lib/politica.js"
+
+# /completar-registro: a signed-in user without a profile (first Google login, or a signup whose
+# provisioning failed). The profile is created by the same RPCs as the email signup and /unirse
+# (provision_negocio / redeem_invite) with the accepted policy version; then SupaAuthForm reports the
+# session again and the guard chain lands in the portal of the role.
+
+state {
+  opcion   = "" : text   # EMPRESA | PASEADOR | CODIGO
+  nombre   = "" : text
+  telefono = "" : text
+  negocio  = "" : text
+  codigo   = "" : text
+  acepta   = false : bool
+  nonce    = 0 : number
+}
+
+get phoneOk = telefono.length == 0 or okPhone(telefono)
+get valido = nombre.length > 1 and acepta and phoneOk and (opcion == "PASEADOR" or (opcion == "EMPRESA" and negocio.length > 1) or (opcion == "CODIGO" and codigo.length > 12))
+# The version travels to the server only while the box is ticked.
+get politicaAceptada = acepta ? politicaVersion() : ""
+
+action pick(o: text) mutates opcion { opcion.set(o) }
+action enviar mutates nonce { nonce.set(nonce + 1) }
+action leerPolitica { abrirPolitica() }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gback-wm")
+    }
+    Stack class("glogin-photo-in") {
+      Title "Ya casi terminas." h1 class("glogin-h")
+      Text "Cuéntanos cómo vas a usar DevDogs y crearemos tu perfil." class("glogin-sub")
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+      Title "Completar registro" h2 class("pv-h1")
+
+      Stack class("su-roles") {
+        Button -> pick("EMPRESA") class("su-role") class("su-role-on" when opcion == "EMPRESA") {
+          Stack class("su-role-ic") { Icon "lucide:building-2" }
+          Span "Tengo un negocio" class("su-role-name")
+        }
+        Button -> pick("PASEADOR") class("su-role") class("su-role-on" when opcion == "PASEADOR") {
+          Stack class("su-role-ic") { Icon "lucide:footprints" }
+          Span "Soy paseador independiente" class("su-role-name")
+        }
+        Button -> pick("CODIGO") class("su-role") class("su-role-on" when opcion == "CODIGO") {
+          Stack class("su-role-ic") { Icon "lucide:ticket" }
+          Span "Tengo un código de invitación" class("su-role-name")
+        }
+      }
+
+      when opcion != "" {
+        Stack class("su-fields") {
+          Stack class("gfield") {
+            Stack class("gfield-ic") { Icon "lucide:user" }
+            Stack class("gfield-body") {
+              Text "Tu nombre" class("gfield-label")
+              SearchField bind(nombre) "Ana Rondón" class("gfield-input")
+            }
+          }
+          when opcion == "EMPRESA" {
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:store" }
+              Stack class("gfield-body") {
+                Text "Nombre del negocio" class("gfield-label")
+                SearchField bind(negocio) "DevDogs Poblado" class("gfield-input")
+              }
+            }
+          }
+          when opcion != "CODIGO" {
+            Stack class("gfield") class("gfield-err" when not phoneOk) {
+              Stack class("gfield-ic") { Icon "lucide:phone" }
+              Stack class("gfield-body") {
+                Text "Tu teléfono (opcional)" class("gfield-label")
+                SearchField bind(telefono) "+57 300 000 0000" class("gfield-input")
+              }
+              when not phoneOk { Text "Nº inválido" class("gfield-hint") }
+            }
+          }
+          when opcion == "CODIGO" {
+            Stack class("gfield") {
+              Stack class("gfield-ic") { Icon "lucide:ticket" }
+              Stack class("gfield-body") {
+                Text "Código de invitación" class("gfield-label")
+                SearchField bind(codigo) "XXXXXXX-XXXXXXX" class("gfield-input")
+              }
+            }
+          }
+          when opcion == "CODIGO" {
+            Text "La invitación debe ser para el mismo correo con el que iniciaste sesión." class("muted t-sm")
+          }
+        }
+      }
+
+      Stack class("gconsent") {
+        Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
+        Text "Tus datos se usan solo para prestar el servicio: tu cuenta, tus perros, los paseos y los cobros." class("gconsent-note")
+        Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
+        Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
+        Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
+      }
+
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
+      Stack class("gsignup") {
+        Button "Cerrar sesión" -> auth.logout class("glink t-sm")
+      }
+    }
+
+    Stack class("gbar") {
+      Button -> enviar class("gbar-cta") disabled when not valido {
+        Span "Completar registro"
+        Icon "lucide:arrow-right"
+      }
+    }
+
+    Custom SupaAuthForm inputs(mode: "completar", rol: @opcion, nombre: @nombre, telefono: @telefono, negocioNombre: @negocio, codigo: @codigo, politica: @politicaAceptada, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  }
+}

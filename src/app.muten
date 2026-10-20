@@ -9,11 +9,13 @@ routes {
   "/privacidad" -> privacidad                                  # política de datos (pública, borrador)
   # Ruteo por ROL via cadena de guards: /app dispara al portal correcto.
   #  paseador → /app (dashboard) · empresa → /empresa · cliente → /cliente
+  #  Sin perfil (p. ej. primer ingreso con Google), ningún canX pasa y la cadena termina en /completar-registro.
   #  Con una política nueva sin aceptar, ningún canX pasa y la cadena termina en /aceptar-politica.
-  #  Sin sesión, la cadena termina en /login (los guards canX y debeAceptar incluyen loggedIn).
+  #  Sin sesión, la cadena termina en /login (los guards canX, debeCompletar y debeAceptar incluyen loggedIn).
   "/app"     -> dashboard  guard auth.canWalker   else "/empresa"
   "/empresa" -> empresa    guard auth.canBusiness else "/cliente"
-  "/cliente" -> cliente    guard auth.canClient   else "/aceptar-politica"
+  "/cliente" -> cliente    guard auth.canClient   else "/completar-registro"
+  "/completar-registro" -> completar guard auth.debeCompletar else "/aceptar-politica"
   "/aceptar-politica" -> aceptar guard auth.debeAceptar else "/login"
 }
 

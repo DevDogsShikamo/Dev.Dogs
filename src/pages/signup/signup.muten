@@ -3,6 +3,7 @@ screen signup
 use okPhone from "../../components/validate.js"
 use okPw from "../../components/validate.js"
 use politicaVersion, abrirPolitica from "~/lib/politica.js"
+use entrarConGoogle from "~/lib/authActions.ts"
 
 state {
   step      = 0 : number
@@ -19,6 +20,8 @@ state {
 
 action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
 action leerPolitica { abrirPolitica() }
+# Google: the account is created there; the role, name and consent are asked in /completar-registro.
+action google { entrarConGoogle() }
 
 get phoneOk  = okPhone(telefono)
 get pwOk     = okPw(pw)
@@ -77,6 +80,10 @@ Page class("su") {
               Stack class("su-role-ic") { Icon "lucide:heart" }
               Span "Dueño" class("su-role-name")
             }
+          }
+          Button -> google class("gbtn-google") {
+            Image "/google.svg" alt("") class("g-ico")
+            Span "Continuar con Google"
           }
           Stack class("su-step-foot") {
             Stack class("gsignup") {
