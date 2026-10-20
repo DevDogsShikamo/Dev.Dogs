@@ -1,5 +1,5 @@
 screen aceptar
-use politicaVersion, abrirPolitica from "~/lib/politica.js"
+use politicaVersion, alFinal from "~/lib/politica.js"
 
 # Re-consent gate (/aceptar-politica). The server reported a current policy version this user has not
 # accepted (auth.politicaPendiente), so every portal guard is closed. "Aceptar y continuar" sends the
@@ -8,13 +8,19 @@ use politicaVersion, abrirPolitica from "~/lib/politica.js"
 
 state {
   acepta = false : bool
+  verPol = false : bool
+  leido  = false : bool
   nonce  = 0     : number
 }
 
-# The version travels to the server only while the box is ticked.
+# The version travels to the server only after the policy is accepted in the modal.
+get version = politicaVersion()
 get politicaAceptada = acepta ? politicaVersion() : ""
 action aceptar mutates nonce { nonce.set(nonce + 1) }
-action leerPolitica { abrirPolitica() }
+action abrirPol mutates verPol { verPol.set(true) }
+action cerrarPol mutates verPol { verPol.set(false) }
+action leerPol mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
+action aceptarPol mutates acepta, verPol { acepta.set(true) verPol.set(false) }
 
 Page class("glogin") {
 
@@ -33,12 +39,7 @@ Page class("glogin") {
       Title "Actualizamos nuestra Política de tratamiento de datos" h2 class("pv-h1")
       Text "Para seguir usando DevDogs, lee la versión vigente y acéptala. Si no deseas aceptarla, puedes cerrar sesión." class("muted t-sm")
 
-      Stack class("gconsent") {
-        Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
-        Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
-        Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
-        Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
-      }
+      Consentimiento(aceptado: acepta, abierto: verPol, leido: leido, version: version, onAbrir: abrirPol, onCerrar: cerrarPol, onLeer: leerPol, onAceptar: aceptarPol)
 
       when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
 

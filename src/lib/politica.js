@@ -8,10 +8,11 @@ export function politicaVersion() {
   return POLITICA_VERSION;
 }
 
-// Opens the policy in a new tab so reading it does not reset the signup / join form (a Muten Link
-// navigates inside the app and the page state is lost). Called as a side-effect statement from an action.
-export function abrirPolitica() {
-  window.open("/privacidad", "_blank", "noopener");
+// The consent modal unlocks "Acepto" once its document has been scrolled to the end. Called from the
+// scroll action of the document body.
+export function alFinal(id) {
+  const el = document.getElementById(id);
+  return !!el && el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
 }
 
 // The router does not scroll to a #hash after an in-app navigation (e.g. the landing footer

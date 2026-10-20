@@ -1,6 +1,6 @@
 screen completar
 use okPhone from "../../components/validate.js"
-use politicaVersion, abrirPolitica from "~/lib/politica.js"
+use politicaVersion, alFinal from "~/lib/politica.js"
 
 # /completar-registro: a signed-in user without a profile (first Google login, or a signup whose
 # provisioning failed). The profile is created by the same RPCs as the email signup and /unirse
@@ -14,17 +14,23 @@ state {
   negocio  = "" : text
   codigo   = "" : text
   acepta   = false : bool
+  verPol = false : bool
+  leido  = false : bool
   nonce    = 0 : number
 }
 
 get phoneOk = telefono.length == 0 or okPhone(telefono)
 get valido = nombre.length > 1 and acepta and phoneOk and (opcion == "PASEADOR" or (opcion == "EMPRESA" and negocio.length > 1) or (opcion == "CODIGO" and codigo.length > 12))
-# The version travels to the server only while the box is ticked.
+# The version travels to the server only after the policy is accepted in the modal.
+get version = politicaVersion()
 get politicaAceptada = acepta ? politicaVersion() : ""
 
 action pick(o: text) mutates opcion { opcion.set(o) }
 action enviar mutates nonce { nonce.set(nonce + 1) }
-action leerPolitica { abrirPolitica() }
+action abrirPol mutates verPol { verPol.set(true) }
+action cerrarPol mutates verPol { verPol.set(false) }
+action leerPol mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
+action aceptarPol mutates acepta, verPol { acepta.set(true) verPol.set(false) }
 
 Page class("glogin") {
 
@@ -100,13 +106,7 @@ Page class("glogin") {
         }
       }
 
-      Stack class("gconsent") {
-        Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
-        Text "Tus datos se usan solo para prestar el servicio: tu cuenta, tus perros, los paseos y los cobros." class("gconsent-note")
-        Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
-        Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
-        Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
-      }
+      Consentimiento(aceptado: acepta, abierto: verPol, leido: leido, version: version, onAbrir: abrirPol, onCerrar: cerrarPol, onLeer: leerPol, onAceptar: aceptarPol)
 
       when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
 

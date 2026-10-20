@@ -5,7 +5,7 @@
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, seed, tempUser } from '../security/_actors.mjs'
-import { startApp } from './_app.mjs'
+import { startApp, acceptPolicy, consentLine, isAccepted, policyDoc } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 // The version S7 seeded and S5b retired (still in `politicas`, vigente = false).
@@ -47,8 +47,7 @@ async function login({ email, password }) {
 const settle = async (page) => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500) }
 const path = (page) => new URL(page.url()).pathname
 const noErrors = (page) => assert.deepEqual(page.errors, [], 'no page error / RangeError')
-const consentBox = (page) => page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ })
-const acceptButton = (page) => page.getByRole('button', { name: 'Aceptar y continuar' })
+const continueButton = (page) => page.getByRole('button', { name: 'Aceptar y continuar' })
 
 test('outdated consent: the gate comes first, no portal opens by URL, accepting lands on /app and the next login goes straight in', async () => {
   const u = await outdatedUser('paseador')
@@ -56,9 +55,8 @@ test('outdated consent: the gate comes first, no portal opens by URL, accepting 
     const page = await login(u)
     await page.waitForURL('**/aceptar-politica', { timeout: 60_000 })
     await page.getByText(GATE).waitFor()
-    assert.match(await page.locator('body').innerText(), new RegExp(`Versión de la política: ${POLITICA_VERSION}`))
-    assert.equal(await consentBox(page).isChecked(), false)
-    assert.equal(await acceptButton(page).isDisabled(), true)
+    assert.equal(await isAccepted(page), false)
+    assert.equal(await continueButton(page).isDisabled(), true)
 
     // Full reloads on every portal (and /login): the pending state survives and the chain ends at the gate.
     for (const target of ['/app', '/empresa', '/cliente', '/login']) {
@@ -69,9 +67,9 @@ test('outdated consent: the gate comes first, no portal opens by URL, accepting 
     assert.equal(path(page), '/aceptar-politica')
     assert.deepEqual(await versionsOf(u.id), [OLD], 'nothing accepted yet')
 
-    await consentBox(page).check()
-    assert.equal(await acceptButton(page).isDisabled(), false)
-    await acceptButton(page).click()
+    assert.equal(await acceptPolicy(page), POLITICA_VERSION, 'the modal shows the current version')
+    assert.equal(await continueButton(page).isDisabled(), false)
+    await continueButton(page).click()
     await page.waitForURL('**/app', { timeout: 60_000 })
     await settle(page)
     assert.equal(path(page), '/app')
@@ -91,18 +89,17 @@ test('outdated consent: the gate comes first, no portal opens by URL, accepting 
   }
 })
 
-test('outdated consent: the policy opens in a new tab, "Cerrar sesión" leaves the gate for /login and accepts nothing', async () => {
+test('outdated consent: the policy opens in a modal, closing it accepts nothing, and "Cerrar sesión" leaves the gate for /login', async () => {
   const u = await outdatedUser('empresa')
   try {
     const page = await login(u)
     await page.waitForURL('**/aceptar-politica', { timeout: 60_000 })
-    const [tab] = await Promise.all([
-      page.context().waitForEvent('page', { timeout: 10_000 }),
-      page.getByRole('button', { name: /Política de tratamiento de datos/ }).click(),
-    ])
-    await tab.waitForLoadState()
-    assert.equal(new URL(tab.url()).pathname, '/privacidad')
-    await tab.close()
+    await consentLine(page).click()
+    assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de la política: ${POLITICA_VERSION}`))
+    await page.getByRole('button', { name: 'Cerrar la política' }).click()
+    await policyDoc(page).waitFor({ state: 'detached' })
+    assert.equal(await isAccepted(page), false)
+    assert.equal(await continueButton(page).isDisabled(), true)
     assert.equal(path(page), '/aceptar-politica')
 
     await page.getByRole('button', { name: 'Cerrar sesión' }).click()
