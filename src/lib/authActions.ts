@@ -87,11 +87,16 @@ export function signOut(): void {
   sesionMemo = null;
 }
 
-// "Continuar con Google": a top-level navigation to Supabase /auth/v1/authorize, then Google, then back
-// to /login with the session in the URL. supabase-js stores it on load and SupaAuthForm reports it (a
-// first-time user has no profile yet and lands on /completar-registro). Fire-and-forget: `use` is sync.
-export function entrarConGoogle(): void {
-  supa.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/login" } });
+// "Continuar con Google/Apple/Microsoft": a top-level navigation to Supabase /auth/v1/authorize, then the
+// provider, then back to /login with the session in the URL. supabase-js stores it on load and
+// SupaAuthForm reports it (a first-time user has no profile yet and lands on /completar-registro).
+// Fire-and-forget: `use` is sync. Microsoft is "azure" in Supabase and needs the email scope.
+export function entrarCon(proveedor: string): void {
+  if (proveedor !== "google" && proveedor !== "apple" && proveedor !== "azure") return;
+  supa.auth.signInWithOAuth({
+    provider: proveedor,
+    options: { redirectTo: location.origin + "/login", ...(proveedor === "azure" ? { scopes: "email" } : {}) },
+  });
 }
 
 // ---- End of session: purge what is on the device (design section 7) ----------

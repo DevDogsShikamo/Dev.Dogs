@@ -21,19 +21,23 @@ const versionsOf = async (id) => (await admin().from('consentimientos').select('
 const consentBox = (page) => page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ })
 const finish = (page) => page.getByRole('button', { name: 'Completar registro' })
 
-for (const route of ['/login', '/signup']) {
-  test(`${route}: "Continuar con Google" goes to Supabase authorize with provider google and a redirect back to the app`, async () => {
+// Apple and Microsoft (Supabase calls it "azure") share the same flow; azure asks for the email scope,
+// without it Microsoft accounts can come back with no email.
+const providers = [['Google', 'google'], ['Apple', 'apple'], ['Microsoft', 'azure']]
+for (const route of ['/login', '/signup']) for (const [label, provider] of providers) {
+  test(`${route}: "Continuar con ${label}" goes to Supabase authorize with provider ${provider} and a redirect back to the app`, async () => {
     const page = await app.newPage()
-    await page.route(/\/auth\/v1\/authorize/, (r) => r.abort()) // never reach Google
+    await page.route(/\/auth\/v1\/authorize/, (r) => r.abort()) // never reach the provider
     await page.goto(`${app.url}${route}`)
     const [req] = await Promise.all([
       page.waitForRequest(/\/auth\/v1\/authorize/, { timeout: 30_000 }),
-      page.getByRole('button', { name: 'Continuar con Google' }).click(),
+      page.getByRole('button', { name: `Continuar con ${label}` }).click(),
     ])
     const url = new URL(req.url())
     assert.equal(url.origin, new URL(loadConfig().url).origin, 'the staging Supabase project')
-    assert.equal(url.searchParams.get('provider'), 'google')
+    assert.equal(url.searchParams.get('provider'), provider)
     assert.equal(url.searchParams.get('redirect_to'), `${app.url}/login`)
+    if (provider === 'azure') assert.match(url.searchParams.get('scopes') ?? '', /\bemail\b/)
     assert.ok(req.isNavigationRequest(), 'a top-level navigation')
     await page.close()
   })
