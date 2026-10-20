@@ -2,7 +2,7 @@ screen signup
 
 use okPhone from "../../components/validate.js"
 use okPw from "../../components/validate.js"
-use politicaVersion, abrirPolitica from "~/lib/politica.js"
+use politicaVersion, alFinal from "~/lib/politica.js"
 # OAuth sign-in (Google/Apple/Microsoft) is commented out until the providers are enabled.
 # use entrarCon from "~/lib/authActions.ts"
 
@@ -17,16 +17,22 @@ state {
   nonce     = 0  : number
   menuOpen  = false : boolean
   acepta    = false : bool
+  verPol    = false : bool
+  leido     = false : bool
 }
 
 action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
-action leerPolitica { abrirPolitica() }
+action abrirPol mutates verPol { verPol.set(true) }
+action cerrarPol mutates verPol { verPol.set(false) }
+action leerPol mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
+action aceptarPol mutates acepta, verPol { acepta.set(true) verPol.set(false) }
 # # Google/Apple/Microsoft: the account is created there; the role, name and consent are asked in /completar-registro.
 # action social(p: text) { entrarCon(p) }
 
 get phoneOk  = okPhone(telefono)
 get pwOk     = okPw(pw)
-# La versión viaja al servidor solo si la casilla está marcada; sin ella el envío no ocurre.
+# La versión viaja al servidor solo después de aceptar la política en el modal; sin eso el envío no ocurre.
+get version = politicaVersion()
 get politicaAceptada = acepta ? politicaVersion() : ""
 
 get validStep = (step == 0 and rol != "") or (step == 1 and nombre.length > 1 and phoneOk and email.length > 4 and pwOk and acepta)
@@ -151,13 +157,7 @@ Page class("su") {
               }
             }
           }
-          Stack class("gconsent") {
-            Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
-            Text "Tus datos se usan solo para prestar el servicio: tu cuenta, tus perros, los paseos y los cobros." class("gconsent-note")
-            Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
-            Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
-            Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
-          }
+          Consentimiento(aceptado: acepta, abierto: verPol, leido: leido, version: version, onAbrir: abrirPol, onCerrar: cerrarPol, onLeer: leerPol, onAceptar: aceptarPol)
           Stack class("su-nav") {
             Button -> back class("su-back") aria(label: "Atrás") { Icon "lucide:arrow-left" }
             Button -> finish class("su-cta") disabled when not validStep { Span "Crear mi cuenta" }

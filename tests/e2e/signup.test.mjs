@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, tempUser } from '../security/_actors.mjs'
-import { autoconfirmSignup, startApp } from './_app.mjs'
+import { autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
@@ -32,7 +32,7 @@ async function signUp(rol, negocio) {
   await page.getByPlaceholder('tu@correo.com').fill(email)
   await page.getByPlaceholder('••••••••').fill(PASSWORD)
   await page.getByPlaceholder('DevDogs Poblado').fill(negocio)
-  await page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ }).check()
+  await acceptPolicy(page)
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
   return { page, email }
 }

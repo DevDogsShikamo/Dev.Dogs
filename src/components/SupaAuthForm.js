@@ -92,7 +92,7 @@ function mount(el, inputs, on) {
 
   function submit(inp) {
     if (!supa) return on.failed("Cliente no disponible.");
-    // Signup and join need the accepted policy version (empty until the box is ticked): without it
+    // Signup and join need the accepted policy version (empty until the policy is accepted in the modal): without it
     // no account is created, so no profile-less user is left behind.
     if (inp.mode !== "login" && !inp.politica) return on.failed("Acepta la Política de tratamiento de datos para continuar.");
     if (inp.mode === "aceptar") return accept(inp);

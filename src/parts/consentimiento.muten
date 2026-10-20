@@ -1,0 +1,36 @@
+# Consent line + modal with the full policy. "Acepto" stays disabled until the reader scrolls the
+# document to the end (onLeer runs on every scroll of the body and flips `leido` once it reaches it).
+part Consentimiento(aceptado: bool, abierto: bool, leido: bool, version: text, onAbrir: action, onCerrar: action, onLeer: action, onAceptar: action) {
+  Stack class("gconsent") {
+    Button -> $onAbrir class("gconsent-line") class("gconsent-ok" when $aceptado) {
+      when $aceptado { Icon "lucide:square-check" }
+      when not $aceptado { Icon "lucide:square" }
+      when $aceptado { Span "Aceptaste la Política de tratamiento de datos" }
+      when not $aceptado { Span "Leer y aceptar la Política de tratamiento de datos" }
+    }
+
+    when $abierto {
+      Stack class("pm-overlay") {
+        Stack class("pm-panel") aria(role: "dialog", modal: true, label: "Política de tratamiento de datos") {
+          Stack class("pm-head") {
+            Span "Política de tratamiento de datos" class("pm-title")
+            Button -> $onCerrar class("pm-x") aria(label: "Cerrar la política") { Icon "lucide:x" }
+          }
+          Stack id("dd-politica-doc") class("pm-body") on(scroll: $onLeer) {
+            PoliticaTexto(version: $version)
+          }
+          Stack class("pm-foot") {
+            # `disabled when` does not take part params, so the locked and unlocked buttons are two branches.
+            when not $leido {
+              Stack class("pm-foot-in") {
+                Text "Desplázate hasta el final del documento para poder aceptar." class("pm-hint")
+                Button "Acepto la Política de tratamiento de datos" class("pm-ok") disabled
+              }
+            }
+            when $leido { Button "Acepto la Política de tratamiento de datos" -> $onAceptar class("pm-ok") }
+          }
+        }
+      }
+    }
+  }
+}
