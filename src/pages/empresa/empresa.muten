@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -133,10 +133,13 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 # ---- Permiso de finanzas de la oficina (solo el dueño; optimista + RPC) ----
 action finanzasToggle(id: text, on: bool) { empresa.finanzasSet(id, on)  permisoFinanzas(id, on) }
 
+# ---- Moderar una reseña (solo el dueño; optimista + RPC) ----
+action moderar(id: text, estado: text) { empresa.resenaSet(id, estado)  resenaModerar(id, estado) }
+
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
@@ -158,6 +161,9 @@ Stack class("dd-app") {
     }
     when auth.isOwner {
       Button -> go("perros") class("dd-lnk") class("dd-on" when section == "perros") { Icon "lucide:dog" Span "Perros" }
+    }
+    when auth.isOwner {
+      Button -> go("resenas") class("dd-lnk") class("dd-on" when section == "resenas") { Icon "lucide:star" Span "Reseñas" }
     }
     when auth.verFinanzas {
       Button -> go("reportes") class("dd-lnk") class("dd-on" when section == "reportes") { Icon "lucide:bar-chart-3" Span "Reportes" }
@@ -441,6 +447,33 @@ Stack class("dd-app") {
         }
       }
 
+      # ==== RESEÑAS (el jefe aprueba o rechaza antes de que sean públicas) ====
+      when section == "resenas" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Reseñas" h2 }
+          Text "Solo se publican las aprobadas cuyo autor aceptó mostrar su nombre." class("dd-cli-hint")
+          when empresa.nResenas == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:star" }  Title "Sin reseñas" h2  Text "Tus clientes pueden dejar una reseña después de un servicio finalizado." }
+          }
+          Stack class("dd-cat-list") {
+            each empresa.resenas as r {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:star" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{r.estado}" class("cd") }
+                  Span "{r.texto}" class("dd-rs-txt")
+                  when not r.publicar { Span "Sin permiso para publicar su nombre" class("obs") }
+                }
+                Stack class("acts") {
+                  when r.estado != "aprobada" { Button "Aprobar" -> moderar(r.id, "aprobada") class("dd-cat-add") }
+                  when r.estado != "rechazada" { Button "Rechazar" -> moderar(r.id, "rechazada") class("dd-cat-icon dd-danger") }
+                }
+              }
+            }
+          }
+        }
+      }
+
       # ==== PERROS (catálogo del negocio — ABM del jefe) ====
       when section == "perros" {
         Stack class("dd-sec") {
@@ -679,6 +712,9 @@ Stack class("dd-app") {
     Button -> go("agenda")     class("dd-on" when section == "agenda")     aria(label: "Agenda") { Icon "lucide:calendar" }
     when auth.isOwner {
       Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
+    }
+    when auth.isOwner {
+      Button -> go("resenas") class("dd-on" when section == "resenas") aria(label: "Reseñas") { Icon "lucide:star" }
     }
     when auth.verFinanzas {
       Button -> go("reportes") class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }

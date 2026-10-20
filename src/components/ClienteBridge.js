@@ -94,7 +94,8 @@ function mount(el, inputs, on) {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
-                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t
+                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t,
+                producto: r.tipo === "comida" || r.tipo === "accesorio"
               };
             });
             on.misPaseos(paseos);
@@ -117,6 +118,14 @@ function mount(el, inputs, on) {
             return { id: g.id, zona: g.zona || "", hora: g.hora || "08:00", servicio: svc.nombre || "", servicioId: g.servicio_id || "", tipo: svc.tipo || "paseo" };
           });
           on.salidas(sal);
+        });
+      }
+
+      // Mi reseña del negocio (RLS: solo la mía).
+      if (on.miResena && s.negocioId) {
+        supa.from("resenas").select("rating,texto,publicar_nombre,estado").eq("autor_id", s.uid).eq("negocio_id", s.negocioId).then(function (rr) {
+          if (rr && rr.error) return;
+          on.miResena((rr.data || []).map(function (r) { return { rating: r.rating, texto: r.texto || "", publicar: !!r.publicar_nombre, estado: r.estado || "" }; }));
         });
       }
 

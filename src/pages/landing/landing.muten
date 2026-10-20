@@ -1,5 +1,16 @@
 screen landing
 
+# Reseñas reales (ResenasBridge → resenas_publicas): aprobadas por cada negocio y con nombre consentido.
+entity ResenaPub { autor text  rating number  texto text  negocio text  fecha text }
+state {
+  rvTotal    = 0 : number
+  rvPromedio = "" : text
+  rvItems    = [] : list<ResenaPub>
+}
+action rvSetTotal(n: number) mutates rvTotal { rvTotal.set(n) }
+action rvSetPromedio(p: text) mutates rvPromedio { rvPromedio.set(p) }
+action rvSetItems(rows: list<ResenaPub>) mutates rvItems { rvItems.set(rows) }
+
 # Hero: corte diagonal + medalla giratoria + collage de stickers (concepto 04).
 Page class("lp2") {
   Stack class("dc-hero") {
@@ -246,7 +257,45 @@ Page class("lp2") {
     }
   }
 
-  # Reseñas: se reincorporan con datos reales (pendiente)
+  # ===== Reseñas (solo reales; el servidor no devuelve nada con menos de 3, y entonces no se muestra) =====
+  Custom ResenasBridge on(total: rvSetTotal, promedio: rvSetPromedio, items: rvSetItems)
+  when rvTotal >= 3 {
+    Section class("rv") {
+      Stack class("rv-wave-t") {}
+      Stack class("rv-head") {
+        Stack class("rv-headl") {
+          Stack class("rv-eye") { Icon "lucide:heart-handshake"  Span "Lo que dicen los clientes" }
+          Stack class("rv-h") {
+            Span "{rvPromedio} de 5 "
+            Span "· {rvTotal} reseñas" class("rv-acc")
+          }
+          Text "Opiniones de clientes con al menos un servicio finalizado, aprobadas por cada negocio." class("rv-sub")
+        }
+      }
+      List class("rv-grid") {
+        each rvItems as r {
+          Article class("rv-card") {
+            Stack class("rv-stars") aria(label: "{r.rating} de 5 estrellas") {
+              Icon "lucide:star"
+              Icon "lucide:star" class("rv-off" when r.rating < 2)
+              Icon "lucide:star" class("rv-off" when r.rating < 3)
+              Icon "lucide:star" class("rv-off" when r.rating < 4)
+              Icon "lucide:star" class("rv-off" when r.rating < 5)
+              Span "{r.rating}/5" class("rv-score")
+            }
+            Text "{r.texto}" class("rv-body")
+            Stack class("rv-foot") {
+              Stack class("rv-av") { Span "{initial(r.autor)}" }
+              Stack class("rv-fx") {
+                Span "{r.autor}" class("rv-nm")
+                Span "{r.negocio} · {r.fecha}" class("rv-role")
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   # ===== Buscador (CTA central · píldora de búsqueda tipo marketplace) =====
   Section class("bs") {

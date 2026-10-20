@@ -350,6 +350,23 @@ export function reservarServicio(perroId: string, servicioId: string, fecha: str
   reservar(perroId, servicioId, "", fecha, "No se pudo agendar el servicio");
 }
 
+// ---- Reseñas ------------------------------------------------------------------
+// El cliente deja o edita su reseña del negocio (el RPC exige un servicio finalizado); vuelve a pendiente.
+export function resenaGuardar(rating: number, texto: string, publicar: boolean): void {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    supa.rpc("resena_guardar", { p_negocio: s.negocioId, p_rating: rating, p_texto: texto, p_publicar_nombre: !!publicar }).then(function (res) {
+      if (res.error) { toast("No se pudo guardar la reseña"); return; }
+      toast("¡Gracias! Tu reseña quedará visible cuando el negocio la apruebe.");
+      refresh();
+    });
+  });
+}
+// El dueño aprueba o rechaza (optimista: la página ya cambió el estado; si falla, toast + refresh).
+export function resenaModerar(id: string, estado: string): void {
+  supa.rpc("resena_moderar", { p_id: id, p_estado: estado }).then(done("No se pudo moderar la reseña"));
+}
+
 // ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
 // RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
 // como prestación finalizada de hoy, así entra directo al estado de cuenta/reportes/cobros.
