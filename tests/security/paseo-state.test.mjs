@@ -1,5 +1,5 @@
 // S2b1 walk state machine (C5). A walker changes its walks only through paseo_marcar /
-// paseo_no_salio / paseo_agregar_foto: valid transitions, dates in [today-1, today]
+// paseo_no_salio (paseo_agregar_foto was dropped in S5b): valid transitions, dates in [today-1, today]
 // (Bogota), never price, paid flag, tenant, dog or assignment. Direct UPDATE is gone.
 // AH-6a (baseline exploit) lives in baseline-data.test.mjs.
 import { before, test } from 'node:test'
@@ -57,7 +57,6 @@ for (const actor of ['WALKER_CO2', 'CLIENT', 'OFFICE', 'OWNER', 'OTHER', 'NOPROF
       denied(await marcar(actor, id, 'en_curso'))
       denied(await marcar(actor, id, 'finalizado'))
       denied(await noSalio(actor, id, 'x'))
-      denied(await (await as(actor)).rpc('paseo_agregar_foto', { p_ids: [id], p_url: 'https://example.com/a.jpg' }))
       assert.deepEqual(await row(id), before)
     }))
 }
@@ -182,19 +181,3 @@ test('notes, reasons and batches are bounded', () =>
     assert.equal((await marcar('WALKER_CO', id, 'en_curso', 'x'.repeat(500))).error, null, 'a 500 character note is allowed')
   }))
 
-// ---- photos -----------------------------------------------------------------------------------------
-test('paseo_agregar_foto appends an https URL for the assigned walker, up to 20 per walk', () =>
-  one({ estado: 'en_curso' }, async (id) => {
-    assert.equal((await (await as('WALKER_CO')).rpc('paseo_agregar_foto', { p_ids: [id], p_url: 'https://example.com/a.jpg' })).error, null)
-    assert.deepEqual((await row(id)).detalle.fotos, ['https://example.com/a.jpg'])
-
-    for (const bad of ['javascript:alert(1)', 'http://example.com/a.jpg', `https://example.com/${'x'.repeat(2100)}`]) {
-      const res = await (await as('WALKER_CO')).rpc('paseo_agregar_foto', { p_ids: [id], p_url: bad })
-      assert.match(res.error?.message ?? '', /url_invalida/, bad.slice(0, 30))
-    }
-
-    await admin().from('prestaciones').update({ detalle: { fotos: Array.from({ length: 20 }, (_, i) => `https://example.com/${i}.jpg`) } }).eq('id', id)
-    const full = await (await as('WALKER_CO')).rpc('paseo_agregar_foto', { p_ids: [id], p_url: 'https://example.com/21.jpg' })
-    assert.match(full.error?.message ?? '', /demasiadas_fotos/)
-    assert.equal((await row(id)).detalle.fotos.length, 20)
-  }))

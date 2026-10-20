@@ -63,7 +63,7 @@ Page class("pv") {
         Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, notas del paseador, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
-        Text "Fotos de los paseos tomadas por el paseador."
+        Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
         Text "Aceptación de esta política: identificador de usuario, versión aceptada y fecha y hora registradas por el servidor. No se guarda la dirección IP ni datos del navegador."
       }
       Text "No se solicita cédula, documento de identidad ni NIT personal, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
@@ -79,6 +79,7 @@ Page class("pv") {
         Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios, microchips ni teléfonos de clientes."
         Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
         Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Un co-dueño puede ver y reservar, pero no comprar productos ni editar los datos del perro."
+        Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
     }
@@ -86,7 +87,7 @@ Page class("pv") {
     Section class("pv-sec") {
       Title "6. Conservación" h2
       List {
-        Text "Fotos de los paseos: el plazo de conservación decidido es de 30 días como máximo."
+        Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
         Text "Demás datos: mientras la cuenta del negocio o del usuario esté activa."
         Text "Después del cierre de la cuenta y por obligaciones legales o contables: [COMPLETAR: plazos que fije el abogado]."
       }
@@ -108,7 +109,7 @@ Page class("pv") {
       Title "8. Dónde se alojan los datos y transferencia internacional" h2
       List {
         Text "Los datos de la cuenta y del negocio se alojan con Supabase, proveedor de base de datos y autenticación, en la región us-west-2 de Estados Unidos. Esto implica enviar los datos fuera de Colombia."
-        Text "Las fotos de los paseos se alojan hoy en el almacenamiento de Supabase. Está previsto trasladarlas a Cloudflare R2 (Cloudflare, Estados Unidos)."
+        Text "Las fotos de los paseos se alojan en Cloudflare R2 y se entregan a través de Cloudflare Workers (Cloudflare, Estados Unidos), en un almacenamiento privado sin enlaces públicos. Cada foto se entrega solo a quien tiene permiso, mediante una solicitud autenticada. Esto implica enviar las fotos fuera de Colombia."
         Text "La aplicación carga tipografías desde Google Fonts, por lo que Google puede ver la dirección IP del navegador."
         Text "Proveedor de alojamiento de la aplicación web: [COMPLETAR: proveedor y país]."
       }
@@ -122,6 +123,7 @@ Page class("pv") {
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
         Text "Solo en el paseador: la agenda del día (perros, horarios, zonas y notas) para trabajar sin conexión y los cambios que aún no se han enviado."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
+        Text "Las fotos de los paseos no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
       }
       Text "Al cerrar sesión o al vencer la sesión, estos datos se borran del dispositivo. Los cambios sin enviar se descartan solo si el paseador lo confirma al salir."
     }

@@ -1,6 +1,6 @@
 // Service Worker de DevDogs — hace la app usable sin conexión (PWA).
 // Estrategia:
-//   • Supabase (API/realtime) → SIEMPRE red. Los DATOS ya se cachean por los stores
+//   • Supabase (API/realtime) y Worker de fotos → SIEMPRE red. Los DATOS ya se cachean por los stores
 //     con `persist` (SWR en localStorage); no duplicamos acá.
 //   • Fuentes (Google Fonts, immutables) → cache-first.
 //   • Shell + assets same-origin (HTML/JS/CSS/imágenes) → network-first: online trae
@@ -36,6 +36,10 @@ self.addEventListener("fetch", function (e) {
 
   // API / realtime de Supabase → siempre red (datos vía persist).
   if (url.hostname.indexOf("supabase.co") !== -1) return;
+
+  // Worker de fotos (requests con bearer, privadas): nunca se interceptan ni se cachean.
+  // Si el Worker pasa a un dominio propio, agregar ese host aquí.
+  if (url.hostname.indexOf("devdogs-fotos") === 0) return;
 
   // Fuentes (immutables) → cache-first.
   if (url.hostname.indexOf("gstatic.com") !== -1 || url.hostname.indexOf("googleapis.com") !== -1) {

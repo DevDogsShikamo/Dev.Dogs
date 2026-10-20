@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, paseoAgregarFoto, invitarCrear, invitacionQuitar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -37,6 +37,7 @@ state {
   salirConfirma = false : bool
   section = "dashboard" : text
   fotosPaseo = [] : list<text>
+  fotoSin    = [] : list<text>
   pdraft  = {} : PerroDraft
   pedit   = "" : text
   pform   = false : bool
@@ -98,16 +99,19 @@ action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fec
 action reprogramarBloqueAction(m: ReprogPayload) { reprogramarBloque(m.grupo, m.fechaOld, m.fechaNew, m.hora, m.modo) }
 
 # ---- Modo paseo: el paseador ejecuta el paseo (store optimista + data.ts persiste) ----
-# Abre el modo paseo limpiando la galería de fotos de la sesión anterior.
-action abrirPaseo(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates fotosPaseo {
-  fotosPaseo.reset()  grupos.modoAbrir(id, gkey, titulo, estado, presIds)
+# Abre el modo paseo limpiando la galería y las marcas de perro de la sesión anterior (todos marcados).
+action abrirPaseo(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates fotosPaseo, fotoSin {
+  fotosPaseo.reset()  fotoSin.reset()  grupos.modoAbrir(id, gkey, titulo, estado, presIds)
 }
 action pIniciar { grupos.modoIniciarLocal()  paseoIniciar(grupos.modoPresIds) }
 action pFinalizar { paseoFinalizar(grupos.modoPresIds, "")  grupos.modoFinalizarLocal() }
 action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noSalLocal(motivo) }
-# Foto subida (por FotoUpload) → se ve al instante en la galería y se anexa a las
-# prestaciones del grupo para que el dueño la vea en su Agenda.
-action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url)  paseoAgregarFoto(grupos.modoPresIds, url) }
+# Perros que salen en la foto: los del paseo que no faltaron, menos los que el paseador desmarca.
+# FotoUpload los registra como etiquetas de la foto (un perro por prestación).
+get fotoTags = grupos.perrosPaseo where gkey == grupos.modoKey and estado != "no_asistio" and not (fotoSin contains id)
+action fotoMarca(pid: text) mutates fotoSin { fotoSin.toggle(pid) }
+# Foto subida (por FotoUpload): se ve al instante en la galería de la sesión (vista previa local).
+action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url) }
 
 # ---- Horario laboral (editor) ----
 action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
@@ -284,7 +288,13 @@ Stack class("dd-app") {
               Stack class("dd-paseo-fotos") {
                 Stack class("dd-paseo-fotos-head") {
                   Span "Fotos del paseo" class("dd-paseo-fotos-t")
-                  Custom FotoUpload on(uploaded: fotoSubir)
+                  Custom FotoUpload inputs(tags: @fotoTags) on(uploaded: fotoSubir)
+                }
+                Stack class("dd-paseo-fotos-dogs") {
+                  Span "Salen en la foto" class("dd-hor-lbl")
+                  each grupos.perrosPaseo as d where d.gkey == grupos.modoKey and d.estado != "no_asistio" {
+                    Checkbox "{d.nombre}" checked(not (fotoSin contains d.id)) -> fotoMarca(d.id)
+                  }
                 }
                 when fotosPaseo.length > 0 {
                   Stack class("dd-paseo-fotos-grid") {
@@ -361,8 +371,7 @@ Stack class("dd-app") {
             Stack class("dd-dt-row") {
               each grupos.perrosHoy.take(6) as p, i {
                 Stack class("dd-dogav") {
-                  when p.foto { Image "{p.foto}" alt("{p.nombre}") }
-                  when p.foto == "" { Span "🐕" }
+                  Span "{initial(p.nombre)}"
                   when i == 5 and grupos.perrosHoy.length > 6 {
                     Button "+{grupos.perrosHoy.length - 6}" -> go("grupos") class("dd-dogbadge")
                   }

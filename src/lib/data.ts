@@ -264,15 +264,6 @@ export function paseoFinalizar(ids: string, nota: string): void {
   if (!arr.length) return;
   rpcOrQueue("paseo_marcar", { p_ids: arr, p_estado: "finalizado", p_nota: nota || null });
 }
-// Anexa la URL de una foto (ya subida a Storage por el Custom FotoUpload) a
-// detalle.fotos de TODAS las prestaciones del grupo → cada dueño ve las fotos de la
-// salida de su perro. Requiere red (la foto ya se subió online). Ver migration_fotos.sql.
-export function paseoAgregarFoto(ids: string, url: string): void {
-  const arr = idsArr(ids);
-  if (!arr.length || !url) return;
-  supa.rpc("paseo_agregar_foto", { p_ids: arr, p_url: url }).then(done("No se pudo guardar la foto"));
-}
-
 export function perroNoSalio(presId: string, motivo: string): void {
   if (!presId) return;
   rpcOrQueue("paseo_no_salio", { p_id: presId, p_motivo: motivo || "" });

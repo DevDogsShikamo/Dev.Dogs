@@ -4,15 +4,16 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { purgeKeys, shouldPurge } from "./localData.js";
 
-// Test hook: the E2E harness sets window.__DD_CFG = { url, key } to point the app at
-// STAGING. It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
+// Test hook: the E2E harness sets window.__DD_CFG = { url, key, fotos } to point the app at
+// STAGING (Supabase and the photo Worker). It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
 // constants below are used, whatever the page sets.
-type Cfg = { url: string; key: string };
+type Cfg = { url: string; key: string; fotos: string };
 const isLocal = typeof location !== "undefined" && (location.hostname === "localhost" || location.hostname === "127.0.0.1");
 const override = isLocal ? (window as unknown as { __DD_CFG?: Partial<Cfg> }).__DD_CFG : undefined;
 const cfg: Cfg = {
   url: (override && override.url) || "https://agutaluxzruuthbbagkh.supabase.co",
   key: (override && override.key) || "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj",
+  fotos: (override && override.fotos) || "https://devdogs-fotos.devdogsco.workers.dev", // walk-photo Worker (S5b)
 };
 
 export const supa: SupabaseClient = createClient(cfg.url, cfg.key);
@@ -21,6 +22,7 @@ export const supa: SupabaseClient = createClient(cfg.url, cfg.key);
 const g = globalThis as Record<string, unknown>;
 g.__supa = supa;
 g.__ddCfg = cfg; // Custom files read the effective url/key here instead of duplicating them
+g.__ddFotos = cfg.fotos; // FotoUpload.js / ClienteBridge.js talk to the photo Worker at this origin
 
 // ---- Shared session resolver (single source of truth for identity) ----------
 // Every data bridge (DataBootstrap, Empresa/Reportes/Salidas, Cliente, Horario)
@@ -103,6 +105,9 @@ g.__ddUid = currentUid; // NetWatch.js (a Custom, cannot import) counts only thi
 
 function purge(): void {
   purgeKeys(localStorage);
+  // Nothing caches photos today (the service worker never touches the photo Worker); this keeps it so
+  // if a photo cache ever appears: no photo survives the end of a session.
+  if (typeof caches !== "undefined") caches.keys().then((ks) => ks.filter((k) => /^fotos/i.test(k)).forEach((k) => caches.delete(k)));
   supa.removeAllChannels();
   sesionMemo = null;
   // A hard reload is what clears the in-memory stores (TypeScript cannot call store actions).
