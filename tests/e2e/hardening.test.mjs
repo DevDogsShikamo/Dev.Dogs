@@ -6,6 +6,8 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, ids, seed } from '../security/_actors.mjs'
 import { loadConfig } from '../security/_env.mjs'
+import { readFileSync } from 'node:fs'
+import { CSP } from '../../csp.config.mjs'
 import { startApp } from './_app.mjs'
 
 const PHONE = { WALKER_CO: '+57 300 111 0001', CLIENT: '+57 300 222 0002' }
@@ -58,9 +60,7 @@ async function loginAs(actor, { csp = false } = {}) {
   await page.getByPlaceholder('••••••••').fill(password)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.waitForURL(`**/${PORTAL_URL[actor]}`, { timeout: 30_000 })
-  // Pre-existing: the role guard chain recurses once while the profile loads and `muten dev` leaves its overlay.
   await page.getByRole('button', { name: 'Perfil', exact: true }).waitFor({ timeout: 60_000 }) // cold dev server
-  await page.evaluate(() => document.getElementById('__mu_err')?.remove())
   await page.waitForLoadState('networkidle')
   return page
 }
@@ -208,7 +208,7 @@ test('CC-2d: the next user on the same device sees none of the previous data and
   await a.getByPlaceholder('••••••••').fill(password)
   await a.getByRole('button', { name: 'Entrar', exact: true }).click()
   await a.waitForURL('**/app', { timeout: 30_000 })
-  await a.evaluate(() => { document.getElementById('__mu_err')?.remove(); window.dispatchEvent(new Event('online')) })
+  await a.evaluate(() => window.dispatchEvent(new Event('online')))
   await a.waitForTimeout(3000)
   assert.ok(!a.requests.some((u) => u.includes('/rpc/paseo_marcar')), "B replayed A's operation")
   assert.equal(await a.getByText('Rex').count(), 0, "A's dog is visible to B")
@@ -260,7 +260,8 @@ test('CC-5b: the production bundle under the real CSP boots, registers its worke
     page.on('console', (m) => { if (/content security policy/i.test(m.text())) violations.push(m.text()) })
     await page.goto(`${bundle.url}/login`)
     const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
-    assert.match(policy, /script-src 'self';/, 'the CSP meta survives the build')
+    assert.match(policy, /script-src 'self';/, 'the CSP meta is in the page')
+    assert.ok(readFileSync(new URL('../../dist/index.html', import.meta.url), 'utf8').includes(`content="${CSP}"`), 'dist/index.html (npm run build) carries exactly the configured CSP')
     assert.ok(await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)), 'the service worker registers under worker-src self')
     await page.getByRole('link', { name: 'Regístrate' }).click() // signup renders (SPA navigation: the CSP rewrite only covers documents)
     await page.waitForURL('**/signup')

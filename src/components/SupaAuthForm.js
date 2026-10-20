@@ -11,21 +11,26 @@ function mount(el, inputs, on) {
     return r === "EMPRESA" ? "empresa" : "paseador";
   }
 
-  // Load profile + negocio, then push the full session into the store.
+  // Load profile + negocio, then push the full session into the store ONLY once the role is known:
+  // a logged-in state with an empty rol matches no portal guard, so the guard chain in app.muten
+  // (/login -> /app -> /empresa -> /cliente -> /login) cycled until the stack overflowed.
   function reportSession(user) {
     var meta = user.user_metadata || {};
     var name = meta.nombre || (user.email || "").split("@")[0] || "";
-    on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false });
     supa.from("profiles").select("rol,negocio_id").eq("id", user.id).maybeSingle().then(function (pr) {
+      if (pr && pr.error) return on.failed("No pudimos cargar tu perfil. Intenta de nuevo.");
       var rol = (pr && pr.data && pr.data.rol) || "";
       var nid = (pr && pr.data && pr.data.negocio_id) || "";
+      // A session without a profile has no portal: the app stays logged out on /login with a message.
+      // (No supa.auth.signOut here: its SIGNED_OUT event purges and reloads the page, which would drop the message.)
+      if (!rol) return on.failed("Tu cuenta no tiene un perfil. Crea una cuenta nueva o usa tu código de invitación.");
       if (!nid) { on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: "", isOwner: false }); return; }
       // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
       supa.from("negocios").select("owner_id").eq("id", nid).maybeSingle().then(function (ng) {
         var d = (ng && ng.data) || {};
         on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: d.owner_id === user.id });
       }).catch(function () { on.session({ loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false }); });
-    }).catch(function () { /* keep logged-in with empty rol */ });
+    }).catch(function () { on.failed("No pudimos cargar tu perfil. Intenta de nuevo."); });
   }
 
   // The server refuses a policy version that is not the current one (politica_invalida).

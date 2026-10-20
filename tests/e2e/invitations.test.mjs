@@ -25,10 +25,7 @@ async function loginAs(actor, portal = 'app', nav = 'Perfil') {
   await page.getByPlaceholder('••••••••').fill(password)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await page.waitForURL(`**/${portal}`, { timeout: 30_000 })
-  // Pre-existing: while the profile loads, the role guard chain (/app -> /empresa -> /cliente -> /login -> /app)
-  // recurses once and `muten dev` leaves its error overlay over the page. The app recovers underneath.
   await page.getByRole('button', { name: nav, exact: true }).waitFor()
-  await page.evaluate(() => document.getElementById('__mu_err')?.remove())
   await page.getByRole('button', { name: nav, exact: true }).click()
   return page
 }

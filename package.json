@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "muten dev",
-    "build": "muten bundle",
+    "build": "muten bundle && node scripts/csp-inject.mjs",
     "lint": "muten lint",
     "test": "npm run test:security",
     "test:security": "node --test --test-concurrency=1 tests/security/",
