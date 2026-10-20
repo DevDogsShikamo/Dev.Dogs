@@ -29,7 +29,8 @@ test('sections 4, 6, 8 and 9 describe tags per dog, R2 storage, the 30-day lifec
 
 test('PC-3b: the text keeps its placeholders, makes no compliance claim and uses no voseo', () => {
   assert.ok((page.match(/\[COMPLETAR/g) ?? []).length >= 12, 'placeholders kept')
-  assert.doesNotMatch(page, /cumple con|cumplimos|certificad|garantiza|plenamente|totalmente conforme/i)
+  // "certificado de salud" is the term the Ley 2480 uses for the dog record; any other "certificad..." is a claim.
+  assert.doesNotMatch(page.replace(/certificados? de salud/gi, ''), /cumple con|cumplimos|certificad|garantiza|plenamente|totalmente conforme/i)
   assert.doesNotMatch(page, /\b(tenés|querés|podés|sos|vos|hacé|mirá)\b/i)
 })
 

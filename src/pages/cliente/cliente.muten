@@ -3,6 +3,7 @@ use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoCertificado from "~/lib/kiara.js"
 
 # Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro).
 entity PerroDraft {
@@ -234,8 +235,9 @@ Stack class("dd-app") {
                   when p.foto == "" { Span "🐕" }
                 }
                 Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.nombre}" class("nm") }
+                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") } }
                   when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                  Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                 }
                 Stack class("acts") {
                   Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Estado de cuenta" }

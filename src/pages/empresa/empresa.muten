@@ -3,6 +3,7 @@ use cop from "~/lib/money.ts"
 use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoCertificado from "~/lib/kiara.js"
 
 # Draft del servicio (alta/edición) — el Form de Muten necesita page-state.
 entity ServicioDraft {
@@ -19,6 +20,9 @@ entity PerroDraft {
   tamano       pequeno | mediano | grande
   conducta     tranquilo | energico | reactivo | sociable | jalador
   sociabilidad excelente | bueno | cuidado | selectivo
+  # Ley 2480 de 2025: in heat (stays home from walks and daycare) + health certificate issue date.
+  celo         bool
+  certificado  date
   tips         text
   foto         text
 }
@@ -74,14 +78,14 @@ action servicioBorrar(id: text) { servicios.servicioDel(id)  servicioEliminar(id
 
 # ---- Catálogo de perros (ABM del jefe) ----
 action perroNuevo mutates pdraft, pedit, pform { pdraft.reset()  pedit.set("")  pform.set(true) }
-action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text) mutates pdraft, pedit, pform {
-  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, tips: tips, foto: foto })
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, cert: text) mutates pdraft, pedit, pform {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, certificado: cert, tips: tips, foto: foto })
   pedit.set(id)  pform.set(true)
 }
 action perroCerrar mutates pform { pform.set(false) }
 action perroGuardar(p: PerroDraft) mutates pform {
   if pedit == "" { perroCrear(p) }
-  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto)  perroActualizar(pedit, p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado)  perroActualizar(pedit, p) }
   pform.set(false)
 }
 action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
@@ -492,11 +496,12 @@ Stack class("dd-app") {
                   when p.foto == "" { Span "🐕" }
                 }
                 Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.raza { Span "{p.raza}" class("cd") } }
+                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.raza { Span "{p.raza}" class("cd") }  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") } }
                   when p.tamano { Span "{p.tamano}" class("meta") }
+                  Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                 }
                 Stack class("acts") {
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
                   Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar perro") { Icon "lucide:trash-2" }
                 }
               }
@@ -511,6 +516,7 @@ Stack class("dd-app") {
                   Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
                 Form bind(pdraft) submit(perroGuardar) "Guardar perro"
+                Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
                 when pedit {
                   when auth.isOwner {
                     Stack class("dd-cat-list") {

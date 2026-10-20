@@ -192,7 +192,8 @@ test('PC-3b guard: the policy text never claims compliance, certification or leg
   const page = await app.newPage()
   await page.goto(`${app.url}/privacidad`)
   await page.getByText(MARKER).first().waitFor()
-  const text = (await page.locator('body').innerText()).toLowerCase()
+  // "certificado de salud" is the term the Ley 2480 uses for the dog record; any other "certificad..." is a claim.
+  const text = (await page.locator('body').innerText()).toLowerCase().replace(/certificados? de salud/g, '')
   assert.ok(text.length > 2000, 'the policy text did not render')
   for (const claim of [/\bcumple\b/, /\bcumplimos\b/, /en cumplimiento/, /certificad/, /plenamente conforme/, /garantiza(mos)? (el|la) (cumplimiento|seguridad total)/, /cumple con la ley/]) {
     assert.ok(!claim.test(text), `the policy claims compliance: ${claim}`)
