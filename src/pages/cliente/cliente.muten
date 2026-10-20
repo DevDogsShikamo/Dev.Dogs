@@ -22,25 +22,20 @@ state {
   section = "dashboard" : text
   resSalidaId = "" : text
   resSvcId    = "" : text
-  resTipo     = "" : text
-  resCuid     = "" : text
   resHora     = "" : text
   resZona     = "" : text
   resPerro    = "" : text
   resFecha    = "" : text
   resForm     = false : bool
   svcId       = "" : text
-  svcTipo     = "" : text
   svcNombre   = "" : text
   svcPerro    = "" : text
   svcFecha    = "" : text
   svcForm     = false : bool
   prodId       = "" : text
-  prodTipo     = "" : text
   prodNombre   = "" : text
   prodPerro    = "" : text
   prodCantidad = 1  : number
-  prodFecha    = "" : text
   prodForm     = false : bool
   pdraft       = {} : PerroDraft
   pform        = false : bool
@@ -56,22 +51,22 @@ action perroCerrar mutates pform { pform.set(false) }
 action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
 action salir { cliente.limpiar()  auth.logout() }
-action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
-  resSalidaId.set(sid)  resSvcId.set(svc)  resTipo.set(tipo)  resCuid.set(cuid)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
+action resAbrir(sid: text, svc: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resHora, resZona, resPerro, resFecha, resForm {
+  resSalidaId.set(sid)  resSvcId.set(svc)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
 }
 action resPickPerro(id: text) mutates resPerro { resPerro.set(id) }
 action resCerrar mutates resForm { resForm.set(false) }
-action resConfirmar mutates resForm { reservarPaseo(resPerro, resSvcId, resTipo, resCuid, resHora, resSalidaId, resFecha)  resForm.set(false) }
+action resConfirmar mutates resForm { reservarPaseo(resPerro, resSvcId, resSalidaId, resFecha)  resForm.set(false) }
 # Pedir un servicio (baño/guardería/corte/…): elegir perro + fecha → prestación.
-action svcAbrir(id: text, tipo: text, nombre: text) mutates svcId, svcTipo, svcNombre, svcPerro, svcFecha, svcForm { svcId.set(id)  svcTipo.set(tipo)  svcNombre.set(nombre)  svcPerro.set("")  svcFecha.set("")  svcForm.set(true) }
+action svcAbrir(id: text, nombre: text) mutates svcId, svcNombre, svcPerro, svcFecha, svcForm { svcId.set(id)  svcNombre.set(nombre)  svcPerro.set("")  svcFecha.set("")  svcForm.set(true) }
 action svcPickPerro(id: text) mutates svcPerro { svcPerro.set(id) }
 action svcCerrar mutates svcForm { svcForm.set(false) }
-action svcConfirmar mutates svcForm { reservarServicio(svcPerro, svcId, svcTipo, svcFecha)  svcForm.set(false) }
-# Comprar un producto (comida/snack): perro + cantidad + fecha → venta registrada.
-action prodAbrir(id: text, tipo: text, nombre: text) mutates prodId, prodTipo, prodNombre, prodPerro, prodCantidad, prodFecha, prodForm { prodId.set(id)  prodTipo.set(tipo)  prodNombre.set(nombre)  prodPerro.set("")  prodCantidad.set(1)  prodFecha.set("")  prodForm.set(true) }
+action svcConfirmar mutates svcForm { reservarServicio(svcPerro, svcId, svcFecha)  svcForm.set(false) }
+# Comprar un producto (comida/snack): perro + cantidad → compra de hoy al precio del catálogo.
+action prodAbrir(id: text, nombre: text) mutates prodId, prodNombre, prodPerro, prodCantidad, prodForm { prodId.set(id)  prodNombre.set(nombre)  prodPerro.set("")  prodCantidad.set(1)  prodForm.set(true) }
 action prodPickPerro(id: text) mutates prodPerro { prodPerro.set(id) }
 action prodCerrar mutates prodForm { prodForm.set(false) }
-action prodConfirmar mutates prodForm { venderProducto(prodPerro, prodId, prodTipo, prodCantidad, prodFecha)  prodForm.set(false) }
+action prodConfirmar mutates prodForm { venderProducto(prodPerro, prodId, prodCantidad)  prodForm.set(false) }
 # Descargar la factura del perro abierto (CSV / Excel).
 action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
 action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
@@ -269,7 +264,7 @@ Stack class("dd-app") {
                   Span "Sale {s.hora}" class("meta")
                 }
                 Stack class("acts") {
-                  Button "Reservar" -> resAbrir(s.id, s.servicioId, s.tipo, s.cuidadorId, s.hora, s.zona) class("dd-cat-add dd-cli-resbtn")
+                  Button "Reservar" -> resAbrir(s.id, s.servicioId, s.hora, s.zona) class("dd-cat-add dd-cli-resbtn")
                 }
               }
             }
@@ -288,7 +283,7 @@ Stack class("dd-app") {
                   when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
                 }
                 Stack class("acts") {
-                  Button "Pedir" -> svcAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                  Button "Pedir" -> svcAbrir(sv.id, sv.nombre) class("dd-cat-add dd-cli-resbtn")
                 }
               }
             }
@@ -313,7 +308,7 @@ Stack class("dd-app") {
                   when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
                 }
                 Stack class("acts") {
-                  Button "Comprar" -> prodAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                  Button "Comprar" -> prodAbrir(sv.id, sv.nombre) class("dd-cat-add dd-cli-resbtn")
                 }
               }
             }
@@ -435,9 +430,7 @@ Stack class("dd-app") {
                 when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
               }
               Span "Cantidad" class("dd-hor-lbl")
-              Number bind(prodCantidad) min(1) max(99)
-              Span "Fecha" class("dd-hor-lbl")
-              Date bind(prodFecha)
+              Number bind(prodCantidad) min(1) max(20)
               Button "Confirmar compra" -> prodConfirmar class("dd-cat-add dd-hor-save") disabled when prodPerro == ""
             }
           }

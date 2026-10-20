@@ -322,32 +322,10 @@ export function grupoAsignar(grupoId: string, cuidadorId: string): void {
 }
 
 // ---- Cobros (empresa/jefe): marcar una prestación como cobrada (optimista) ----
-// RLS "prestaciones owner all" ya deja al dueño actualizar; registra quién/cuándo.
-export function cobroMarcar(id: string, uid: string): void {
+// RPC cobro_marcar: solo el dueño; el server fija quién y cuándo (auth.uid() / now()).
+export function cobroMarcar(id: string): void {
   if (!id) return;
-  supa.from("prestaciones").update({ cobrado: true, confirmado_por: uid || null, confirmado_at: new Date().toISOString() }).eq("id", id).then(done("No se pudo marcar cobrado"));
-}
-
-// ---- Crear una prestación con el precio del CATÁLOGO (compartido) ----------
-// Toma precio/modelo del servicio y arma el insert; `cobrable` sale del modelo
-// (mensual → no se cobra por uso). `base` trae los campos propios de cada vía
-// (perro, tipo, fecha, y opcional cuidador/grupo/detalle). El trigger de la DB
-// es la red de seguridad para las vías que no pasan por acá (RPC mover_perro, seeds).
-function insertarPrestacion(neg: string, base: Record<string, unknown>, servicioId: string, errMsg: string): void {
-  const finish = function (precio: number, cobrable: boolean): void {
-    supa.from("prestaciones")
-      .insert({ ...base, negocio_id: neg, servicio_id: servicioId || null, estado: "programado", precio_aplicado: precio, cobrable: cobrable })
-      .then(done(errMsg, refresh));
-  };
-  if (servicioId) {
-    supa.from("servicios").select("precio,modelo_cobro").eq("id", servicioId).single().then(function (sr) {
-      const s = (sr.data as { precio?: number; modelo_cobro?: string }) || {};
-      const mensual = s.modelo_cobro === "mensual";
-      finish(mensual ? 0 : (s.precio || 0), !mensual);
-    });
-  } else {
-    finish(0, true);
-  }
+  supa.rpc("cobro_marcar", { p_prestacion: id }).then(done("No se pudo marcar cobrado"));
 }
 
 // ---- El CLIENTE registra su propio perro (RPC crear_mi_perro, SECURITY DEFINER)
@@ -366,46 +344,29 @@ export function crearMiPerro(p: PerroInput): void {
   }).then(done("No se pudo registrar el perro", refresh));
 }
 
-// ---- Reserva del CLIENTE: acopla su perro a una salida de paseo -------------
-export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
+// ---- Reserva del CLIENTE ------------------------------------------------------
+// El browser NUNCA manda precio ni tipo: el RPC reservar (valida que el perro sea del
+// cliente y el servicio de su negocio) saca tipo, cuidador, hora y precio del catálogo/salida.
+function reservar(perroId: string, servicioId: string, grupoId: string, fecha: string, errMsg: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  resolveSesion().then(function (s) {
-    if (!s.negocioId) return;
-    insertarPrestacion(s.negocioId, {
-      perro_id: perroId, tipo: tipo || "paseo", cuidador_id: cuidadorId || null,
-      fecha: fecha, grupo_id: grupoId || null, detalle: { hora: hora || "" },
-    }, servicioId, "No se pudo reservar el paseo");
-  });
+  supa.rpc("reservar", { p_perro: perroId, p_servicio: servicioId || null, p_grupo: grupoId || null, p_fecha: fecha }).then(done(errMsg, refresh));
 }
 
-// ---- Pedir un SERVICIO cualquiera (baño, guardería, corte, vet…) sin salida --
-// Crea una prestación programada del tipo del servicio; el negocio la asigna/atiende.
-export function reservarServicio(perroId: string, servicioId: string, tipo: string, fecha: string): void {
-  if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  resolveSesion().then(function (s) {
-    if (!s.negocioId) return;
-    insertarPrestacion(s.negocioId, {
-      perro_id: perroId, tipo: tipo || "paseo", fecha: fecha, detalle: {},
-    }, servicioId, "No se pudo agendar el servicio");
-  });
+// Acopla su perro a una salida de paseo (el servicio es el de la salida).
+export function reservarPaseo(perroId: string, servicioId: string, grupoId: string, fecha: string): void {
+  reservar(perroId, servicioId, grupoId, fecha, "No se pudo reservar el paseo");
 }
 
-// ---- Venta de PRODUCTO (comida / snack): se registra como prestación finalizada
-// (tipo comida/accesorio) con la cantidad, así entra directo a factura/reportes/cobros.
-// precio_aplicado = precio unitario del catálogo × cantidad (explícito, no unitario).
-export function venderProducto(perroId: string, servicioId: string, tipo: string, cantidad: number, fecha: string): void {
-  if (!perroId || !servicioId || !fecha) { toast("Elegí producto, perro y fecha"); return; }
-  const qty = cantidad > 0 ? cantidad : 1;
-  resolveSesion().then(function (s) {
-    if (!s.negocioId) return;
-    const neg = s.negocioId;
-    supa.from("servicios").select("precio").eq("id", servicioId).single().then(function (sr) {
-      const precio = ((sr.data as { precio?: number }) || {}).precio || 0;
-      supa.from("prestaciones").insert({
-        negocio_id: neg, perro_id: perroId, servicio_id: servicioId, tipo: tipo || "comida",
-        fecha: fecha, estado: "finalizado", precio_aplicado: precio * qty, cobrable: true,
-        detalle: { cantidad: qty },
-      }).then(done("No se pudo registrar la compra", refresh));
-    });
-  });
+// Pedir un SERVICIO cualquiera (baño, guardería, corte, vet…) sin salida; el negocio lo atiende.
+export function reservarServicio(perroId: string, servicioId: string, fecha: string): void {
+  reservar(perroId, servicioId, "", fecha, "No se pudo agendar el servicio");
+}
+
+// ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
+// RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
+// como prestación finalizada de hoy, así entra directo a factura/reportes/cobros.
+export function venderProducto(perroId: string, servicioId: string, cantidad: number): void {
+  if (!perroId || !servicioId) { toast("Elegí producto y perro"); return; }
+  const qty = Math.min(20, Math.max(1, Math.floor(cantidad) || 1));
+  supa.rpc("comprar_producto", { p_perro: perroId, p_servicio: servicioId, p_cantidad: qty }).then(done("No se pudo registrar la compra", refresh));
 }

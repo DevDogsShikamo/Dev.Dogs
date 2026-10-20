@@ -113,6 +113,12 @@ S2b1 rollback (policies, walk state, co-owners): revert the S2b1 commits (migrat
 `coduenio_quitar` and `is_principal`; it never recreates the dropped dog/link/walker policies, the table
 privileges or the old `paseo_*` bodies. `data.ts` and the migrations go together: without the RPCs the owner
 cannot delete a dog or manage co-owners (there is no direct table path any more).
+S2b2 rollback (server-side pricing): revert the S2b2 commits (migration `20261013130001_s2b2_pricing.sql`, `src/lib/data.ts`,
+`cliente.muten`, `empresa.muten`) and reset staging. `supabase/rollback/20261013130001_s2b2_pricing.down.sql` only drops
+`reservar`, `comprar_producto` and `cobro_marcar`; the price trigger and the non-negative CHECKs stay. `data.ts` and the migration
+go together: without the RPCs a client cannot book or buy and the owner cannot mark a charge paid. Before pushing
+this migration to a database with real data, check `select count(*) from prestaciones where precio_aplicado < 0`
+(and the same for `servicios.precio`, `servicios.precio_mensual`, `suscripciones.precio_mensual`): the CHECKs fail on negatives.
 Auth note: the E2E signup spec simulates `auth.signUp` because staging has email confirmation ON
 (production has it OFF) and the built-in SMTP quota is a few emails per hour.
 
