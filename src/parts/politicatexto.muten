@@ -46,7 +46,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
         Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
-        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), observaciones y enlace a la foto de perfil."
+        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, la fecha de expedición del certificado de salud, observaciones y enlace a la foto de perfil."
         Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, hora de recogida y de entrega, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."

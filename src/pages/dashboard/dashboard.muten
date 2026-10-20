@@ -3,6 +3,7 @@ use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, mov
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoCertificado, certificadoVigente from "~/lib/kiara.js"
 
 # Panel del paseador — portado FIEL del artifact "Panel DevDogs".
 # Navegación responsive (píldora en móvil, sidebar en escritorio) con cambio de sección.
@@ -14,6 +15,9 @@ entity PerroDraft {
   tamano       pequeno | mediano | grande
   conducta     tranquilo | energico | reactivo | sociable | jalador
   sociabilidad excelente | bueno | cuidado | selectivo
+  # Ley 2480 de 2025: in heat (stays home from walks and daycare) + health certificate issue date.
+  celo         bool
+  certificado  date
   tips         text
   foto         text
 }
@@ -108,7 +112,7 @@ action pFinalizar { paseoFinalizar(grupos.modoPresIds, "")  grupos.modoFinalizar
 action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noSalLocal(motivo) }
 # Perros que salen en la foto: los del paseo que no faltaron, menos los que el paseador desmarca.
 # FotoUpload los registra como etiquetas de la foto (un perro por prestación).
-get fotoTags = grupos.perrosPaseo where gkey == grupos.modoKey and estado != "no_asistio" and not (fotoSin contains id)
+get fotoTags = grupos.perrosPaseo where gkey == grupos.modoKey and estado != "no_asistio" and not celo and not (fotoSin contains id)
 action fotoMarca(pid: text) mutates fotoSin { fotoSin.toggle(pid) }
 # Foto subida (por FotoUpload): se ve al instante en la galería de la sesión (vista previa local).
 action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url) }
@@ -128,8 +132,8 @@ effect { calendario.init() }
 
 # ---- Catálogo de perros: alta / edición / borrado (persisten a Supabase) ----
 action perroNuevo mutates pdraft, pedit, pform, pdetail { pdraft.reset()  pedit.set("")  pdetail.set("")  pform.set(true) }
-action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text) mutates pdraft, pedit, pform, pdetail {
-  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, tips: tips, foto: foto })
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, cert: text) mutates pdraft, pedit, pform, pdetail {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, certificado: cert, tips: tips, foto: foto })
   pedit.set(id)
   pdetail.set("")
   pform.set(true)
@@ -138,7 +142,7 @@ action perroCerrar mutates pform { pform.set(false) }
 action perroGuardar(p: PerroDraft) mutates pform {
   # Edición optimista: patch al store al instante, luego persiste (revierte si falla).
   if pedit == "" { perroCrear(p) }
-  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto)  perroActualizar(pedit, p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado)  perroActualizar(pedit, p) }
   pform.set(false)
 }
 # Borrado optimista: desaparece al instante; perroEliminar persiste + reconcilia.
@@ -264,6 +268,8 @@ Stack class("dd-app") {
                     Stack class("txt") {
                       Span "{d.nombre}" class("nm")
                       when d.estado == "no_asistio" { Span "No salió · {d.motivo}" class("sub") }
+                      when d.celo { Span "En celo: no sale" class("sub") }
+                      when not certificadoVigente(d.cert) { Span "{estadoCertificado(d.cert)}" class("sub dd-cert") }
                     }
                   }
                   when d.estado != "no_asistio" {
@@ -292,7 +298,7 @@ Stack class("dd-app") {
                 }
                 Stack class("dd-paseo-fotos-dogs") {
                   Span "Salen en la foto" class("dd-hor-lbl")
-                  each grupos.perrosPaseo as d where d.gkey == grupos.modoKey and d.estado != "no_asistio" {
+                  each grupos.perrosPaseo as d where d.gkey == grupos.modoKey and d.estado != "no_asistio" and not d.celo {
                     Checkbox "{d.nombre}" checked(not (fotoSin contains d.id)) -> fotoMarca(d.id)
                   }
                 }
@@ -1027,13 +1033,15 @@ Stack class("dd-app") {
                         selectivo -> Span "{i18n.d.soc.selectivo}" class("dd-soc dd-soc-selectivo")
                       }
                       when p.relN > 0 { Span "⚠ {p.relN}" class("dd-rel-badge dd-relb-{p.relWorst}") }
+                      when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") }
                     }
                     when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                    Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                     when p.tips { Span "{p.tips}" class("obs") }
                   }
                 }
                 Stack class("acts") {
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
                   Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
                 }
               }
@@ -1150,7 +1158,7 @@ Stack class("dd-app") {
                     }
                   }
 
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" }
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" }
                 }
               }
             }
@@ -1166,6 +1174,7 @@ Stack class("dd-app") {
                   Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
                 Form bind(pdraft) submit(perroGuardar) "{i18n.d.pr.guardar}"
+                Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
                 Text "{i18n.d.pr.relHint}" class("dd-rel-hint")
               }
             }
