@@ -206,6 +206,17 @@ test('the current policy version of the app is the one current row in `politicas
   assert.deepEqual(rows.filter((r) => r.vigente), [{ version: POLITICA_VERSION, vigente: true }])
 })
 
+// Ley 1480 art. 48: proof that the user accepted the general conditions. The accepted version covers the
+// terms of use and the data policy, so each consent row is that proof; older versions covered only data.
+test('the current version covers the terms and the data policy, and only those documents', async () => {
+  const rows = (await admin().from('politicas').select('version, documentos').eq('vigente', true)).data
+  assert.deepEqual(rows, [{ version: POLITICA_VERSION, documentos: ['terminos', 'datos'] }])
+  const bad = await admin().from('politicas').insert({ version: 'dd-test-doc', vigente: false, documentos: ['publicidad'] })
+  assert.equal(bad.error?.code, '23514', 'an unknown document is rejected')
+  const empty = await admin().from('politicas').insert({ version: 'dd-test-doc', vigente: false, documentos: [] })
+  assert.equal(empty.error?.code, '23514', 'a version must cover at least one document')
+})
+
 // ---- catalog: signatures, definer settings, no network identifiers ---------------------------------
 test('catalog: one overload each, taking the version; definer with an empty search_path; anon cannot execute', () => {
   const fns = sql(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, p.prosecdef,

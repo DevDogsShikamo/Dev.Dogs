@@ -30,13 +30,13 @@ Page class("glogin") {
     }
     Stack class("glogin-photo-in") {
       Title "Antes de continuar" h1 class("glogin-h")
-      Text "Revisa la versión vigente de nuestra Política de tratamiento de datos." class("glogin-sub")
+      Text "Revisa la versión vigente de nuestros Términos y Política de tratamiento de datos." class("glogin-sub")
     }
   }
 
   Stack class("glogin-form") {
     Stack class("gform-body") {
-      Title "Actualizamos nuestra Política de tratamiento de datos" h2 class("pv-h1")
+      Title "Actualizamos nuestros Términos y Política de tratamiento de datos" h2 class("pv-h1")
       Text "Para seguir usando DevDogs, lee la versión vigente y acéptala. Si no deseas aceptarla, puedes cerrar sesión." class("muted t-sm")
 
       Consentimiento(aceptado: acepta, abierto: verPol, leido: leido, version: version, onAbrir: abrirPol, onCerrar: cerrarPol, onLeer: leerPol, onAceptar: aceptarPol)

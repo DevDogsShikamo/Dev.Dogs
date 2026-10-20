@@ -11,7 +11,7 @@ const page = readFileSync(fileURLToPath(new URL('../../src/parts/politicatexto.m
 const section = (n) => page.match(new RegExp(String.raw`Title "${n}\. [^"]*" h2([\s\S]*?)(?=\n    Section class|\n  }\n}\s*$)`))?.[1] ?? ''
 
 test('the version was bumped with the photo text and keeps the draft marker', () => {
-  assert.match(POLITICA_VERSION, /^2026-10-\d\d-borrador$/)
+  assert.match(POLITICA_VERSION, /^2026-10-\d\d[a-z]?-borrador$/) // a letter marks a second version the same day
   assert.notEqual(POLITICA_VERSION, '2026-10-14-borrador')
   assert.match(page, /BORRADOR — pendiente de revisión legal/)
 })

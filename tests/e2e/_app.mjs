@@ -111,10 +111,10 @@ export async function autoconfirmSignup(page) {
 
 // Consent: one line opens the policy in a modal, and its "Acepto" unlocks only once the document is
 // scrolled to the end. acceptPolicy returns the version the modal showed.
-export const consentLine = (page) => page.getByRole('button', { name: /(Leer y aceptar|Aceptaste) la Política de tratamiento de datos/ })
+export const consentLine = (page) => page.getByRole('button', { name: /(Leer y aceptar|Aceptaste) los Términos y la Política de tratamiento de datos/ })
 export const isAccepted = async (page) => /Aceptaste/.test(await consentLine(page).innerText())
 export const policyDoc = (page) => page.locator('#dd-politica-doc')
-export const acceptButton = (page) => page.getByRole('button', { name: 'Acepto la Política de tratamiento de datos' })
+export const acceptButton = (page) => page.getByRole('button', { name: 'Acepto los Términos y la Política de tratamiento de datos' })
 export async function acceptPolicy(page) {
   await consentLine(page).click()
   const version = (await policyDoc(page).innerText()).match(/Versión de la política: (\S+)/)?.[1]
