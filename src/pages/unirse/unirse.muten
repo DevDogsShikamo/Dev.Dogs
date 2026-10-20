@@ -1,0 +1,89 @@
+screen unirse
+use codigoDeURL from "~/lib/share.ts"
+
+# Canje de invitación: el invitado (paseador / cliente / gestión) crea su cuenta con
+# el CÓDIGO que le compartió el negocio. redeem_invite lo asocia al negocio con su rol
+# y la cadena de guards de app.muten lo rutea a su portal. No crea negocio propio.
+
+state {
+  nombre = "" : text
+  email  = "" : text
+  pw     = "" : text
+  codigo = "" : text
+  nonce  = 0  : number
+}
+
+get valido = nombre.length > 1 and email.length > 4 and pw.length > 5 and codigo.length > 3
+action submit mutates nonce { nonce.set(nonce + 1) }
+
+# Precarga el código si venís por un link /unirse?codigo=XXX (al montar).
+effect { codigo.set(codigoDeURL()) }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Stack class("gb-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
+      Span "DevDogs"
+    }
+    Stack class("glogin-photo-in") {
+      Title "Te invitaron a un negocio." h1 class("glogin-h")
+      Text "Ingresá tu código y quedás dentro del equipo — sin armar nada." class("glogin-sub")
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+
+      Stack class("gdiv") { Span "Unite con tu código" }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:user" }
+        Stack class("gfield-body") {
+          Text "Tu nombre" class("gfield-label")
+          SearchField bind(nombre) "Ana Rondón" class("gfield-input")
+        }
+      }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:mail" }
+        Stack class("gfield-body") {
+          Text "Correo" class("gfield-label")
+          SearchField bind(email) "tu@correo.com" class("gfield-input")
+        }
+      }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:lock" }
+        Stack class("gfield-body") {
+          Text "Contraseña (mín. 6)" class("gfield-label")
+          Password bind(pw) "••••••••" class("gfield-input")
+        }
+      }
+
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:ticket" }
+        Stack class("gfield-body") {
+          Text "Código de invitación" class("gfield-label")
+          SearchField bind(codigo) "ABC123" class("gfield-input")
+        }
+      }
+
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
+      Stack class("gsignup") {
+        Text "¿No tenés código?" class("muted t-sm")
+        Link "Creá tu negocio" -> "/signup" class("glink t-sm")
+      }
+    }
+
+    Stack class("gbar") {
+      Button -> submit class("gbar-cta") disabled when not valido {
+        Span "Unirme"
+        Icon "lucide:arrow-right"
+      }
+    }
+
+    Custom SupaAuthForm inputs(mode: "join", email: @email, pw: @pw, nombre: @nombre, codigo: @codigo, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  }
+}

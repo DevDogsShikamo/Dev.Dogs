@@ -1,0 +1,150 @@
+// Single Supabase module. `use` facades (.ts) can import; Custom (.js) files cannot,
+// so we expose the client on globalThis for the headless Custom auth bridges to read.
+// The publishable key is public by design; RLS on the DB is what protects data.
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = "https://agutaluxzruuthbbagkh.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj";
+
+export const supa: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Bridge to the Custom (.js) files, which run inlined and cannot import.
+const g = globalThis as Record<string, unknown>;
+g.__supa = supa;
+
+// ---- Shared session resolver (single source of truth for identity) ----------
+// Every data bridge (DataBootstrap, Empresa/Reportes/Salidas, Cliente, Horario)
+// needs {uid, negocioId}. Custom .js files cannot import, so instead of each one
+// redefining the same readLS + resolve, we resolve it ONCE here and expose it on
+// globalThis.__ddSesion. Fast path: the auth store persists userId/negocioId in
+// localStorage (0 network); fallback: getUser -> profiles. Memoized, and cleared
+// on signOut so a re-login in the same page load never returns the previous user.
+type Sesion = { uid: string | null; negocioId: string | null };
+let sesionMemo: Promise<Sesion> | null = null;
+
+function readLS(k: string): string | null {
+  try {
+    const v = localStorage.getItem("muten:auth:" + k);
+    return v ? (JSON.parse(v) as string) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveSesion(): Promise<Sesion> {
+  if (sesionMemo) return sesionMemo;
+  const uid = readLS("userId");
+  const neg = readLS("negocioId");
+  if (uid && neg) {
+    sesionMemo = Promise.resolve({ uid, negocioId: neg });
+    return sesionMemo;
+  }
+  // Read the client at call time (same convention the bridges follow), not the
+  // import binding: in prod they are the same object, but this keeps the fallback
+  // robust if the client is swapped after boot.
+  const client = ((globalThis as Record<string, unknown>).__supa as SupabaseClient) || supa;
+  sesionMemo = client.auth.getUser().then((u) => {
+    const id = u.data.user && u.data.user.id;
+    if (!id) {
+      sesionMemo = null; // no user yet: don't cache, let the next call retry
+      return { uid: null, negocioId: null };
+    }
+    return client
+      .from("profiles")
+      .select("negocio_id")
+      .eq("id", id)
+      .single()
+      .then((pr) => ({ uid: id, negocioId: (pr.data && pr.data.negocio_id) || null }));
+  });
+  return sesionMemo;
+}
+g.__ddSesion = resolveSesion;
+
+// Fire-and-forget side effect callable from a Muten action.
+// Clears the cached identity so the next login resolves a fresh session.
+export function signOut(): void {
+  supa.auth.signOut();
+  sesionMemo = null;
+}
+
+// ---- Shared bridge utilities (globalThis.__ddUtils) --------------------------
+// Custom (.js) files cannot import, so the date/color/toast/menu helpers that
+// were duplicated across 8+ bridges are consolidated here, at the same bootstrap
+// insertion point as __ddSesion above — every bridge can read __ddUtils on first
+// use with no race.
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function iso(d: Date): string {
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+}
+
+function today(): string {
+  return iso(new Date());
+}
+
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d.getTime());
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+// Color por tipo de servicio (calendario/agenda).
+function colorFor(tipo: string): string {
+  if (tipo === "paseo") return "purple";
+  if (tipo === "guarderia") return "blue";
+  if (tipo === "veterinaria") return "green";
+  if (tipo === "bano") return "teal";
+  if (tipo === "corte") return "orange";
+  if (tipo === "adiestramiento") return "pink";
+  return "yellow"; // comida / accesorio / otros
+}
+
+// Aviso liviano (lo muestra el Custom Toast.js). Único export: data/export/share/
+// outbox.ts lo importan; los bridges .js lo leen vía __ddUtils.toast.
+export function toast(msg: string): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
+  }
+}
+
+// Popover compartido "Solo hoy / Siempre / Cancelar" (drag & drop de grupos/bloques
+// en CalendarioDnD.js y Organizador.js). El caller pasa el título ya localizado
+// (varía por caso de uso); el modo elegido ("hoy"|"siempre") vuelve por onMode.
+// "cancel" cierra el popover sin invocar onMode.
+function askMode(x: number, y: number, title: string, onMode: (modo: string) => void): void {
+  const STR: Record<string, { hoy: string; siempre: string; cancelar: string }> = {
+    es: { hoy: "Solo hoy", siempre: "Siempre (recurrente)", cancelar: "Cancelar" },
+    en: { hoy: "Only today", siempre: "Always (recurring)", cancelar: "Cancel" },
+  };
+  const t = STR[g.__lang === "en" ? "en" : "es"];
+  const pop = document.createElement("div");
+  pop.className = "dd-org-pop";
+  pop.innerHTML =
+    '<div class="t">' + title + "</div>" +
+    '<button type="button" data-m="hoy">' + t.hoy + "</button>" +
+    '<button type="button" data-m="siempre">' + t.siempre + "</button>" +
+    '<button type="button" data-m="cancel" class="c">' + t.cancelar + "</button>";
+  pop.style.left = Math.max(8, Math.min(x - 90, window.innerWidth - 210)) + "px";
+  pop.style.top = Math.min(y + 8, window.innerHeight - 170) + "px";
+  document.body.appendChild(pop);
+  function close(): void {
+    pop.remove();
+    document.removeEventListener("pointerdown", outside, true);
+  }
+  function outside(ev: Event): void {
+    if (!pop.contains(ev.target as Node)) close();
+  }
+  setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+  pop.querySelectorAll("button").forEach((b) => {
+    b.addEventListener("click", () => {
+      const m = (b as HTMLElement).dataset.m;
+      close();
+      if (m === "cancel" || !m) return;
+      onMode(m);
+    });
+  });
+}
+
+g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode };

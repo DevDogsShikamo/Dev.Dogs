@@ -1,36 +1,36 @@
-# evDogs — app root. Routes + persistent shell (appbar + bottom tabbar), guarded by the auth store.
+# DevDogs — app root. Acceso CENTRALIZADO por login (sin slug en la URL).
+# El tenant se resuelve del perfil (auth.negocioId), no de la URL. La seguridad
+# real de datos la da el RLS de Supabase; los guards de rol son UX.
 routes {
-  "/"            -> dashboard    guard auth.loggedIn     else "/login"
-  "/calendario"  -> calendario   guard auth.loggedIn     else "/login"
-  "/servicios"   -> servicios    guard auth.loggedIn     else "/login"
-  "/estadisticas"-> estadisticas guard auth.loggedIn     else "/login"
-  "/empresa"     -> empresa       guard auth.loggedIn     else "/login"
-  "/login"       -> login         guard not auth.loggedIn else "/"
-  "/signup"      -> signup        guard not auth.loggedIn else "/"
+  "/"        -> landing                                       # landing pública de la plataforma
+  "/login"   -> login   guard not auth.loggedIn else "/app"
+  "/signup"  -> signup  guard not auth.loggedIn else "/app"
+  "/unirse"  -> unirse  guard not auth.loggedIn else "/app"   # canje de invitación (código)
+  # Ruteo por ROL via cadena de guards: /app dispara al portal correcto.
+  #  paseador → /app (dashboard) · empresa → /empresa · cliente → /cliente
+  #  Sin sesión, la cadena termina en /login (los guards canX incluyen loggedIn).
+  "/app"     -> dashboard  guard auth.canWalker   else "/empresa"
+  "/empresa" -> empresa    guard auth.canBusiness else "/cliente"
+  "/cliente" -> cliente    guard auth.canClient   else "/login"
 }
 
 shell {
   Stack class("frame") {
-  when auth.loggedIn {
-    Header class("appbar") {
-      Stack class("brand") {
-        Stack class("brand-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
-        Span "DevDogs"
+    # Aviso de red (O4). Lo alimenta el Custom NetWatch montado en cada portal;
+    # acá el shell solo lo pinta desde net.store (los Custom del shell no montan).
+    when not net.online {
+      Stack class("dd-netbar dd-netbar-off") {
+        Icon "lucide:wifi-off"
+        Span "Sin conexión — los cambios se guardan y se sincronizan al volver"
+        when net.pending > 0 { Span "· {net.pending} sin enviar" class("dd-netbar-n") }
       }
-      Button -> auth.logout class("iconbtn") aria(label: "Cerrar sesión") { Icon "lucide:log-out" }
     }
-  }
-
-  slot
-
-  when auth.loggedIn {
-    Nav class("tabbar") {
-      Link "" -> "/"             class("tab") { Icon "lucide:layout-dashboard"  Span "Inicio" }
-      Link "" -> "/calendario"   class("tab") { Icon "lucide:calendar-days"     Span "Agenda" }
-      Link "" -> "/servicios"    class("tab") { Icon "lucide:sparkles"          Span "Servicios" }
-      Link "" -> "/estadisticas" class("tab") { Icon "lucide:bar-chart-3"       Span "Stats" }
-      Link "" -> "/empresa"      class("tab") { Icon "lucide:building-2"         Span "Empresa" }
+    when net.online and net.pending > 0 {
+      Stack class("dd-netbar dd-netbar-sync") {
+        Icon "lucide:refresh-cw"
+        Span "Sincronizando {net.pending} cambio(s)…"
+      }
     }
-  }
+    slot
   }
 }

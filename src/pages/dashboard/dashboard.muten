@@ -1,52 +1,1127 @@
 screen dashboard
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, paseoAgregarFoto from "~/lib/data.ts"
 use cop from "~/lib/money.ts"
+use tipoLabel from "~/lib/svc.ts"
 
-Page class("screen gap-lg") {
-  Stack class("gap-xs") {
-    Text "¡Hola, {auth.userName}!" class("t-xl black")
-    Text "Esto es lo que tienes para hoy." class("muted")
+# Panel del paseador — portado FIEL del artifact "Panel DevDogs".
+# Navegación responsive (píldora en móvil, sidebar en escritorio) con cambio de sección.
+
+# Draft del form de perro (alta/edición). El Form de Muten necesita page-state.
+entity PerroDraft {
+  nombre       text required
+  raza         text
+  tamano       pequeno | mediano | grande
+  conducta     tranquilo | energico | reactivo | sociable | jalador
+  sociabilidad excelente | bueno | cuidado | selectivo
+  tips         text
+  foto         text
+}
+# Payloads del drag & drop (Organizador Custom).
+entity MovePayload { perro text  desde text  hacia text  modo text  fecha text }
+entity GrupoHoraPayload { grupo text  hora text  fecha text }
+entity ReprogPayload { grupo text  fechaOld text  fechaNew text  hora text  modo text }
+# Horario laboral (editor). Horas como número (7 = 07:00).
+entity Franja { desde number  hasta number }
+# Servicio (oferta + precio). Duración en minutos, precio en COP.
+entity ServicioDraft {
+  nombre   text required
+  tipo     paseo | guarderia | bano | corte | adiestramiento | veterinaria | comida | accesorio
+  duracion number
+  precio   number
+  modelo   por_uso | mensual
+}
+
+state {
+  section = "dashboard" : text
+  fotosPaseo = [] : list<text>
+  pdraft  = {} : PerroDraft
+  pedit   = "" : text
+  pform   = false : bool
+  pquery    = "" : text
+  pdetail   = "" : text
+  relOpen   = false : bool
+  relPerro  = "" : text
+  relNivel  = "cuidado" : text
+  relNota   = "" : text
+  relMotivo = "" : text
+  orgMode = false : bool
+  hdias   = [] : list<text>
+  hf1d    = 7  : number
+  hf1h    = 12 : number
+  hf2on   = false : bool
+  hf2d    = 15 : number
+  hf2h    = 18 : number
+  hsaved  = false : bool
+  sdraft  = {} : ServicioDraft
+  sedit   = "" : text
+  sform   = false : bool
+  gnombre = "" : text
+  gzona   = "" : text
+  ghora   = 8  : number
+  gdur    = 60 : number
+  gservicio = "" : text
+  gcolor  = "purple" : text
+  gedit   = "" : text
+  gform   = false : bool
+  znueva  = "" : text
+  vdesde  = "" : text
+  vhasta  = "" : text
+  vnota   = "" : text
+  vform   = false : bool
+}
+action go(s: text) mutates section { section.set(s) }
+# Logout: limpia el cache persistido (in-memory + localStorage) y cierra sesión,
+# para no filtrar datos del usuario anterior en dispositivos compartidos.
+action salir { catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
+action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
+# Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
+action moverPerroGrupo(m: MovePayload) { moverPerro(m.perro, m.hacia, m.modo, m.fecha) }
+# Drag & drop: cambiar la hora de un grupo entero (arrastrarlo a otra franja).
+action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fecha) }
+# Drag sobre el calendario: reprogramar una ocurrencia (día/hora).
+action reprogramarBloqueAction(m: ReprogPayload) { reprogramarBloque(m.grupo, m.fechaOld, m.fechaNew, m.hora, m.modo) }
+
+# ---- Modo paseo: el paseador ejecuta el paseo (store optimista + data.ts persiste) ----
+# Abre el modo paseo limpiando la galería de fotos de la sesión anterior.
+action abrirPaseo(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates fotosPaseo {
+  fotosPaseo.reset()  grupos.modoAbrir(id, gkey, titulo, estado, presIds)
+}
+action pIniciar { grupos.modoIniciarLocal()  paseoIniciar(grupos.modoPresIds) }
+action pFinalizar { paseoFinalizar(grupos.modoPresIds, "")  grupos.modoFinalizarLocal() }
+action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noSalLocal(motivo) }
+# Foto subida (por FotoUpload) → se ve al instante en la galería y se anexa a las
+# prestaciones del grupo para que el dueño la vea en su Agenda.
+action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url)  paseoAgregarFoto(grupos.modoPresIds, url) }
+
+# ---- Horario laboral (editor) ----
+action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
+action hsetFranjas(fs: list<Franja>) mutates hf1d, hf1h, hf2on, hf2d, hf2h {
+  if fs.length > 0 { hf1d.set(fs.at(0).desde)  hf1h.set(fs.at(0).hasta) }
+  if fs.length > 1 { hf2on.set(true)  hf2d.set(fs.at(1).desde)  hf2h.set(fs.at(1).hasta) }
+}
+action htoggleDia(d: text) mutates hdias, hsaved { hdias.toggle(d)  hsaved.set(false) }
+action htoggleF2 mutates hf2on, hsaved { hf2on.toggle()  hsaved.set(false) }
+action hguardar mutates hsaved { horarioGuardar(hdias, hf1d, hf1h, hf2on, hf2d, hf2h)  hsaved.set(true) }
+
+# Inicializa el ancla del calendario en HOY la primera vez (persist recuerda luego).
+effect { calendario.init() }
+
+# ---- Catálogo de perros: alta / edición / borrado (persisten a Supabase) ----
+action perroNuevo mutates pdraft, pedit, pform, pdetail { pdraft.reset()  pedit.set("")  pdetail.set("")  pform.set(true) }
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text) mutates pdraft, pedit, pform, pdetail {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, tips: tips, foto: foto })
+  pedit.set(id)
+  pdetail.set("")
+  pform.set(true)
+}
+action perroCerrar mutates pform { pform.set(false) }
+action perroGuardar(p: PerroDraft) mutates pform {
+  # Edición optimista: patch al store al instante, luego persiste (revierte si falla).
+  if pedit == "" { perroCrear(p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto)  perroActualizar(pedit, p) }
+  pform.set(false)
+}
+# Borrado optimista: desaparece al instante; perroEliminar persiste + reconcilia.
+action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
+# Ver ficha (modal linkeable) y buscador.
+action perroVer(id: text) mutates pdetail, relOpen { pdetail.set(id)  relOpen.set(false) }
+action perroCerrarDetalle mutates pdetail, relOpen { pdetail.set("")  relOpen.set(false) }
+action pqClear mutates pquery { pquery.set("") }
+
+# ---- Editor de relación (dentro de la ficha; persiste de a una, simétrica) ----
+action relNueva mutates relOpen, relPerro, relNivel, relNota, relMotivo { relPerro.set("")  relNivel.set("cuidado")  relNota.set("")  relMotivo.set("")  relOpen.set(true) }
+action relEditar(otro: text, nivel: text, nota: text, motivo: text) mutates relOpen, relPerro, relNivel, relNota, relMotivo { relPerro.set(otro)  relNivel.set(nivel)  relNota.set(nota)  relMotivo.set(motivo)  relOpen.set(true) }
+action relCerrar mutates relOpen { relOpen.set(false) }
+action relPickPerro(id: text) mutates relPerro { relPerro.set(id) }
+action relPickNivel(n: text) mutates relNivel { relNivel.set(n) }
+action relPickMotivo(m: text) mutates relMotivo { if relMotivo == m { relMotivo.set("") } else { relMotivo.set(m) } }
+action relGuardar mutates relOpen { relacionSet(pdetail, relPerro, relNivel, relNota, relMotivo)  relOpen.set(false) }
+action relBorrar(otro: text) { relacionQuitar(pdetail, otro) }
+# Ver la ficha de un perro desde otra sección (ej. desde una alerta de Grupos).
+action verPerroEn(id: text) mutates section, pdetail, relOpen { section.set("perros")  pdetail.set(id)  relOpen.set(false) }
+
+# ---- Servicios + precios: alta / edición / baja ----
+action servicioNuevo mutates sdraft, sedit, sform { sdraft.reset()  sedit.set("")  sform.set(true) }
+action servicioEditar(id: text, nombre: text, tipo: text, duracion: number, precio: number, modelo: text) mutates sdraft, sedit, sform {
+  sdraft.set({ nombre: nombre, tipo: tipo, duracion: duracion, precio: precio, modelo: modelo })
+  sedit.set(id)
+  sform.set(true)
+}
+action servicioCerrar mutates sform { sform.set(false) }
+action servicioGuardar(s: ServicioDraft) mutates sform {
+  if sedit == "" { servicioCrear(s) }
+  else { servicios.servicioUpd(sedit, s.nombre, s.tipo, s.duracion, s.precio, s.modelo)  servicioActualizar(sedit, s) }
+  sform.set(false)
+}
+action servicioBorrar(id: text) { servicios.servicioDel(id)  servicioEliminar(id) }
+
+# ---- ABM de grupos (salidas) ----
+action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set("")  gzona.set("")  ghora.set(8)  gdur.set(60)  gservicio.set("")  gcolor.set("purple")
+  gedit.set("")  gform.set(true)
+}
+action grupoEditar(id: text, nombre: text, zona: text, hora: number, dur: number, servicio: text, color: text) mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set(nombre)  gzona.set(zona)  ghora.set(hora)  gdur.set(dur)  gservicio.set(servicio)  gcolor.set(color)
+  gedit.set(id)  gform.set(true)
+}
+action gpickServicio(id: text, dur: number) mutates gservicio, gdur { gservicio.set(id)  gdur.set(dur) }
+action gpickZona(z: text) mutates gzona { gzona.set(z) }
+# Zonas de trabajo (Servicios)
+action zonaAdd mutates znueva { zonaAgregar(znueva)  znueva.set("") }
+action zonaDel(z: text) { zonaQuitar(z) }
+# Vacaciones / descanso (bloque en el calendario)
+action vacaNueva mutates vdesde, vhasta, vnota, vform { vdesde.set("")  vhasta.set("")  vnota.set("")  vform.set(true) }
+action vacaCerrar mutates vform { vform.set(false) }
+action vacaAdd mutates vform { calendario.vacaAddLocal(vdesde, vhasta, vnota)  vacacionAgregar(vdesde, vhasta, vnota)  vform.set(false) }
+action vacaDel(desde: text) { calendario.vacaDelLocal(desde)  vacacionQuitar(desde) }
+action gpickColor(c: text) mutates gcolor { gcolor.set(c) }
+action grupoCerrar mutates gform { gform.set(false) }
+action grupoGuardar mutates gform {
+  if gedit == "" { grupoCrear(gnombre, gzona, ghora, gdur, gservicio, gcolor) }
+  else { grupoActualizar(gedit, gnombre, gzona, ghora, gdur, gservicio, gcolor) }
+  gform.set(false)
+}
+action grupoBorrar(id: text) { grupos.grupoDel(id)  grupoEliminar(id) }
+
+Stack class("dd-app") {
+
+  # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
+  # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
+  # solo en supa:refresh (escrituras). Se le van sumando dominios.
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, loaded: catalogo.setLoaded)
+  # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
+  # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
+  Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
+  Custom HorarioBridge on(dias: hsetDias, franjas: hsetFranjas)
+  # Toast de avisos (errores de escritura optimista).
+  Custom Toast
+  # Vigía de red (O4): alimenta el aviso offline del shell.
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
+
+  # ---------- TOGGLE DE IDIOMA (flotante) ----------
+  Button -> i18n.toggle class("dd-langtoggle") aria(label: "Cambiar idioma / Switch language") { Icon "lucide:languages"  Span "{upper(i18n.lang)}" }
+
+  # ---------- SIDEBAR (escritorio) ----------
+  Sidebar class("dd-side") {
+    Stack class("dd-brand") { Span "D" class("dd-logo")  Span "DevDogs" class("dd-brandname") }
+    Span "{i18n.d.nav.menu}" class("dd-navlbl")
+    Button -> go("dashboard") class("dd-lnk") class("dd-on" when section == "dashboard") { Icon "lucide:home"         Span "{i18n.d.nav.inicio}" }
+    Button -> go("agenda")    class("dd-lnk") class("dd-on" when section == "agenda")    { Icon "lucide:calendar"     Span "{i18n.d.nav.agenda}" }
+    Button -> go("grupos")    class("dd-lnk") class("dd-on" when section == "grupos")    { Icon "lucide:layout-grid"  Span "{i18n.d.nav.grupos}" }
+    Button -> go("perros")    class("dd-lnk") class("dd-on" when section == "perros")    { Icon "lucide:dog"          Span "{i18n.d.nav.perros}" }
+    Button -> go("perfil")    class("dd-lnk") class("dd-on" when section == "perfil")    { Icon "lucide:user"         Span "{i18n.d.nav.perfil}" }
+    Stack class("dd-foot") {
+      Span "C" class("dd-ua")
+      Stack { Span "Carlos Ruiz" class("dd-un")  Span "{i18n.d.rol.paseador}" class("dd-ur") }
+    }
   }
 
-  Stack class("grid grid-4") {
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Paseos hoy" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:calendar-check" } }
-      Text "{agenda.total}" class("kpi-n")
-    }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Completados" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:check-circle-2" } }
-      Text "{agenda.hechos}" class("kpi-n")
-    }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Ingreso día" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:wallet" } }
-      Text "{cop(agenda.ingresoDia)}" class("kpi-n")
-    }
-    Stack class("card kpi") {
-      Stack class("row between center") { Span "Por cobrar" class("kpi-l")  Stack class("kpi-ic soft accent") { Icon "lucide:clock" } }
-      Text "{cop(agenda.porCobrar)}" class("kpi-n coral")
-    }
-  }
+  # ---------- CONTENIDO ----------
+  Stack class("dd-content") {
+    Stack class("dd-screen") {
 
-  Stack class("gap-md") {
-    Stack class("row between center") {
-      Title "Agenda de hoy" h2 class("bold t-lg")
-      Link "Ver todo" -> "/calendario" class("link t-sm")
-    }
-    List class("gap-sm") {
-      each agenda.citas as c {
-        Article class("card pad-md row between center gap-md") {
-          Stack class("row center gap-md") {
-            Stack class("avatar") { Text "{initial(c.perro)}" }
-            Stack class("gap-xs") {
-              Text "{c.perro} · {c.cliente}" class("semibold")
-              Text "{c.hora} · {c.servicio}" class("muted t-sm")
+      # ==== MODO PASEO (sheet del grupo — se abre desde Inicio o Grupos) ====
+      when grupos.modoOpen {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: grupos.modoCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "{grupos.modoTitulo}" h3
+              Button -> grupos.modoCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-paseo-status") {
+              when grupos.modoEstado == "programado" { Span "Programado" class("dd-paseo-badge b-prog") }
+              when grupos.modoEstado == "en_curso" { Span "En curso" class("dd-paseo-badge b-curso") }
+              when grupos.modoEstado == "finalizado" { Span "Finalizado" class("dd-paseo-badge b-fin") }
+            }
+
+            # Perros del grupo + acción "no salió" por perro.
+            Stack class("dd-paseo-dogs") {
+              each grupos.perrosPaseo as d where d.gkey == grupos.modoKey {
+                Stack class("dd-paseo-dog") class("no-salio" when d.estado == "no_asistio") {
+                  Stack class("dd-paseo-dog-info") {
+                    Span "{initial(d.nombre)}" class("av")
+                    Stack class("txt") {
+                      Span "{d.nombre}" class("nm")
+                      when d.estado == "no_asistio" { Span "No salió · {d.motivo}" class("sub") }
+                    }
+                  }
+                  when d.estado != "no_asistio" {
+                    when grupos.noSalId == d.id {
+                      Stack class("dd-paseo-motivos") {
+                        Button "Enfermo" -> pNoSalio("enfermo") class("dd-gchip")
+                        Button "No estaba" -> pNoSalio("ausente") class("dd-gchip")
+                        Button "Canceló" -> pNoSalio("cancelo") class("dd-gchip")
+                        Button -> grupos.noSalCerrar class("dd-gchip dd-gchip-x") aria(label: "Cancelar") { Icon "lucide:x" }
+                      }
+                    }
+                    when grupos.noSalId != d.id {
+                      Button "No salió" -> grupos.noSalAbrir(d.id) class("dd-paseo-nosal")
+                    }
+                  }
+                }
+              }
+            }
+
+            # Fotos del paseo: subir (en curso o ya finalizado) + galería de la sesión.
+            when grupos.modoEstado != "programado" {
+              Stack class("dd-paseo-fotos") {
+                Stack class("dd-paseo-fotos-head") {
+                  Span "Fotos del paseo" class("dd-paseo-fotos-t")
+                  Custom FotoUpload on(uploaded: fotoSubir)
+                }
+                when fotosPaseo.length > 0 {
+                  Stack class("dd-paseo-fotos-grid") {
+                    each fotosPaseo as f {
+                      Image "{f}" alt("Foto del paseo") class("dd-paseo-foto")
+                    }
+                  }
+                }
+              }
+            }
+
+            # Acción primaria según el estado del paseo.
+            when grupos.modoEstado == "programado" {
+              Button "Iniciar paseo" -> pIniciar class("dd-cat-add dd-hor-save")
+            }
+            when grupos.modoEstado == "en_curso" {
+              Button "Finalizar paseo" -> pFinalizar class("dd-cat-add dd-hor-save")
+            }
+            when grupos.modoEstado == "finalizado" {
+              Stack class("dd-paseo-done") { Icon "lucide:check-circle"  Span "Paseo finalizado" }
             }
           }
-          Stack class("row center gap-sm") {
-            when c.pagado { Span "Pagado" class("badge badge-paid") }
-            when not c.pagado { Span "Debe" class("badge badge-unpaid") }
+        }
+      }
+
+      # ==== DASHBOARD: skeleton ====
+      when section == "dashboard" and not catalogo.loaded {
+        Stack class("dd-sec skel-col") {
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av")
+            Stack class("skel-col") { Stack class("skel-b skel-text-s")  Stack class("skel-b skel-text") }
+          }
+          Stack class("skel-b skel-heading")
+          Stack class("skel-b skel-heading-sm")
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+          }
+          Stack class("skel-b skel-card")
+          Stack class("skel-b skel-card")
+        }
+      }
+      # ==== DASHBOARD ====
+      when section == "dashboard" and catalogo.loaded {
+        Stack class("dd-sec") {
+          Stack class("dd-top") {
+            Stack class("dd-greet") {
+              Span "C" class("dd-ga")
+              Stack { Span "{i18n.d.dash.saludo}" class("dd-gm")  Span "Carlos Ruiz" class("dd-gn") }
+            }
+            Button class("dd-bell") aria(label: "Notificaciones") { Icon "lucide:bell" }
+          }
+
+          Stack class("dd-h1") aria(role: "heading", level: "1") {
+            Span "{i18n.d.dash.tenes} {grupos.total} {i18n.d.dash.gruposW}"
+            Span "{i18n.d.dash.h1b}"
+          }
+
+          when grupos.nConflictos > 0 {
+            Button -> go("grupos") class("dd-alert-pill") aria(label: "Ver alertas de compatibilidad") {
+              Icon "lucide:alert-triangle"
+              Span "{grupos.nConflictos} {i18n.d.al.hoy}"
+              Icon "lucide:chevron-right" class("chev")
+            }
+          }
+
+          Stack class("dd-dogs-total") {
+            Stack class("dd-dt-head") {
+              Span "{grupos.perrosHoy.length} {i18n.d.dash.perrosHoy}" class("dd-dt-label")
+              Button -> go("grupos") class("dd-dt-add") aria(label: "Agregar perro / editar grupos") { Icon "lucide:plus" }
+            }
+            Stack class("dd-dt-row") {
+              each grupos.perrosHoy.take(6) as p, i {
+                Stack class("dd-dogav") {
+                  when p.foto { Image "{p.foto}" alt("{p.nombre}") }
+                  when p.foto == "" { Span "🐕" }
+                  when i == 5 and grupos.perrosHoy.length > 6 {
+                    Button "+{grupos.perrosHoy.length - 6}" -> go("grupos") class("dd-dogbadge")
+                  }
+                }
+              }
+              when grupos.perrosHoy.length == 0 { Span "{i18n.d.dash.sinHoy}" class("dd-dt-empty") }
+            }
+          }
+
+          Stack class("dd-next") {
+            Span "{i18n.d.dash.proximo}" class("dd-nextlbl")
+            when grupos.total == 0 {
+              Stack class("dd-next-empty") { Icon "lucide:coffee"  Span "{i18n.d.dash.sinHoy}" }
+            }
+            each grupos.grupos as g where g.prox {
+              Stack class("dd-stack") {
+                Stack class("dd-deck dd-deck3") {}
+                Stack class("dd-deck dd-deck2") {}
+                Stack class("dd-card") {
+                  Stack class("dd-c-head") {
+                    Stack {
+                      Title "{g.titulo}" h3
+                      Text "{g.count} {i18n.d.ficha.perros} · {g.desde} – {g.hasta}" class("dd-c-sub")
+                    }
+                    Stack class("dd-c-stk") {
+                      when g.c1 { Span "{g.c1}" }
+                      when g.c2 { Span "{g.c2}" }
+                      when g.c3 { Span "{g.c3}" }
+                    }
+                  }
+                  Stack class("dd-c-foot") {
+                    Stack class("dd-c-illus") { Span "🐾" }
+                    Button -> abrirPaseo(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-c-go") aria(label: "Abrir modo paseo") { Icon "lucide:arrow-right" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== AGENDA / GRUPOS / PERFIL (placeholders) ====
+      when section == "agenda" {
+        Stack class("dd-sec") {
+          # Drag de bloques sobre la grilla (delegación en document; sin fetch).
+          Custom CalendarioDnD on(reprogramar: reprogramarBloqueAction)
+
+          # Modal: agregar / gestionar descansos (vacaciones)
+          when vform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: vacaCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "{i18n.d.va.titulo}" h3
+                  Button -> vacaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar / Close") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  Stack class("dd-grow") {
+                    Stack class("dd-gcol") { Span "{i18n.d.va.desde}" class("dd-hor-lbl")  Date bind(vdesde) }
+                    Stack class("dd-gcol") { Span "{i18n.d.va.hasta}" class("dd-hor-lbl")  Date bind(vhasta) }
+                  }
+                  Span "{i18n.d.va.nota}" class("dd-hor-lbl")
+                  SearchField bind(vnota) "{i18n.d.va.notaPh}"
+                  Button "{i18n.d.va.agregar}" -> vacaAdd class("dd-cat-add dd-hor-save")
+                }
+                when calendario.vacas.length > 0 {
+                  Span "{i18n.d.va.actuales}" class("dd-hor-lbl")
+                  Stack class("dd-va-list") {
+                    each calendario.vacas as v {
+                      Stack class("dd-va-item") {
+                        Icon "lucide:palmtree"
+                        Stack class("info") { Span "{v.desde} → {v.hasta}" class("r")  when v.nota { Span "{v.nota}" class("n") } }
+                        Button -> vacaDel(v.desde) class("dd-cat-icon dd-danger") aria(label: "Quitar / Remove") { Icon "lucide:trash-2" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          # ---------- FICHA DEL GRUPO (se abre al tocar un bloque) ----------
+          when calendario.abierta != "" {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: calendario.cerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                each calendario.eventos as e where e.id == calendario.abierta {
+                  Stack class("dd-cal-sheet-top") {
+                    Span "" class("dd-cal-sheet-dot") class("dd-cal-dot-{e.color}")
+                    Stack class("dd-cal-sheet-h") {
+                      Title "{e.titulo}" h3
+                      Span "{e.diaLabel} · {e.desde} – {e.hasta} · GMT-5" class("dd-cal-sheet-sub")
+                    }
+                    Button -> calendario.cerrar class("dd-cal-sheet-x") aria(label: "Cerrar ficha") { Icon "lucide:x" }
+                  }
+                  Stack class("dd-cal-sheet-meta") {
+                    Span "{e.count} {i18n.d.ficha.perros}" class("dd-cal-chip")
+                    Span "{e.estado}" class("dd-cal-chip est")
+                  }
+                }
+                Span "{i18n.d.ficha.perrosGrupo}" class("dd-cal-sheet-lbl")
+                List class("dd-cal-fperros") {
+                  each calendario.detalle as d where d.gid == calendario.abierta {
+                    Button -> calendario.abrirPerro(d.perro, d.conducta, d.obs, d.raza, d.tamano, d.foto) class("dd-cal-fperro dd-cal-fperro-btn") aria(label: "Ver ficha de {d.perro}") {
+                      Stack class("av") {
+                        when d.foto { Image "{d.foto}" alt("Foto de {d.perro}") }
+                        when d.foto == "" { Span "🐕" }
+                      }
+                      Stack class("nmwrap") {
+                        Stack class("nmline") {
+                          Span "{d.perro}" class("nm")
+                          when d.conducta { Span "{d.conducta}" class("cd") }
+                        }
+                        when d.raza { Span "{d.raza} · {d.tamano}" class("meta") }
+                        when d.obs { Span "{d.obs}" class("obs") }
+                      }
+                      Icon "lucide:chevron-right" class("chev")
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          # ---------- FICHA INDIVIDUAL DEL PERRO (se abre al tocar un perro) ----------
+          when calendario.perroOpen {
+            Stack class("dd-cal-scrim dd-perro-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: calendario.cerrarPerro)
+              Stack class("dd-cal-sheet dd-perro-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "{i18n.d.fp.titulo}" h3
+                  Button -> calendario.cerrarPerro class("dd-cal-sheet-x") aria(label: "Cerrar / Close") { Icon "lucide:x" }
+                }
+                Stack class("dd-perro-hero") {
+                  Stack class("dd-perro-av") {
+                    when calendario.pfFoto { Image "{calendario.pfFoto}" alt("{calendario.pfNombre}") }
+                    when calendario.pfFoto == "" { Span "🐕" }
+                  }
+                  Stack class("dd-perro-id") {
+                    Span "{calendario.pfNombre}" class("nm")
+                    when calendario.pfConducta { Span "{calendario.pfConducta}" class("cd") }
+                  }
+                }
+                Stack class("dd-perro-facts") {
+                  when calendario.pfRaza { Stack class("dd-perro-fact cap") { Span "{i18n.d.fp.raza}" class("k")  Span "{calendario.pfRaza}" class("v") } }
+                  when calendario.pfTamano { Stack class("dd-perro-fact cap") { Span "{i18n.d.fp.tamano}" class("k")  Span "{calendario.pfTamano}" class("v") } }
+                  when calendario.pfObs { Stack class("dd-perro-fact") { Span "{i18n.d.fp.tips}" class("k")  Span "{calendario.pfObs}" class("v") } }
+                  when calendario.pfRaza == "" and calendario.pfTamano == "" and calendario.pfObs == "" { Span "{i18n.d.fp.sinDatos}" class("dd-perro-empty") }
+                }
+              }
+            }
+          }
+
+          Stack class("dd-cal-wrap") {
+
+            # ---------- PANEL LATERAL ----------
+            Sidebar class("dd-cal-side") {
+              Stack class("dd-cal-allcal") {
+                Stack class("ic") { Icon "lucide:calendar-days" }
+                Stack class("t") { Span "{i18n.d.ag.titulo}" class("b")  Span "{auth.userName}" class("s") }
+                Icon "lucide:chevron-down" class("chev")
+              }
+
+              Stack class("dd-cal-mini") {
+                Stack class("dd-cal-mini-head") {
+                  Button -> calendario.prevMes class("dd-cal-mininav") aria(label: "Mes anterior") { Icon "lucide:chevron-left" }
+                  Span "{calendario.mesLabel}"
+                  Button -> calendario.sigMes class("dd-cal-mininav") aria(label: "Mes siguiente") { Icon "lucide:chevron-right" }
+                }
+                Stack class("dd-cal-mini-grid") {
+                  Span "{i18n.d.d2.lun}" class("wd")  Span "{i18n.d.d2.mar}" class("wd")  Span "{i18n.d.d2.mie}" class("wd")  Span "{i18n.d.d2.jue}" class("wd")  Span "{i18n.d.d2.vie}" class("wd")  Span "{i18n.d.d2.sab}" class("wd")  Span "{i18n.d.d2.dom}" class("wd")
+                  each calendario.mini as m {
+                    Button "{m.n}" -> calendario.pickDay(m.dia) class("dd-cal-dy") class("mut" when m.mut) class("wk" when m.wk) class("first" when m.first) class("last" when m.last) class("hoy" when m.hoy) class("sel" when m.sel)
+                  }
+                }
+              }
+
+              Stack class("dd-cal-sched-head") { Span "{i18n.d.ag.misServicios}" class("b")  Icon "lucide:chevron-up" }
+              Stack class("dd-cal-sched") {
+                Button -> calendario.toggleSvc("paseo") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-purple") class("on" when not (calendario.ocultos contains "paseo")) { Icon "lucide:check" }  Span "{i18n.d.svc.paseos}" }
+                Button -> calendario.toggleSvc("guarderia") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-blue") class("on" when not (calendario.ocultos contains "guarderia")) { Icon "lucide:check" }  Span "{i18n.d.svc.guarderia}" }
+                Button -> calendario.toggleSvc("veterinaria") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-green") class("on" when not (calendario.ocultos contains "veterinaria")) { Icon "lucide:check" }  Span "{i18n.d.svc.veterinaria}" }
+                Button -> calendario.toggleSvc("descanso") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-yel") class("on" when not (calendario.ocultos contains "descanso")) { Icon "lucide:check" }  Span "{i18n.d.svc.descanso}" }
+                Button -> calendario.toggleSvc("adiestramiento") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-gray") class("on" when not (calendario.ocultos contains "adiestramiento")) { Icon "lucide:check" }  Span "{i18n.d.svc.adiestramiento}" }
+              }
+
+              Span "{i18n.d.ag.categorias}" class("dd-cal-cat-head")
+              Stack class("dd-cal-cat") { Span "" class("cdot cd-purple")  Span "{i18n.d.svc.paseos}"  Span "12" class("cnt") }
+              Stack class("dd-cal-cat") { Span "" class("cdot cd-blue")  Span "{i18n.d.svc.guarderia}"  Span "3" class("cnt") }
+            }
+
+            # ---------- ÁREA PRINCIPAL ----------
+            Stack class("dd-cal-main") {
+              Stack class("dd-cal-bar") {
+                Stack class("dd-cal-bar-l") {
+                  Stack class("dd-cal-nav") {
+                    Button -> calendario.prev class("dd-cal-navbtn") aria(label: "Anterior") { Icon "lucide:chevron-left" }
+                    Button "{i18n.d.ag.hoy}" -> calendario.irHoy class("dd-cal-hoy")
+                    Button -> calendario.sig class("dd-cal-navbtn") aria(label: "Siguiente") { Icon "lucide:chevron-right" }
+                  }
+                  Span "{calendario.label}" class("dd-cal-month")
+                }
+                Stack class("dd-cal-seg") {
+                  Button "{i18n.d.ag.dia}" -> calendario.setView("dia") class("on" when calendario.view == "dia")
+                  Button "{i18n.d.ag.semana}" -> calendario.setView("semana") class("on" when calendario.view == "semana")
+                  Button "{i18n.d.ag.mes}" -> calendario.setView("mes") class("on" when calendario.view == "mes")
+                }
+                Button -> vacaNueva class("dd-cal-descbtn") aria(label: "Agregar descanso") { Icon "lucide:palmtree"  Span "{i18n.d.va.boton}" }
+              }
+
+              # ---- Vista MES ----
+              when calendario.view == "mes" {
+                Stack class("dd-cal-mgrid") {
+                  Span "{i18n.d.day.lun}" class("wd")  Span "{i18n.d.day.mar}" class("wd")  Span "{i18n.d.day.mie}" class("wd")  Span "{i18n.d.day.jue}" class("wd")  Span "{i18n.d.day.vie}" class("wd")  Span "{i18n.d.day.sab}" class("wd")  Span "{i18n.d.day.dom}" class("wd")
+                  each calendario.month as mc {
+                    Button -> calendario.pickDay(mc.dia) class("dd-cal-mcell") class("mut" when mc.mut) class("hoy" when mc.hoy) class("sel" when mc.sel) {
+                      Span "{mc.n}" class("mn")
+                      when mc.count > 0 { Span "{mc.count}" class("mcount") }
+                    }
+                  }
+                }
+              }
+
+              # ---- Vista DÍA / SEMANA (grilla por horas) ----
+              when calendario.view != "mes" {
+                Stack class("dd-cal-wk-scroll") {
+                  Stack class("dd-cal-wk") class("v-{calendario.view}") {
+                    Stack class("dd-cal-wk-head") {
+                      Span "GMT-5" class("dd-cal-tzh")
+                      each calendario.cols as col {
+                        Stack class("dd-cal-dh") class("today" when col.hoy) {
+                          Span "{col.n}" class("dn")
+                          Span "{col.wd}" class("dw")
+                        }
+                      }
+                    }
+                    Stack class("dd-cal-wk-body") {
+                      Stack class("dd-cal-times") { each calendario.horas as h { Span "{h.h}" } }
+                      each calendario.cols as col {
+                        Stack class("dd-cal-col") {
+                          Span "{col.dia}" class("dd-col-meta")
+                          each calendario.noDisp as nd where nd.dia == col.dia {
+                            Stack class("dd-cal-off") style(top: "{nd.top}rem", alto: "{nd.alto}rem")
+                          }
+                          each calendario.descansos as dv where dv.dia == col.dia {
+                            Stack class("dd-cal-descanso") {
+                              Icon "lucide:palmtree"
+                              Span "{i18n.d.va.descanso}" class("t")
+                              when dv.nota { Span "{dv.nota}" class("nota") }
+                            }
+                          }
+                          each calendario.eventos as e where e.dia == col.dia and not (calendario.ocultos contains e.svcKey) {
+                            Button -> calendario.abrir(e.id) class("dd-cal-ev") class("dd-cal-ev-{e.color}") class("is-past" when e.past) style(top: "{e.top}rem", alto: "{e.alto}rem") aria(label: "Abrir {e.titulo}") {
+                              Span "{e.grupoId}~{e.dia}" class("dd-ev-meta")
+                              Span "{e.titulo}" class("dd-cal-et")
+                              Stack class("dd-cal-etime") { Icon "lucide:clock"  Span "{e.desde} – {e.hasta}" }
+                              Stack class("dd-cal-eav") {
+                                when e.c1 { Span "{e.c1}" }
+                                when e.c2 { Span "{e.c2}" }
+                                when e.c3 { Span "{e.c3}" }
+                                when e.extra > 0 { Span "+{e.extra}" class("more") }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      when section == "grupos" {
+        Stack class("dd-sec") {
+          Stack class("dd-gr-head") {
+            Title "{i18n.d.gr.grupos}" h2
+            Stack class("dd-org-toggle") {
+              Button "{i18n.d.gr.timeline}" -> setOrg(false) class("on" when not orgMode)
+              Button "{i18n.d.gr.organizar}" -> setOrg(true) class("on" when orgMode)
+            }
+          }
+
+          # ---- Alertas de compatibilidad (perros incompatibles en la misma salida de hoy) ----
+          when grupos.nConflictos > 0 {
+            Stack class("dd-alert-panel") {
+              Stack class("dd-alert-head") { Icon "lucide:alert-triangle"  Span "{i18n.d.al.titulo}" }
+              each grupos.conflictos as c {
+                Stack class("dd-alert-item dd-alvl-{c.nivel}") {
+                  Stack class("dd-alert-pair") {
+                    Button -> verPerroEn(c.aId) class("dd-alert-dog") aria(label: "Ver ficha de {c.aNombre}") {
+                      Stack class("av") { when c.aFoto { Image "{c.aFoto}" alt("{c.aNombre}") }  when c.aFoto == "" { Span "🐕" } }
+                      Span "{c.aNombre}" class("nm")
+                    }
+                    Icon "lucide:x" class("vs")
+                    Button -> verPerroEn(c.bId) class("dd-alert-dog") aria(label: "Ver ficha de {c.bNombre}") {
+                      Stack class("av") { when c.bFoto { Image "{c.bFoto}" alt("{c.bNombre}") }  when c.bFoto == "" { Span "🐕" } }
+                      Span "{c.bNombre}" class("nm")
+                    }
+                  }
+                  Stack class("dd-alert-meta") {
+                    match c.nivel {
+                      cuidado   -> Span "{i18n.d.rel.cuidado}" class("dd-rel-chip dd-rel-cuidado")
+                      no_tolera -> Span "{i18n.d.rel.no_tolera}" class("dd-rel-chip dd-rel-no_tolera")
+                    }
+                    match c.motivo {
+                      agresion    -> Span "{i18n.d.mot.agresion}" class("dd-mot-chip")
+                      reactividad -> Span "{i18n.d.mot.reactividad}" class("dd-mot-chip")
+                      tamano      -> Span "{i18n.d.mot.tamano}" class("dd-mot-chip")
+                      celos       -> Span "{i18n.d.mot.celos}" class("dd-mot-chip")
+                      celo        -> Span "{i18n.d.mot.celo}" class("dd-mot-chip")
+                    }
+                    Span "{i18n.d.al.juntos} {c.salida}" class("dd-alert-salida")
+                  }
+                  when c.nota { Span "{c.nota}" class("dd-alert-nota") }
+                }
+              }
+            }
+          }
+
+          # ---- Vista TIMELINE (grupos de hoy) ----
+          when not orgMode {
+            Span "{grupos.fecha}" class("dd-gr-date")
+            when grupos.total == 0 {
+              Stack class("dd-ph") {
+                Stack class("dd-pi") { Icon "lucide:layout-grid" }
+                Title "{i18n.d.gr.sinHoy}" h2
+                Text "{i18n.d.gr.sinHoySub}"
+              }
+            }
+            when grupos.total > 0 {
+              Stack class("dd-gr-rail") {
+                each grupos.grupos as g {
+                  Stack class("dd-gr-stop") {
+                    Span "{g.desde}" class("dd-gr-hour")
+                    Span "" class("dd-gr-node")
+                    Button -> abrirPaseo(g.id, g.gkey, g.titulo, g.estado, g.presIds) class("dd-gr-block") class("est-{g.estado}") aria(label: "Abrir modo paseo de {g.titulo}") {
+                      Stack class("dd-gr-block-top") {
+                        Stack class("dd-gr-titwrap") {
+                          Span "{g.titulo}" class("dd-gr-title")
+                          Span "{g.desde} – {g.hasta} · {g.mins} min" class("dd-gr-window")
+                        }
+                        Stack class("dd-gr-right") {
+                          when g.estado == "en_curso" { Span "En curso" class("dd-paseo-badge b-curso") }
+                          when g.estado == "finalizado" { Span "Finalizado" class("dd-paseo-badge b-fin") }
+                          Span "{g.count} 🐾" class("dd-gr-count")
+                        }
+                      }
+                      Stack class("dd-gr-dogs") {
+                        when g.c1 { Span "{g.c1}" }
+                        when g.c2 { Span "{g.c2}" }
+                        when g.c3 { Span "{g.c3}" }
+                        when g.extra > 0 { Span "+{g.extra}" class("more") }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          # ---- Vista ORGANIZAR (arrastrar perros entre grupos) ----
+          when orgMode {
+            Text "{i18n.d.gr.hintPerro}" class("dd-gr-date")
+            Custom Organizador on(mover: moverPerroGrupo, moverGrupo: moverGrupoHora)
+          }
+        }
+      }
+      when section == "perfil" {
+        Stack class("dd-sec") {
+          Stack class("dd-pf-hero") {
+            Span "{initial(auth.userName)}" class("dd-pf-av")
+            Span "{auth.userName}" class("dd-pf-name")
+            Span "{i18n.d.rol.paseador}" class("dd-pf-role")
+          }
+          Stack class("dd-pf-stats") {
+            Stack class("dd-pf-stat") { Span "{grupos.total}" class("v")  Span "{i18n.d.pf.gruposHoy}" class("l") }
+            Stack class("dd-pf-stat") { Span "{catalogo.total}" class("v")  Span "{i18n.d.pf.perrosCargo}" class("l") }
+            Stack class("dd-pf-stat") { Span "{grupos.totalAdmin}" class("v")  Span "{i18n.d.pf.gruposAct}" class("l") }
+          }
+          Stack class("dd-pf-list") {
+            Button -> go("servicios") class("dd-pf-opt") { Icon "lucide:tag"  Span "{i18n.d.pf.servicios}"  Icon "lucide:chevron-right" class("chev") }
+            Button -> go("gruposadmin") class("dd-pf-opt") { Icon "lucide:layout-grid"  Span "{i18n.d.pf.grupos}"  Icon "lucide:chevron-right" class("chev") }
+            Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
+            Button class("dd-pf-opt") { Icon "lucide:pencil"  Span "{i18n.d.pf.editar}"  Icon "lucide:chevron-right" class("chev") }
+            Button class("dd-pf-opt") { Icon "lucide:bell"  Span "{i18n.d.pf.notif}"  Icon "lucide:chevron-right" class("chev") }
+            Button class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
+          }
+          Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "{i18n.d.pf.salir}" }
+        }
+      }
+
+      # ==== MI HORARIO (horario laboral del paseador) ====
+      when section == "horario" {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+            Title "{i18n.d.ho.titulo}" h2
+          }
+          Text "{i18n.d.ho.intro}" class("dd-gr-date")
+
+          Span "{i18n.d.ho.dias}" class("dd-hor-lbl")
+          Stack class("dd-hor-days") {
+            Button "{i18n.d.day.lun}" -> htoggleDia("lun") class("dd-hor-day") class("on" when hdias contains "lun")
+            Button "{i18n.d.day.mar}" -> htoggleDia("mar") class("dd-hor-day") class("on" when hdias contains "mar")
+            Button "{i18n.d.day.mie}" -> htoggleDia("mie") class("dd-hor-day") class("on" when hdias contains "mie")
+            Button "{i18n.d.day.jue}" -> htoggleDia("jue") class("dd-hor-day") class("on" when hdias contains "jue")
+            Button "{i18n.d.day.vie}" -> htoggleDia("vie") class("dd-hor-day") class("on" when hdias contains "vie")
+            Button "{i18n.d.day.sab}" -> htoggleDia("sab") class("dd-hor-day") class("on" when hdias contains "sab")
+            Button "{i18n.d.day.dom}" -> htoggleDia("dom") class("dd-hor-day") class("on" when hdias contains "dom")
+          }
+
+          Span "{i18n.d.ho.f1}" class("dd-hor-lbl")
+          Stack class("dd-hor-franja") {
+            Number bind(hf1d) min(5) max(20)
+            Span "{i18n.d.ho.a}" class("sep")
+            Number bind(hf1h) min(6) max(21)
+            Span "→ {hf1d}:00 – {hf1h}:00" class("dd-hor-preview")
+          }
+
+          Stack class("dd-hor-f2head") {
+            Button -> htoggleF2 class("dd-hor-check") class("on" when hf2on) { Icon "lucide:check" }
+            Span "{i18n.d.ho.f2}"
+          }
+          when hf2on {
+            Stack class("dd-hor-franja") {
+              Number bind(hf2d) min(5) max(20)
+              Span "{i18n.d.ho.a}" class("sep")
+              Number bind(hf2h) min(6) max(21)
+              Span "→ {hf2d}:00 – {hf2h}:00" class("dd-hor-preview")
+            }
+          }
+
+          Button "{i18n.d.ho.guardar}" -> hguardar class("dd-cat-add dd-hor-save")
+          when hsaved { Text "{i18n.d.ho.ok}" class("dd-hor-ok") }
+        }
+      }
+
+      # ==== SERVICIOS Y PRECIOS ====
+      when section == "servicios" {
+        Stack class("dd-sec") {
+
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver / Back") { Icon "lucide:chevron-left" }
+            Title "{i18n.d.sv.titulo}" h2
+            Button -> servicioNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.sv.agregar}" }
+          }
+
+          # ---- Zonas donde trabaja el negocio ----
+          Span "{i18n.d.zn.titulo}" class("dd-hor-lbl")
+          Stack class("dd-zn-list") {
+            each servicios.zonas as z {
+              Stack class("dd-zn-chip") {
+                Span "{z}"
+                Button -> zonaDel(z) class("dd-zn-x") aria(label: "Quitar / Remove") { Icon "lucide:x" }
+              }
+            }
+            when servicios.zonas.length == 0 { Span "{i18n.d.zn.sin}" class("dd-zn-empty") }
+          }
+          Stack class("dd-zn-add") {
+            SearchField bind(znueva) "{i18n.d.zn.placeholder}" on(enter: zonaAdd)
+            Button -> zonaAdd class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.zn.agregar}" }
+          }
+
+          Span "{i18n.d.sv.titulo}" class("dd-hor-lbl")
+          when servicios.total == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:tag" }  Title "{i18n.d.sv.sin}" h2  Text "{i18n.d.sv.sinSub}" }
+          }
+
+          Stack class("dd-cat-list") {
+            each servicios.servicios as s {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:tag" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") {
+                    Span "{s.nombre}" class("nm")
+                    Span "{tipoLabel(s.tipo)}" class("cd")
+                  }
+                  Span "{s.duracion} {i18n.d.sv.min}" class("meta")
+                }
+                Stack class("dd-sv-price") {
+                  Span "{cop(s.precio)}" class("amt")
+                  when s.modelo == "mensual" { Span "{i18n.d.sv.mensual}" class("per") }
+                }
+                Stack class("acts") {
+                  Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                  Button -> servicioBorrar(s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                }
+              }
+            }
+          }
+
+          when sform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: servicioCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "{i18n.d.sv.datos}" h3
+                  Button -> servicioCerrar class("dd-cal-sheet-x") aria(label: "Cerrar / Close") { Icon "lucide:x" }
+                }
+                Form bind(sdraft) submit(servicioGuardar) "{i18n.d.sv.guardar}"
+              }
+            }
+          }
+        }
+      }
+
+      # ==== MIS GRUPOS (ABM de salidas: zona + hora + duración + servicio) ====
+      when section == "gruposadmin" {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver / Back") { Icon "lucide:chevron-left" }
+            Title "{i18n.d.gp.titulo}" h2
+            Button -> grupoNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.gp.agregar}" }
+          }
+
+          when grupos.totalAdmin == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:layout-grid" }  Title "{i18n.d.gp.sin}" h2  Text "{i18n.d.gp.sinSub}" }
+          }
+
+          Stack class("dd-cat-list") {
+            each grupos.todos as g {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{g.nombre}" class("nm")  when g.zona { Span "{g.zona}" class("cd") } }
+                  Span "{g.hora} · {g.duracion} {i18n.d.gp.min}" class("meta")
+                }
+                Stack class("acts") {
+                  Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                  Button -> grupoBorrar(g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                }
+              }
+            }
+          }
+
+          when gform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: grupoCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "{i18n.d.gp.datos}" h3
+                  Button -> grupoCerrar class("dd-cal-sheet-x") aria(label: "Cerrar / Close") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  Span "{i18n.d.gp.nombre}" class("dd-hor-lbl")
+                  SearchField bind(gnombre) "{i18n.d.gp.nombre}"
+                  Span "{i18n.d.gp.zona}" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    each servicios.zonas as z {
+                      Button "{z}" -> gpickZona(z) class("dd-gchip") class("on" when gzona == z)
+                    }
+                    when servicios.zonas.length == 0 { Span "{i18n.d.gp.sinZonas}" class("dd-zn-empty") }
+                  }
+                  Stack class("dd-grow") {
+                    Stack class("dd-gcol") { Span "{i18n.d.gp.hora}" class("dd-hor-lbl")  Number bind(ghora) min(5) max(21) }
+                    Stack class("dd-gcol") { Span "{i18n.d.gp.duracion}" class("dd-hor-lbl")  Number bind(gdur) min(15) max(240) }
+                  }
+                  Span "{i18n.d.gp.servicio}" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    Button "{i18n.d.gp.sinServicio}" -> gpickServicio("", gdur) class("dd-gchip") class("on" when gservicio == "")
+                    each servicios.servicios as sv {
+                      Button "{sv.nombre}" -> gpickServicio(sv.id, sv.duracion) class("dd-gchip") class("on" when gservicio == sv.id)
+                    }
+                  }
+                  Span "{i18n.d.gp.color}" class("dd-hor-lbl")
+                  Stack class("dd-gcolors") {
+                    Button -> gpickColor("purple") class("dd-gcolor dd-gc-purple") class("on" when gcolor == "purple") { Span "" class("sw") }
+                    Button -> gpickColor("blue") class("dd-gcolor dd-gc-blue") class("on" when gcolor == "blue") { Span "" class("sw") }
+                    Button -> gpickColor("green") class("dd-gcolor dd-gc-green") class("on" when gcolor == "green") { Span "" class("sw") }
+                    Button -> gpickColor("yellow") class("dd-gcolor dd-gc-yellow") class("on" when gcolor == "yellow") { Span "" class("sw") }
+                  }
+                  Button "{i18n.d.gp.guardar}" -> grupoGuardar class("dd-cat-add dd-hor-save")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== PERROS (catálogo maestro) ====
+      when section == "perros" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") {
+            Title "{i18n.d.pr.titulo}" h2
+            Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.pr.agregar}" }
+          }
+
+          when catalogo.total == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "{i18n.d.pr.sin}" h2  Text "{i18n.d.pr.sinSub}" }
+          }
+
+          # ---- Buscador (nombre o raza, substring case-insensitive) ----
+          when catalogo.total > 0 {
+            Stack class("dd-cat-search") {
+              Icon "lucide:search" class("ic")
+              SearchField bind(pquery) "{i18n.d.pr.buscar}"
+              when pquery != "" { Button -> pqClear class("dd-cat-searchx") aria(label: "Limpiar / Clear") { Icon "lucide:x" } }
+            }
+          }
+
+          Stack class("dd-cat-list") {
+            each catalogo.perros as p where p.nombre contains pquery or p.raza contains pquery {
+              Stack class("dd-cat-item") {
+                Button -> perroVer(p.id) class("dd-cat-open") aria(label: "Ver ficha de {p.nombre}") {
+                  Stack class("av") {
+                    when p.foto { Image "{p.foto}" alt("Foto de {p.nombre}") }
+                    when p.foto == "" { Span "🐕" }
+                  }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") {
+                      Span "{p.nombre}" class("nm")
+                      when p.conducta { Span "{p.conducta}" class("cd") }
+                      match p.sociabilidad {
+                        excelente -> Span "{i18n.d.soc.excelente}" class("dd-soc dd-soc-excelente")
+                        bueno     -> Span "{i18n.d.soc.bueno}" class("dd-soc dd-soc-bueno")
+                        cuidado   -> Span "{i18n.d.soc.cuidado}" class("dd-soc dd-soc-cuidado")
+                        selectivo -> Span "{i18n.d.soc.selectivo}" class("dd-soc dd-soc-selectivo")
+                      }
+                      when p.relN > 0 { Span "⚠ {p.relN}" class("dd-rel-badge dd-relb-{p.relWorst}") }
+                    }
+                    when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                    when p.tips { Span "{p.tips}" class("obs") }
+                  }
+                }
+                Stack class("acts") {
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
+                  Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
+                }
+              }
+            }
+          }
+
+          # ---- FICHA DEL PERRO (modal, con incompatibilidades linkeables) ----
+          when pdetail != "" {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: perroCerrarDetalle)
+              Stack class("dd-cal-sheet dd-perro-sheet") aria(role: "dialog", modal: true) {
+                each catalogo.perros as p where p.id == pdetail {
+                  Stack class("dd-cat-formhead") {
+                    Title "{i18n.d.fp.titulo}" h3
+                    Button -> perroCerrarDetalle class("dd-cal-sheet-x") aria(label: "Cerrar / Close") { Icon "lucide:x" }
+                  }
+                  Stack class("dd-perro-hero") {
+                    Stack class("dd-perro-av") {
+                      when p.foto { Image "{p.foto}" alt("{p.nombre}") }
+                      when p.foto == "" { Span "🐕" }
+                    }
+                    Stack class("dd-perro-id") {
+                      Span "{p.nombre}" class("nm")
+                      Stack class("chips") {
+                        when p.conducta { Span "{p.conducta}" class("cd") }
+                        match p.sociabilidad {
+                          excelente -> Span "{i18n.d.soc.excelente}" class("dd-soc dd-soc-excelente")
+                          bueno     -> Span "{i18n.d.soc.bueno}" class("dd-soc dd-soc-bueno")
+                          cuidado   -> Span "{i18n.d.soc.cuidado}" class("dd-soc dd-soc-cuidado")
+                          selectivo -> Span "{i18n.d.soc.selectivo}" class("dd-soc dd-soc-selectivo")
+                        }
+                      }
+                    }
+                  }
+                  Stack class("dd-perro-facts") {
+                    when p.raza { Stack class("dd-perro-fact cap") { Span "{i18n.d.fp.raza}" class("k")  Span "{p.raza}" class("v") } }
+                    when p.tamano { Stack class("dd-perro-fact cap") { Span "{i18n.d.fp.tamano}" class("k")  Span "{p.tamano}" class("v") } }
+                    when p.tips { Stack class("dd-perro-fact") { Span "{i18n.d.pr.desc}" class("k")  Span "{p.tips}" class("v") } }
+                  }
+
+                  # ---- Cómo se lleva con otros perros (relaciones con nivel + nota) ----
+                  Span "{i18n.d.pr.relaciones}" class("dd-hor-lbl")
+                  when p.relN == 0 { Span "{i18n.d.pr.sinRel}" class("dd-perro-empty") }
+                  Stack class("dd-rel-list") {
+                    each catalogo.relaciones as r where r.deId == pdetail {
+                      Stack class("dd-rel-item") {
+                        Button -> perroVer(r.aId) class("dd-rel-open") aria(label: "Ver ficha de {r.aNombre}") {
+                          Stack class("av") {
+                            when r.aFoto { Image "{r.aFoto}" alt("{r.aNombre}") }
+                            when r.aFoto == "" { Span "🐕" }
+                          }
+                          Stack class("nm-wrap") {
+                            Stack class("topline") {
+                              Span "{r.aNombre}" class("nm")
+                              match r.nivel {
+                                cuidado   -> Span "{i18n.d.rel.cuidado}" class("dd-rel-chip dd-rel-cuidado")
+                                tolera    -> Span "{i18n.d.rel.tolera}" class("dd-rel-chip dd-rel-tolera")
+                                no_tolera -> Span "{i18n.d.rel.no_tolera}" class("dd-rel-chip dd-rel-no_tolera")
+                              }
+                              match r.motivo {
+                                agresion    -> Span "{i18n.d.mot.agresion}" class("dd-mot-chip")
+                                reactividad -> Span "{i18n.d.mot.reactividad}" class("dd-mot-chip")
+                                tamano      -> Span "{i18n.d.mot.tamano}" class("dd-mot-chip")
+                                celos       -> Span "{i18n.d.mot.celos}" class("dd-mot-chip")
+                                celo        -> Span "{i18n.d.mot.celo}" class("dd-mot-chip")
+                              }
+                            }
+                            when r.nota { Span "{r.nota}" class("meta") }
+                          }
+                          Icon "lucide:chevron-right" class("chev")
+                        }
+                        Stack class("acts") {
+                          Button -> relEditar(r.aId, r.nivel, r.nota, r.motivo) class("dd-cat-icon") aria(label: "Editar relación / Edit") { Icon "lucide:pencil" }
+                          Button -> relBorrar(r.aId) class("dd-cat-icon dd-danger") aria(label: "Quitar relación / Remove") { Icon "lucide:trash-2" }
+                        }
+                      }
+                    }
+                  }
+
+                  when not relOpen {
+                    when catalogo.total > 1 {
+                      Button -> relNueva class("dd-rel-add") { Icon "lucide:plus"  Span "{i18n.d.pr.agregarRel}" }
+                    }
+                  }
+                  when relOpen {
+                    Stack class("dd-rel-editor") {
+                      Text "{i18n.d.pr.relWalkHint}" class("dd-rel-walkhint")
+                      Span "{i18n.d.pr.elegirPerro}" class("dd-hor-lbl")
+                      Stack class("dd-gsvc") {
+                        each catalogo.perros as o where o.id != pdetail {
+                          Button "{o.nombre}" -> relPickPerro(o.id) class("dd-gchip") class("on" when relPerro == o.id)
+                        }
+                      }
+                      Span "{i18n.d.pr.nivel}" class("dd-hor-lbl")
+                      Stack class("dd-gsvc") {
+                        Button "{i18n.d.rel.cuidado}" -> relPickNivel("cuidado") class("dd-gchip dd-nivel-cuidado") class("on" when relNivel == "cuidado")
+                        Button "{i18n.d.rel.tolera}" -> relPickNivel("tolera") class("dd-gchip dd-nivel-tolera") class("on" when relNivel == "tolera")
+                        Button "{i18n.d.rel.no_tolera}" -> relPickNivel("no_tolera") class("dd-gchip dd-nivel-no_tolera") class("on" when relNivel == "no_tolera")
+                      }
+                      Span "{i18n.d.mot.titulo}" class("dd-hor-lbl")
+                      Stack class("dd-gsvc") {
+                        Button "{i18n.d.mot.agresion}" -> relPickMotivo("agresion") class("dd-gchip") class("on" when relMotivo == "agresion")
+                        Button "{i18n.d.mot.reactividad}" -> relPickMotivo("reactividad") class("dd-gchip") class("on" when relMotivo == "reactividad")
+                        Button "{i18n.d.mot.tamano}" -> relPickMotivo("tamano") class("dd-gchip") class("on" when relMotivo == "tamano")
+                        Button "{i18n.d.mot.celos}" -> relPickMotivo("celos") class("dd-gchip") class("on" when relMotivo == "celos")
+                        Button "{i18n.d.mot.celo}" -> relPickMotivo("celo") class("dd-gchip") class("on" when relMotivo == "celo")
+                      }
+                      Span "{i18n.d.pr.nota}" class("dd-hor-lbl")
+                      SearchField bind(relNota) "{i18n.d.pr.notaPh}"
+                      Stack class("dd-rel-editor-acts") {
+                        Button -> relCerrar class("dd-gchip") aria(label: "Cancelar / Cancel") { Icon "lucide:x" }
+                        Button "{i18n.d.pr.guardarRel}" -> relGuardar class("dd-cat-add dd-hor-save") disabled when relPerro == ""
+                      }
+                    }
+                  }
+
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" }
+                }
+              }
+            }
+          }
+
+          # ---- Modal de alta / edición ----
+          when pform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: perroCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "{i18n.d.pr.datos}" h3
+                  Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Form bind(pdraft) submit(perroGuardar) "{i18n.d.pr.guardar}"
+                Text "{i18n.d.pr.relHint}" class("dd-rel-hint")
+              }
+            }
           }
         }
       }
     }
+  }
+
+  # ---------- BOTTOM NAV (móvil / tablet) ----------
+  Nav class("dd-tabbar") {
+    Button -> go("dashboard") class("dd-on" when section == "dashboard") aria(label: "Inicio") { Icon "lucide:home" }
+    Button -> go("agenda")    class("dd-on" when section == "agenda")    aria(label: "Agenda") { Icon "lucide:calendar" }
+    Button -> go("grupos")    class("dd-on" when section == "grupos")    aria(label: "Grupos") { Icon "lucide:layout-grid" }
+    Button -> go("perros")    class("dd-on" when section == "perros")    aria(label: "Perros") { Icon "lucide:dog" }
+    Button -> go("perfil")    class("dd-on" when section == "perfil")    aria(label: "Perfil") { Icon "lucide:user" }
   }
 }

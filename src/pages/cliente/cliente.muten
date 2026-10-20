@@ -1,0 +1,498 @@
+screen cliente
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro from "~/lib/data.ts"
+use descargarFacturaCSV, descargarFacturaExcel from "~/lib/export.ts"
+use cop from "~/lib/money.ts"
+use tipoLabel from "~/lib/svc.ts"
+
+# Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro).
+entity PerroDraft {
+  nombre       text required
+  raza         text
+  tamano       pequeno | mediano | grande
+  conducta     tranquilo | energico | reactivo | sociable | jalador
+  sociabilidad excelente | bueno | cuidado | selectivo
+  tips         text
+}
+
+# Portal CLIENTE (dueño del perro). Reutiliza la estética .dd-* del paseador.
+# Datos: ClienteBridge (root) + store `cliente`. Inicio · Mis perros · Reservar
+# (acoplarse a las salidas de zona) · Agenda de paseos · Perfil.
+
+state {
+  section = "dashboard" : text
+  resSalidaId = "" : text
+  resSvcId    = "" : text
+  resTipo     = "" : text
+  resCuid     = "" : text
+  resHora     = "" : text
+  resZona     = "" : text
+  resPerro    = "" : text
+  resFecha    = "" : text
+  resForm     = false : bool
+  svcId       = "" : text
+  svcTipo     = "" : text
+  svcNombre   = "" : text
+  svcPerro    = "" : text
+  svcFecha    = "" : text
+  svcForm     = false : bool
+  prodId       = "" : text
+  prodTipo     = "" : text
+  prodNombre   = "" : text
+  prodPerro    = "" : text
+  prodCantidad = 1  : number
+  prodFecha    = "" : text
+  prodForm     = false : bool
+  pdraft       = {} : PerroDraft
+  pform        = false : bool
+  notifOpen    = false : bool
+}
+action go(s: text) mutates section { section.set(s) }
+action notifToggle mutates notifOpen { notifOpen.toggle() }
+action notifCerrar mutates notifOpen { notifOpen.set(false) }
+action irAgenda mutates section, notifOpen { section.set("agenda")  notifOpen.set(false) }
+# Registrar un perro propio (el server lo crea y me enlaza como dueño principal).
+action perroNuevo mutates pdraft, pform { pdraft.reset()  pform.set(true) }
+action perroCerrar mutates pform { pform.set(false) }
+action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
+# Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
+action salir { cliente.limpiar()  auth.logout() }
+action resAbrir(sid: text, svc: text, tipo: text, cuid: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resTipo, resCuid, resHora, resZona, resPerro, resFecha, resForm {
+  resSalidaId.set(sid)  resSvcId.set(svc)  resTipo.set(tipo)  resCuid.set(cuid)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
+}
+action resPickPerro(id: text) mutates resPerro { resPerro.set(id) }
+action resCerrar mutates resForm { resForm.set(false) }
+action resConfirmar mutates resForm { reservarPaseo(resPerro, resSvcId, resTipo, resCuid, resHora, resSalidaId, resFecha)  resForm.set(false) }
+# Pedir un servicio (baño/guardería/corte/…): elegir perro + fecha → prestación.
+action svcAbrir(id: text, tipo: text, nombre: text) mutates svcId, svcTipo, svcNombre, svcPerro, svcFecha, svcForm { svcId.set(id)  svcTipo.set(tipo)  svcNombre.set(nombre)  svcPerro.set("")  svcFecha.set("")  svcForm.set(true) }
+action svcPickPerro(id: text) mutates svcPerro { svcPerro.set(id) }
+action svcCerrar mutates svcForm { svcForm.set(false) }
+action svcConfirmar mutates svcForm { reservarServicio(svcPerro, svcId, svcTipo, svcFecha)  svcForm.set(false) }
+# Comprar un producto (comida/snack): perro + cantidad + fecha → venta registrada.
+action prodAbrir(id: text, tipo: text, nombre: text) mutates prodId, prodTipo, prodNombre, prodPerro, prodCantidad, prodFecha, prodForm { prodId.set(id)  prodTipo.set(tipo)  prodNombre.set(nombre)  prodPerro.set("")  prodCantidad.set(1)  prodFecha.set("")  prodForm.set(true) }
+action prodPickPerro(id: text) mutates prodPerro { prodPerro.set(id) }
+action prodCerrar mutates prodForm { prodForm.set(false) }
+action prodConfirmar mutates prodForm { venderProducto(prodPerro, prodId, prodTipo, prodCantidad, prodFecha)  prodForm.set(false) }
+# Descargar la factura del perro abierto (CSV / Excel).
+action facCSV { descargarFacturaCSV(cliente.facturaPerro, cliente.facturaNombre) }
+action facXLS { descargarFacturaExcel(cliente.facturaPerro, cliente.facturaNombre) }
+
+Stack class("dd-app") {
+
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, loaded: cliente.setLoaded)
+  # Vigía de red (O4): alimenta el aviso offline del shell.
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
+
+  # ---------- SIDEBAR ----------
+  Sidebar class("dd-side") {
+    Stack class("dd-brand") { Span "D" class("dd-logo")  Span "DevDogs" class("dd-brandname") }
+    Span "Cliente" class("dd-navlbl")
+    Button -> go("dashboard") class("dd-lnk") class("dd-on" when section == "dashboard") { Icon "lucide:home"      Span "Inicio" }
+    Button -> go("perros")    class("dd-lnk") class("dd-on" when section == "perros")    { Icon "lucide:dog"       Span "Mis perros" }
+    Button -> go("reservar")  class("dd-lnk") class("dd-on" when section == "reservar")  { Icon "lucide:calendar-plus" Span "Reservar" }
+    Button -> go("tienda")    class("dd-lnk") class("dd-on" when section == "tienda")    { Icon "lucide:shopping-bag" Span "Tienda" }
+    Button -> go("agenda")    class("dd-lnk") class("dd-on" when section == "agenda")    { Icon "lucide:calendar"  Span "Agenda" }
+    Button -> go("perfil")    class("dd-lnk") class("dd-on" when section == "perfil")    { Icon "lucide:user"      Span "Perfil" }
+    Stack class("dd-foot") {
+      Span "{initial(auth.userName)}" class("dd-ua")
+      Stack { Span "{auth.userName}" class("dd-un")  Span "Cliente" class("dd-ur") }
+    }
+  }
+
+  Stack class("dd-content") {
+    Stack class("dd-screen") {
+
+      # ==== INICIO: skeleton ====
+      when section == "dashboard" and not cliente.loaded {
+        Stack class("dd-sec skel-col") {
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av")
+            Stack class("skel-col") { Stack class("skel-b skel-text-s")  Stack class("skel-b skel-text") }
+          }
+          Stack class("skel-b skel-heading")
+          Stack class("skel-b skel-heading-sm")
+          Stack class("skel-row") {
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+            Stack class("skel-b skel-circle skel-av-sm")
+          }
+          Stack class("skel-b skel-line")
+          Stack class("skel-b skel-line")
+          Stack class("skel-b skel-line")
+        }
+      }
+      # ==== INICIO ====
+      when section == "dashboard" and cliente.loaded {
+        Stack class("dd-sec") {
+          Stack class("dd-top") {
+            Stack class("dd-greet") {
+              Span "{initial(auth.userName)}" class("dd-ga")
+              Stack { Span "Buen día 👋" class("dd-gm")  Span "{auth.userName}" class("dd-gn") }
+            }
+            Button -> notifToggle class("dd-bell dd-bell-count") aria(label: "Novedades") {
+              Icon "lucide:bell"
+              when cliente.nNovedades > 0 { Span "{cliente.nNovedades}" class("dd-bell-badge") }
+            }
+          }
+          # Panel de novedades (notificaciones in-app).
+          when notifOpen {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: notifCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Novedades" h3
+                  Button -> notifCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                when cliente.nNovedades == 0 {
+                  Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:bell" }  Text "Sin novedades por ahora." }
+                }
+                Stack class("dd-cat-list") {
+                  each cliente.novedades as n {
+                    Button -> irAgenda class("dd-notif") {
+                      Stack class("dd-notif-ic") {
+                        when n.kind == "foto" { Icon "lucide:image" }
+                        when n.kind == "hoy" { Icon "lucide:calendar-clock" }
+                      }
+                      Stack class("dd-cat-info") {
+                        when n.kind == "hoy" { Span "Hoy {n.hora}: {n.servicio}" class("nm") }
+                        when n.kind == "foto" { Span "Fotos del paseo de {n.perro} 📷" class("nm") }
+                        Span "{n.perro} · {n.fecha}" class("meta")
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          Stack class("dd-h1") aria(role: "heading", level: "1") {
+            Span "{cliente.proximos} paseos"
+            Span "próximos"
+          }
+          Stack class("dd-dogs-total") {
+            Stack class("dd-dt-head") {
+              Span "{cliente.nPerros} perros" class("dd-dt-label")
+              Button -> go("reservar") class("dd-dt-add") aria(label: "Reservar") { Icon "lucide:plus" }
+            }
+            Stack class("dd-dt-row") {
+              each cliente.misPerros.take(6) as p {
+                Stack class("dd-dogav") {
+                  when p.foto { Image "{p.foto}" alt("{p.nombre}") }
+                  when p.foto == "" { Span "🐕" }
+                }
+              }
+              when cliente.nPerros == 0 { Span "Sin perros aún" class("dd-dt-empty") }
+            }
+          }
+          # Estado de cuenta: saldo pendiente (paseos realizados sin cobrar).
+          when cliente.saldoPendiente > 0 {
+            Button -> go("perros") class("dd-saldo") aria(label: "Ver facturas") {
+              Stack class("dd-saldo-ic") { Icon "lucide:wallet" }
+              Stack class("dd-saldo-info") {
+                Span "Saldo pendiente" class("dd-saldo-l")
+                Span "{cop(cliente.saldoPendiente)}" class("dd-saldo-v")
+              }
+              Icon "lucide:chevron-right" class("chev")
+            }
+          }
+
+          Span "Próximos paseos" class("dd-emp-lbl")
+          when cliente.proximos == 0 { Text "No tenés paseos próximos. Reservá uno." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each cliente.misPaseos as p where p.futuro {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:calendar" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                  Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== MIS PERROS ====
+      when section == "perros" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") {
+            Title "Mis perros" h2
+            Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Registrar perro" }
+          }
+          when cliente.nPerros == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registrá tu perro para reservar sus salidas y servicios." }
+          }
+          Stack class("dd-cat-list") {
+            each cliente.misPerros as p {
+              Stack class("dd-cat-item") {
+                Stack class("av") {
+                  when p.foto { Image "{p.foto}" alt("{p.nombre}") }
+                  when p.foto == "" { Span "🐕" }
+                }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{p.nombre}" class("nm") }
+                  when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Factura" }
+                }
+              }
+            }
+          }
+          when pform {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: perroCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Registrar perro" h3
+                  Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Form bind(pdraft) submit(miPerroGuardar) "Guardar perro"
+              }
+            }
+          }
+        }
+      }
+
+      # ==== RESERVAR (acoplarse a las salidas) ====
+      when section == "reservar" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Reservar" h2 }
+          Text "Elegí una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
+          when cliente.salidas.length == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar-plus" }  Title "Sin salidas" h2  Text "El negocio todavía no publicó salidas." }
+          }
+          Stack class("dd-cat-list") {
+            each cliente.salidas as s {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{s.servicio}" class("nm")  when s.zona { Span "{s.zona}" class("cd") } }
+                  Span "Sale {s.hora}" class("meta")
+                }
+                Stack class("acts") {
+                  Button "Reservar" -> resAbrir(s.id, s.servicioId, s.tipo, s.cuidadorId, s.hora, s.zona) class("dd-cat-add dd-cli-resbtn")
+                }
+              }
+            }
+          }
+
+          # Otros servicios (baño, guardería, corte, vet…) — pedir un turno directo.
+          Span "Otros servicios" class("dd-emp-lbl")
+          Text "Baño, guardería, corte de garras y más — pedí un turno." class("dd-cli-hint")
+          when cliente.nOtrosServicios == 0 { Text "El negocio aún no publicó otros servicios." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each cliente.servicios as sv where sv.tipo != "paseo" {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:sparkles" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
+                  when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button "Pedir" -> svcAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== TIENDA (comida y snacks) ====
+      when section == "tienda" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Tienda" h2 }
+          Text "Comida y snacks para tu perro. La compra queda en tu cuenta." class("dd-cli-hint")
+          when cliente.nProductos == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:shopping-bag" }  Title "Sin productos" h2  Text "El negocio todavía no publicó productos." }
+          }
+          Stack class("dd-cat-list") {
+            each cliente.servicios as sv where sv.tipo == "comida" or sv.tipo == "accesorio" {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:package" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
+                  when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
+                }
+                Stack class("acts") {
+                  Button "Comprar" -> prodAbrir(sv.id, sv.tipo, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== AGENDA (mis paseos) ====
+      when section == "agenda" {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Agenda de paseos" h2 }
+          when cliente.misPaseos.length == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar" }  Title "Sin paseos" h2  Text "Todavía no hay paseos registrados." }
+          }
+          Stack class("dd-cat-list") {
+            each cliente.misPaseos as p {
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") class("dd-cli-past" when not p.futuro) {
+                  Stack class("dd-sv-ic") { Icon "lucide:paw-print" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                    Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+                  }
+                }
+                # Fotos del paseo (si el paseador subió alguna).
+                Stack class("dd-paseo-fotos-grid") {
+                  each cliente.misFotos as ft where ft.paseoId == p.id {
+                    Image "{ft.url}" alt("Foto del paseo de {p.perro}") class("dd-paseo-foto")
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      # ==== PERFIL ====
+      when section == "perfil" {
+        Stack class("dd-sec") {
+          Stack class("dd-pf-hero") {
+            Span "{initial(auth.userName)}" class("dd-pf-av")
+            Span "{auth.userName}" class("dd-pf-name")
+            Span "Cliente" class("dd-pf-role")
+          }
+          Stack class("dd-pf-stats") {
+            Stack class("dd-pf-stat") { Span "{cliente.nPerros}" class("v")  Span "Perros" class("l") }
+            Stack class("dd-pf-stat") { Span "{cliente.proximos}" class("v")  Span "Próximos" class("l") }
+          }
+          Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
+        }
+      }
+
+      # ---- Modal: reservar ----
+      when resForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: resCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Reservar en {resZona}" h3
+              Button -> resCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Text "Sale {resHora}" class("dd-cli-hint")
+              Span "¿Qué perro?" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each cliente.misPerros as p {
+                  Button "{p.nombre}" -> resPickPerro(p.id) class("dd-gchip") class("on" when resPerro == p.id)
+                }
+                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+              }
+              Span "Fecha" class("dd-hor-lbl")
+              Date bind(resFecha)
+              Button "Confirmar reserva" -> resConfirmar class("dd-cat-add dd-hor-save") disabled when resPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Modal: pedir un servicio (baño/guardería/corte/…) ----
+      when svcForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: svcCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Pedir {svcNombre}" h3
+              Button -> svcCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Span "¿Qué perro?" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each cliente.misPerros as p {
+                  Button "{p.nombre}" -> svcPickPerro(p.id) class("dd-gchip") class("on" when svcPerro == p.id)
+                }
+                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+              }
+              Span "Fecha" class("dd-hor-lbl")
+              Date bind(svcFecha)
+              Button "Confirmar" -> svcConfirmar class("dd-cat-add dd-hor-save") disabled when svcPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Modal: comprar un producto (comida/snack) ----
+      when prodForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: prodCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Comprar {prodNombre}" h3
+              Button -> prodCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-gform") {
+              Span "¿Para qué perro?" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each cliente.misPerros as p {
+                  Button "{p.nombre}" -> prodPickPerro(p.id) class("dd-gchip") class("on" when prodPerro == p.id)
+                }
+                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+              }
+              Span "Cantidad" class("dd-hor-lbl")
+              Number bind(prodCantidad) min(1) max(99)
+              Span "Fecha" class("dd-hor-lbl")
+              Date bind(prodFecha)
+              Button "Confirmar compra" -> prodConfirmar class("dd-cat-add dd-hor-save") disabled when prodPerro == ""
+            }
+          }
+        }
+      }
+
+      # ---- Factura / registro del perro (la "libreta": ver en la app + CSV/Excel) ----
+      when cliente.facturaPerro != "" {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: cliente.facturaCerrar)
+          Stack class("dd-cal-sheet dd-fac-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Factura · {cliente.facturaNombre}" h3
+              Button -> cliente.facturaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            Stack class("dd-fac-meta") {
+              Span "{auth.userName}" class("dueno")
+              Span "{cliente.facturaCount} servicios" class("cnt")
+            }
+            Stack class("dd-fac-table") {
+              Stack class("dd-fac-row dd-fac-head") {
+                Span "Fecha" class("c-f")  Span "Servicio" class("c-s")  Span "Estado" class("c-e")  Span "Precio" class("c-p")
+              }
+              each cliente.facturaRows as p {
+                Stack class("dd-fac-row") {
+                  Span "{p.fecha}" class("c-f")
+                  Span "{p.servicio}" class("c-s")
+                  Span "{p.estado}" class("c-e")
+                  when p.cobrable { Span "{cop(p.precio)}" class("c-p") }
+                  when not p.cobrable { Span "Mensualidad" class("c-p men") }
+                }
+              }
+              when cliente.facturaCount == 0 { Text "Sin servicios registrados para este perro." class("dd-cli-empty") }
+            }
+            Stack class("dd-fac-total") {
+              Span "Total" class("l")
+              Span "{cop(cliente.facturaTotal)}" class("v")
+            }
+            Stack class("dd-fac-actions") {
+              Button -> facCSV class("dd-fac-exp") { Icon "lucide:download"  Span "CSV" }
+              Button -> facXLS class("dd-fac-exp") { Icon "lucide:download"  Span "Excel" }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  # ---------- BOTTOM NAV ----------
+  Nav class("dd-tabbar") {
+    Button -> go("dashboard") class("dd-on" when section == "dashboard") aria(label: "Inicio") { Icon "lucide:home" }
+    Button -> go("perros")    class("dd-on" when section == "perros")    aria(label: "Mis perros") { Icon "lucide:dog" }
+    Button -> go("reservar")  class("dd-on" when section == "reservar")  aria(label: "Reservar") { Icon "lucide:calendar-plus" }
+    Button -> go("tienda")    class("dd-on" when section == "tienda")    aria(label: "Tienda") { Icon "lucide:shopping-bag" }
+    Button -> go("agenda")    class("dd-on" when section == "agenda")    aria(label: "Agenda") { Icon "lucide:calendar" }
+    Button -> go("perfil")    class("dd-on" when section == "perfil")    aria(label: "Perfil") { Icon "lucide:user" }
+  }
+}

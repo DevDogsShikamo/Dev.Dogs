@@ -1,0 +1,57 @@
+# Catálogo maestro de perros del negocio (schema v3). Solo la LISTA (lectura).
+# Datos in: bridge CatalogoPerros. El form de alta/edición vive en la página
+# (dashboard.muten) porque el `Form` de Muten necesita un draft de page-state.
+entity PerroCat {
+  id       text
+  nombre   text
+  raza     text
+  tamano   text
+  conducta text
+  tips     text
+  foto     text
+  # Disposición GENERAL con otros perros: excelente | bueno | cuidado | selectivo (o "").
+  sociabilidad text
+  # Relaciones específicas (unión simétrica): cantidad + peor nivel (para el badge).
+  relN     number
+  relWorst text
+}
+
+# Una relación puntual entre dos perros, YA RESUELTA y DIRECCIONAL (una fila por
+# cada perspectiva). deId = perro observado; aId/aNombre/... = el otro perro.
+# Se filtra por deId == <perro abierto>. Lista PLANA (no anidada) a propósito.
+entity Relacion {
+  id      text
+  deId    text
+  aId     text
+  aNombre text
+  aFoto   text
+  aRaza   text
+  nivel   text
+  nota    text
+  motivo  text
+}
+
+state {
+  # persist = SWR: al recargar pinta del cache de localStorage al instante y
+  # DataBootstrap revalida contra la red por detrás (Fase 3). Se limpia en logout.
+  perros    = [] : list<PerroCat> persist
+  relaciones = [] : list<Relacion> persist
+  loaded    = false : bool persist
+}
+
+get total = perros.length
+
+action setPerros(rows: list<PerroCat>) mutates perros { perros.set(rows) }
+action setRelaciones(rows: list<Relacion>) mutates relaciones { relaciones.set(rows) }
+
+# ---- Optimistas: la UI responde al instante; data.ts persiste por detrás y, si
+# falla, dispara supa:refresh para revertir a la verdad + un toast. Editar campos
+# básicos NO toca relN/relWorst (patch solo setea lo listado). Params con prefijo
+# n* para no chocar con los campos (item-implícito en `with`).
+action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconducta: text, nsoc: text, ntips: text, nfoto: text) mutates perros {
+  perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, foto: nfoto }
+}
+action perroQuitar(pid: text) mutates perros { perros.remove where id == pid }
+action setLoaded mutates loaded { loaded.set(true) }
+# Limpia el cache al hacer logout (in-memory + persist).
+action limpiar mutates perros, relaciones, loaded { perros.reset()  relaciones.reset()  loaded.set(false) }

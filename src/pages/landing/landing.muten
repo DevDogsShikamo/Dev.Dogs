@@ -1,0 +1,456 @@
+screen landing
+
+entity Review {
+  name   text required
+  role   text
+  rating number
+  body   text required
+}
+
+state {
+  mail     = "" : text
+  nombre   = "" : text
+  contacto = "" : text
+  reviews  = query reviews : list<Review>
+  skel     = [ { n: 1 }, { n: 2 }, { n: 3 }, { n: 4 } ] : list
+}
+
+# Las 4 mejores reseñas (ordenadas por rating).
+get ranked = reviews.data.sortDesc by rating
+get top    = ranked.take(4)
+
+# Datos de demo mientras se conecta el backend real.
+# Vaciá esta lista (o dejá que el query devuelva []) para ver el esqueleto.
+mock {
+  reviews: [
+    { name: "Valentina Ríos", role: "Dueña de Rocky",      rating: 5, body: "Impecable. Me llega la foto de entrega cada tarde y sé exactamente a qué hora salió mi perro. Tranquilidad total." }
+    { name: "Martín Aguirre", role: "Dueño de Luna & Toby", rating: 5, body: "Reservar es de otro nivel: elijo el horario y listo. El reporte diario con fotos me encanta." }
+    { name: "Camila Duarte",  role: "Dueña de Pelusa",       rating: 5, body: "Se nota que aman a los perros. Pelusa vuelve feliz y cansada de sus paseos. Cero preocupaciones." }
+    { name: "Julián Ortega",  role: "Dueño de Thor",         rating: 4, body: "El adiestramiento con refuerzo positivo funcionó. Thor mejoró un montón en pocas semanas." }
+  ]
+}
+
+# Hero: corte diagonal + medalla giratoria + collage de stickers (concepto 04).
+Page class("lp2") {
+  Stack class("dc-hero") {
+    Stack class("dc-grid") {
+
+      # ---- lado izquierdo: texto ----
+      Stack class("dc-left") {
+        Image "/devdogs-wordmark.png" alt("DevDogs") class("dc-logo")
+        Stack class("dc-eye") { Span "Gestión de paseos" }
+        Stack class("dc-h") {
+          Span "Domina tus "
+          Span "paseos." class("dc-acc")
+        }
+        Text "Agenda tus salidas, llevá la ficha de cada perro y cerrá las cuentas del mes." class("dc-sub")
+        Stack class("dc-cta") {
+          Link "Empezar gratis" -> "/signup" class("dc-ctabtn")
+          Text "Sin tarjeta — tu cuenta queda lista en segundos." class("dc-ctanote")
+        }
+        Stack class("dc-stats") {
+          Stack class("dc-stat") { Span "+1.200" class("dc-statn")  Span "paseos" class("dc-statk") }
+          Stack class("dc-stat") { Span "4.9★"   class("dc-statn")  Span "dueños felices" class("dc-statk") }
+          Stack class("dc-stat") { Span "0$"     class("dc-statn")  Span "para empezar" class("dc-statk") }
+        }
+      }
+
+      # ---- lado derecho: foto en diagonal + stickers ----
+      Stack class("dc-right") {
+        Stack class("dc-photo") {}
+
+        Stack class("dc-sticker dc-k1") {
+          Stack class("dc-chip-ic") { Icon "lucide:check" }
+          Stack class("dc-chip-body") {
+            Span "Rocky entregado" class("dc-chip-t")
+            Span "16:42 · El Poblado" class("dc-chip-s")
+          }
+        }
+
+        Stack class("dc-sticker dc-k2") {
+          Stack class("dc-chip-ic") { Icon "lucide:map-pin" }
+          Stack class("dc-chip-body") {
+            Span "3 perros en ruta" class("dc-chip-t")
+            Span "Grupo mañana" class("dc-chip-s")
+          }
+        }
+
+        Stack class("dc-sticker dc-k3 dc-mini") {
+          Stack class("dc-mini-box") { Span "LUNA & TOBY" }
+          Stack class("dc-mini-cap") {
+            Span "Salida de la tarde" class("dc-chip-t")
+            Span "Check-in 08:15" class("dc-chip-s")
+          }
+        }
+
+        Stack class("dc-sticker dc-k4 dc-tag") {
+          Icon "lucide:repeat"
+          Span "Recurrentes"
+        }
+      }
+
+      # ---- medalla giratoria (centro exacto del hero) ----
+      Stack class("dc-medal") {
+        Image "/dc-medal.svg" alt("") class("dc-medal-ring")
+        Stack class("dc-medal-mid") {
+          Stack class("dc-medal-btn") { Icon "lucide:arrow-right" }
+        }
+      }
+    }
+  }
+
+  # ===== Servicios (cinemático · fondo mango · 3 cartas largas) =====
+  Stack class("sv") {
+    Stack class("sv-wave-t") {}
+    Stack class("sv-wave") {}
+    Stack class("sv-head") {
+      Stack class("sv-eye") { Icon "lucide:plus"  Span "Nuestros servicios" }
+      Stack class("sv-h") {
+        Span "¿Qué necesita "
+        Span "tu perro" class("sv-acc")
+        Span "?"
+      }
+      Text "Elegí la salida según su energía y carácter. Todo queda registrado, con foto de entrega y facturable." class("sv-sub")
+    }
+
+    Stack class("sv-grid") {
+
+      Link "" -> "/signup" class("sv-card") {
+        Stack class("sv-photo sv-hosp") {}
+        Stack class("sv-scrim") {}
+        Span " · Hospedaje" class("sv-fototag")
+        Stack class("sv-cb") {
+          Image "/Boarding.svg" alt("") class("sv-ic")
+          Span "Hospedaje" class("sv-ct")
+          Text "Se queda a dormir con nosotros. Cuidado día y noche, con fotos y reporte diario." class("sv-cd")
+          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+        }
+      }
+
+      Link "" -> "/signup" class("sv-card") {
+        Stack class("sv-photo sv-paseo") {}
+        Stack class("sv-scrim") {}
+        Span "· Paseos caninos" class("sv-fototag")
+        Stack class("sv-cb") {
+          Image "/Walking.svg" alt("") class("sv-ic")
+          Span "Paseos caninos" class("sv-ct")
+          Text "Salidas a la medida de cada perro. Check-in en vivo y foto de entrega, siempre." class("sv-cd")
+          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+        }
+      }
+
+      Link "" -> "/signup" class("sv-card") {
+        Stack class("sv-photo sv-adies") {}
+        Stack class("sv-scrim") {}
+        Span " · Adiestramiento" class("sv-fototag")
+        Stack class("sv-cb") {
+          Image "/Daycare.svg" alt("") class("sv-ic")
+          Span "Adiestramiento" class("sv-ct")
+          Text "Educación con refuerzo positivo: órdenes, hábitos y buena conducta, paso a paso." class("sv-cd")
+          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+        }
+      }
+    }
+
+    Stack class("sv-proof") {
+      Stack class("sv-proof-eye") { Icon "lucide:plus"  Span "Todo en un solo lugar" }
+      Stack class("sv-proof-h") {
+        Span "Hospedaje," class("sv-proof-l")
+        Span "paseos y adiestramiento." class("sv-proof-l")
+        Stack class("sv-proof-l") {
+          Span "cuidado "
+          Span "completo" class("sv-proof-acc")
+        }
+        Span "de tu perro." class("sv-proof-l sv-proof-acc")
+      }
+      Link "Agendar servicio" -> "/signup" class("sv-cta-btn sv-proof-btn")
+    }
+  }
+
+  # ===== Agenda del negocio (Luxe · blanco · serif · líneas finas · detalles uva) =====
+  Section class("ag") {
+    Stack class("ag-grid") {
+
+      # ---- izquierda: agenda del día + números ----
+      Stack class("ag-left") {
+        Stack class("ag-day") {
+          Stack class("ag-row") {
+            Span "8:00" class("ag-t")
+            Stack class("ag-main") {
+              Stack class("ag-who") { Span "Rocky — Val. Ríos" class("ag-nm")  Span "Paseo" class("ag-sv") }
+              Span "$8.000" class("ag-pr")
+            }
+          }
+          Stack class("ag-row") {
+            Span "9:00" class("ag-t")
+            Stack class("ag-main") {
+              Span "Libre hasta las 10:00" class("ag-free")
+              Stack class("ag-dot") {}
+            }
+          }
+          Stack class("ag-row") {
+            Span "10:00" class("ag-t")
+            Stack class("ag-main") {
+              Stack class("ag-who") { Span "Luna & Toby — M. Aguirre" class("ag-nm")  Span "Guardería" class("ag-sv") }
+              Span "$18.000" class("ag-pr")
+            }
+          }
+          Stack class("ag-row") {
+            Span "12:00" class("ag-t")
+            Stack class("ag-main") {
+              Stack class("ag-who") { Span "Pelusa — C. Duarte" class("ag-nm")  Span "Baño" class("ag-sv") }
+              Span "sin cobrar" class("ag-pr ag-pr-soft")
+            }
+          }
+          Stack class("ag-row") {
+            Span "2:00" class("ag-t")
+            Stack class("ag-main") {
+              Stack class("ag-who") { Span "Thor — J. Ortega" class("ag-nm")  Span "Adiestramiento" class("ag-sv") }
+              Span "$15.000" class("ag-pr")
+            }
+          }
+        }
+
+        Stack class("ag-stats") {
+          Stack class("ag-stat") { Span "$430.000" class("ag-sn")  Span "Cobrado este mes" class("ag-sk") }
+          Stack class("ag-stat") { Span "$48.000" class("ag-sn")  Span "Sin cobrar" class("ag-sk") }
+          Stack class("ag-stat") { Span "Paseo grupal" class("ag-sn ag-sn-sm")  Span "Lo más pedido" class("ag-sk") }
+        }
+      }
+
+      # ---- derecha: copy ----
+      Stack class("ag-copy") {
+        Span "Y del otro lado" class("ag-eye")
+        Stack class("ag-h") {
+          Span "Tu día, sin tener que "
+          Span "armarlo" class("ag-acc")
+        }
+        Text "Abrís la app y ya está hecho: qué perro sale, a qué hora, cuánto y qué falta cobrar. Los números salen de los servicios que hiciste, no hay nada que cargar." class("ag-sub")
+      }
+    }
+  }
+
+  # ===== Por qué DevDogs (imagen recortada + 3 pilares) =====
+  Section class("pq") {
+    Stack class("pq-grid") {
+
+      Stack class("pq-img") {
+        Stack class("pq-blob") {}
+        Stack class("pq-deco pq-deco1") { Icon "lucide:paw-print" }
+        Stack class("pq-deco pq-deco2") { Icon "lucide:heart" }
+      }
+
+      Stack class("pq-copy") {
+        Stack class("pq-head") {
+          Span "Sobre nosotros" class("pq-eye")
+          Stack class("pq-h") {
+            Span "¿Por qué "
+            Span "DevDogs" class("pq-acc")
+            Span "?"
+          }
+          Text "Todo lo que necesitás para gestionar tus paseos, clientes y cobros — en un solo lugar." class("pq-sub")
+        }
+
+        Stack class("pq-items") {
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:camera" }
+            Stack class("pq-txt") {
+              Span "Control total" class("pq-it")
+              Text "Check-in en vivo, foto de entrega y reporte diario. El dueño sabe exactamente qué pasa con su perro." class("pq-id")
+            }
+          }
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:calendar-check" }
+            Stack class("pq-txt") {
+              Span "Agenda automática" class("pq-it")
+              Text "Abrís la app y ya está: quién viene, a qué hora, qué servicio. Sin armar nada a mano." class("pq-id")
+            }
+          }
+          Stack class("pq-item") {
+            Stack class("pq-ic") { Icon "lucide:wallet" }
+            Stack class("pq-txt") {
+              Span "Cuentas claras" class("pq-it")
+              Text "Cobros por servicio, estado de cuenta por cliente y cierre de mes. Sin planillas ni WhatsApp." class("pq-id")
+            }
+          }
+        }
+      }
+    }
+  }
+
+  # ===== Reseñas (fondo claro · 4 mejores reseñas reales · esqueleto si no hay) =====
+  Section class("rv") {
+    Stack class("rv-wave-t") {}
+    Stack class("rv-head") {
+      Stack class("rv-headl") {
+        Stack class("rv-eye") { Icon "lucide:heart-handshake"  Span "Lo que dicen" }
+        Stack class("rv-h") {
+          Span "Dueños que ya "
+          Span "nos eligen." class("rv-acc")
+        }
+        Text "Reseñas reales de quienes dejan a su perro en nuestras manos." class("rv-sub")
+      }
+      Link "" -> "/signup" class("rv-all") { Span "Ver todas"  Icon "lucide:arrow-up-right" }
+    }
+
+    # Sin reseñas todavía (o cargando) → esqueleto.
+    when reviews.loading or reviews.data.length == 0 {
+      List class("rv-grid") {
+        each skel as s {
+          Stack class("rv-card rv-skelcard") {
+            Stack class("rv-sk rv-sk-stars") {}
+            Stack class("rv-sk rv-sk-l1") {}
+            Stack class("rv-sk rv-sk-l2") {}
+            Stack class("rv-sk rv-sk-l3") {}
+            Stack class("rv-foot") {
+              Stack class("rv-sk rv-sk-av") {}
+              Stack class("rv-fx") {
+                Stack class("rv-sk rv-sk-nm") {}
+                Stack class("rv-sk rv-sk-role") {}
+              }
+            }
+          }
+        }
+      }
+    }
+
+    # Con reseñas → las 4 mejores.
+    when not reviews.loading and reviews.data.length > 0 {
+      List class("rv-grid") {
+        each top as r {
+          Article class("rv-card") {
+            Stack class("rv-stars") {
+              Icon "lucide:star"
+              Icon "lucide:star"
+              Icon "lucide:star"
+              Icon "lucide:star"
+              Icon "lucide:star"
+              Span "{r.rating}.0" class("rv-score")
+            }
+            Text "{r.body}" class("rv-body")
+            Stack class("rv-foot") {
+              Stack class("rv-av") { Span "{initial(r.name)}" }
+              Stack class("rv-fx") {
+                Span "{r.name}" class("rv-nm")
+                Span "{r.role}" class("rv-role")
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  # ===== Buscador (CTA central · píldora de búsqueda tipo marketplace) =====
+  Section class("bs") {
+    Stack class("bs-head") {
+      Span "Buscá y reservá" class("bs-eye")
+      Title "Encontrá dónde agendar, cerca tuyo" h2 class("bs-h")
+      Text "Escribí un servicio o tocá una categoría: te llevamos al buscador con los negocios que ya usan DevDogs." class("bs-sub")
+    }
+
+    Stack class("bs-bar") {
+      Link "" -> "/signup" class("bs-field") {
+        Icon "lucide:search" class("bs-fic")
+        Stack class("bs-ftx") {
+          Span "Servicio" class("bs-flabel")
+          Span "Elegí un servicio" class("bs-fval")
+        }
+      }
+      Stack class("bs-div") {}
+      Link "" -> "/signup" class("bs-field") {
+        Icon "lucide:map-pin" class("bs-fic")
+        Stack class("bs-ftx") {
+          Span "Ubicación" class("bs-flabel")
+          Span "Elegí tu ciudad" class("bs-fval")
+        }
+      }
+      Stack class("bs-div") {}
+      Link "" -> "/signup" class("bs-field") {
+        Icon "lucide:calendar" class("bs-fic")
+        Stack class("bs-ftx") {
+          Span "Cuándo" class("bs-flabel")
+          Span "Cualquier día" class("bs-fval")
+        }
+      }
+      Link "" -> "/signup" class("bs-btn") {
+        Icon "lucide:search"
+        Span "Buscar"
+      }
+    }
+
+    Stack class("bs-wave-b") {}
+  }
+
+  # ===== Pre-footer (CTA + perro que sobresale — ref Pet Shop) =====
+  Section class("pf") {
+
+    Stack class("pf-grid") {
+      # ---- izquierda: título + form ----
+      Stack class("pf-copy") {
+        Stack class("pf-h") {
+          Span "¿Tenés "
+          Span "preguntas?" class("pf-acc")
+        }
+        Text "Escribinos y te respondemos en minutos. También podés dejarnos tu reseña — nos ayuda a mejorar." class("pf-sub")
+
+        Stack class("pf-form") {
+          Stack class("pf-field") {
+            Span "Tu nombre" class("pf-label")
+            SearchField bind(nombre) "Juan Pérez" class("pf-input")
+          }
+          Stack class("pf-field") {
+            Span "Tu WhatsApp" class("pf-label")
+            SearchField bind(contacto) "+57 300 123 4567" class("pf-input")
+          }
+          Link "Contactanos" -> "/signup" class("pf-btn")
+        }
+      }
+
+      # ---- derecha: perro que sobresale ----
+      Stack class("pf-dog") {
+        Image "/footer-dog.png" alt("") class("pf-dogimg")
+      }
+    }
+  }
+
+  # ===== Footer (claro: marca centrada + 3 columnas + foto del parque al pie) =====
+  Footer class("gf") {
+    Span "DEVDOGS" class("gf-giant") aria(hidden: true)
+    Image "/footer-hills.jpg" alt("") class("gf-scene")
+
+    Stack class("gf-logo") {
+      Image "/devdogs-mark.png" alt("") class("gf-mark")
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gf-wordmark")
+    }
+    
+    Span "Medellín, Antioquia, Colombia" class("gf-addr")
+    Span "+57 300 123 4567" class("gf-phone")
+
+    Span "" class("gf-rule")
+
+    Stack class("gf-cols") {
+      Nav class("gf-col") aria(label: "Servicios") {
+        Span "Servicios" class("gf-colh")
+        Link "Paseos" -> "/signup" class("gf-link")
+        Link "Guardería" -> "/signup" class("gf-link")
+        Link "Baño y corte" -> "/signup" class("gf-link")
+        Link "Adiestramiento" -> "/signup" class("gf-link")
+      }
+      Nav class("gf-col") aria(label: "Cuenta") {
+        Span "Cuenta" class("gf-colh")
+        Link "Iniciar sesión" -> "/login" class("gf-link")
+        Link "Registrarse" -> "/signup" class("gf-link")
+        Link "Unirme con código" -> "/unirse" class("gf-link")
+        Link "Contacto" -> "/signup" class("gf-link")
+      }
+      Nav class("gf-col") aria(label: "DevDogs") {
+        Span "DevDogs" class("gf-colh")
+        Link "Nosotros" -> "/signup" class("gf-link")
+        Link "Reseñas" -> "/signup" class("gf-link")
+      }
+    }
+
+    Span "© 2026 DevDogs — Todos los derechos reservados" class("gf-copy")
+  }
+}

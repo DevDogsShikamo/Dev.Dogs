@@ -1,24 +1,107 @@
-# Company profile — the "Información de la empresa" data.
-entity Empresa {
-  nombre     text required
-  eslogan    text
-  telefono   text
-  ciudad     text
-  paseadores number
-  clientes   number
-  perros     number
+# Estado del portal EMPRESA — agrega sobre muchos paseadores y clientes del negocio.
+# Datos in: bridge EmpresaBridge (profiles por rol + prestaciones de hoy agregadas).
+entity PaseadorRow {
+  id        text
+  nombre    text
+  telefono  text
+  zona      text
+  salario   number
+  verificado bool
+  paseosHoy number
 }
+entity ClienteRow {
+  id       text
+  nombre   text
+  telefono text
+}
+# Empleado de gestión (rol empresa, no dueño) — la "oficina".
+entity GestionRow {
+  id       text
+  nombre   text
+  telefono text
+}
+entity Invitacion {
+  id     text
+  rol    text
+  email  text
+  codigo text
+  estado text
+}
+# Reportes / cobros (agregados sobre prestaciones del negocio).
+entity IngresoDia   { dia text  monto number }
+entity TopServicio  { servicio text  monto number }
+entity PaseadorIng  { id text  nombre text  monto number  paseos number }
+# Salida (grupo) con su paseador asignado (para el ABM de asignación de la empresa).
+entity Salida { id text  nombre text  zona text  hora text  horaNum number  duracion number  color text  servicioId text  servicio text  cuidadorId text  cuidadorNombre text }
+# Pendiente de cobro: un paseo realizado, cobrable y aún no cobrado.
+entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
+# Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
+entity AgendaDia  { fecha text  label text  count number }
+entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text  color text }
 
 state {
-  info = {
-    nombre: "DevDogs",
-    eslogan: "Cuidamos a tus peluditos mientras no estás",
-    telefono: "+57 320 5800647",
-    ciudad: "Medellín",
-    paseadores: 3,
-    clientes: 24,
-    perros: 31
-  } : Empresa
+  # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.
+  paseadores  = [] : list<PaseadorRow> persist
+  clientes    = [] : list<ClienteRow> persist
+  gestion     = [] : list<GestionRow> persist
+  # Métricas de hoy (todos los paseadores del negocio).
+  paseosHoy   = 0 : number persist
+  programados = 0 : number persist
+  enCurso     = 0 : number persist
+  finalizados = 0 : number persist
+  perrosTot   = 0 : number persist
+  invitaciones = [] : list<Invitacion> persist
+  # Finanzas del período (últimos 30 días).
+  facturado    = 0 : number persist
+  cobrado      = 0 : number persist
+  pendiente    = 0 : number persist
+  ingresosDia  = [] : list<IngresoDia> persist
+  topServicios = [] : list<TopServicio> persist
+  porPaseador  = [] : list<PaseadorIng> persist
+  salidas      = [] : list<Salida> persist
+  pendientes   = [] : list<Pendiente> persist
+  agendaDias   = [] : list<AgendaDia> persist
+  agenda       = [] : list<AgendaItem> persist
+  loaded       = false : bool persist
 }
 
-action save(next: Empresa) mutates info { info.set(next) }
+get pendienteTotal = pendientes.sum by monto
+get nPendientes    = pendientes.length
+get nAgenda        = agenda.length
+
+get nPaseadores = paseadores.length
+get nClientes   = clientes.length
+get nGestion    = gestion.length
+
+action setPaseadores(rows: list<PaseadorRow>) mutates paseadores { paseadores.set(rows) }
+action setClientes(rows: list<ClienteRow>) mutates clientes { clientes.set(rows) }
+action setGestion(rows: list<GestionRow>) mutates gestion { gestion.set(rows) }
+action setPerrosTot(n: number) mutates perrosTot { perrosTot.set(n) }
+action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitaciones.set(rows) }
+# Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
+action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
+action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
+# Reportes / cobros
+action setFinanzas(fact: number, cob: number, pend: number) mutates facturado, cobrado, pendiente { facturado.set(fact)  cobrado.set(cob)  pendiente.set(pend) }
+action setIngresosDia(rows: list<IngresoDia>) mutates ingresosDia { ingresosDia.set(rows) }
+action setTopServicios(rows: list<TopServicio>) mutates topServicios { topServicios.set(rows) }
+action setPorPaseador(rows: list<PaseadorIng>) mutates porPaseador { porPaseador.set(rows) }
+action setSalidas(rows: list<Salida>) mutates salidas { salidas.set(rows) }
+# Optimista: borrar una salida desaparece al instante (grupoEliminar no refresca).
+action salidaDel(sid: text) mutates salidas { salidas.remove where id == sid }
+action setPendientes(rows: list<Pendiente>) mutates pendientes { pendientes.set(rows) }
+action setAgendaDias(rows: list<AgendaDia>) mutates agendaDias { agendaDias.set(rows) }
+action setAgenda(rows: list<AgendaItem>) mutates agenda { agenda.set(rows) }
+# Optimista: marcar cobrado saca el pendiente de la lista al instante.
+action cobroDel(pid: text) mutates pendientes { pendientes.remove where id == pid }
+# Optimista: reasignar paseador a una salida se refleja al instante.
+action asignarSet(sid: text, cid: text, cnom: text) mutates salidas { salidas.patch where id == sid with { cuidadorId: cid, cuidadorNombre: cnom } }
+action setLoaded mutates loaded { loaded.set(true) }
+action setStats(hoy: number, prog: number, curso: number, fin: number) mutates paseosHoy, programados, enCurso, finalizados {
+  paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
+}
+# Limpia los datos del negocio al hacer logout (dispositivo compartido).
+action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, loaded {
+  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+  facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)  loaded.set(false)
+}

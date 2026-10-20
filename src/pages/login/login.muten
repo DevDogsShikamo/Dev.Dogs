@@ -3,21 +3,22 @@ screen login
 state {
   email = "" : text
   pw    = "" : text
+  nonce = 0  : number
 }
 
 action clearEmail mutates email { email.set("") }
 action clearPw    mutates pw    { pw.set("") }
+action submit     mutates nonce { nonce.set(nonce + 1) }
 
 Page class("glogin") {
 
   Stack class("glogin-photo") {
     Stack class("glogin-back") {
-      Stack class("gb-dot") { Image "/devdogs-mark.png" alt("") class("mark-white") }
-      Span "DevDogs"
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gback-wm")
     }
     Stack class("glogin-photo-in") {
-      Title "Nunca dos paseos a la misma hora." h1 class("glogin-h")
-      Text "Tu agenda, tus clientes y tus cuentas — en un solo lugar." class("glogin-sub")
+      Title "El lugar donde los verdaderos amigos tienen cola y bigotes." h1 class("glogin-h")
+      Text "Ellos no piden mucho: un paseo, una caricia y que alguien organice el día por ellos. Entrá y hacé que cada salida cuente." class("glogin-sub")
     }
   }
 
@@ -49,19 +50,27 @@ Page class("glogin") {
         when pw.length > 0 { Button -> clearPw class("gfield-x") aria(label: "Borrar contraseña") { Icon "lucide:x" } }
       }
 
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
       Stack class("gforgot") { Span "¿Olvidaste tu contraseña?" }
 
       Stack class("gsignup") {
         Text "¿No tienes cuenta?" class("muted t-sm")
         Link "Regístrate" -> "/signup" class("glink t-sm")
       }
+      Stack class("gsignup") {
+        Text "¿Te invitaron?" class("muted t-sm")
+        Link "Usa tu código" -> "/unirse" class("glink t-sm")
+      }
     }
 
     Stack class("gbar") {
-      Button -> auth.login class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
+      Button -> submit class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
         Span "Entrar"
         Icon "lucide:arrow-right"
       }
     }
+
+    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
   }
 }

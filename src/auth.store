@@ -1,8 +1,53 @@
-# Global auth state. Mock for the MVP: any login/signup flips loggedIn; guards in app.muten react.
+# Global auth state, backed by Supabase Auth via the SupaSession/SupaAuthForm bridges.
+# Now role-aware: after login the profile (rol + negocio) is mirrored here, and
+# app.muten routes each rol to its portal.
+use signOut from "~/lib/authActions.ts"
+
+entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  slug text  isOwner bool }
+
 state {
-  loggedIn = false : bool persist
-  userName = "Camilo" : text
+  loggedIn  = false : bool persist
+  userId    = ""    : text persist
+  userName  = ""    : text persist
+  rol       = ""    : text persist
+  negocioId = ""    : text persist
+  slug      = ""    : text persist
+  isOwner   = false : bool persist   # dueño del negocio (jefe) vs empleado de gestión
+  authError = ""    : text
 }
 
-action login  mutates loggedIn { loggedIn.set(true) }
-action logout mutates loggedIn { loggedIn.set(false) }
+get isPaseador = rol == "paseador"
+get isEmpresa  = rol == "empresa"
+get isCliente  = rol == "cliente"
+# Empleado de gestión = trabaja en la oficina (rol empresa) pero NO es el dueño.
+get isGestion  = rol == "empresa" and not isOwner
+
+# Guards de portal: rol correcto Y sesión activa (los usa app.muten en las rutas link-based).
+get canWalker   = loggedIn and rol == "paseador"
+get canBusiness = loggedIn and rol == "empresa"
+get canClient   = loggedIn and rol == "cliente"
+
+action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+  loggedIn.set(s.loggedIn)
+  userId.set(s.userId)
+  userName.set(s.userName)
+  rol.set(s.rol)
+  negocioId.set(s.negocioId)
+  slug.set(s.slug)
+  isOwner.set(s.isOwner)
+  authError.set("")
+}
+
+action setError(msg: text) mutates authError { authError.set(msg) }
+
+action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+  signOut()
+  loggedIn.set(false)
+  userId.set("")
+  userName.set("")
+  rol.set("")
+  negocioId.set("")
+  slug.set("")
+  isOwner.set(false)
+  authError.set("")
+}

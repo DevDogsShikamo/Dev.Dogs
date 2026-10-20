@@ -18,6 +18,13 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.test
+
+# Supabase CLI local state (project link, version cache)
+supabase/.temp/
+
+# SDD planning documents (kept locally and in Engram)
+openspec/
 
 # OS
 .DS_Store

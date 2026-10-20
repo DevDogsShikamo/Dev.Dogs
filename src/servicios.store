@@ -1,26 +1,28 @@
-# Service catalogue offered by the company (based on the evDogs flyer).
+# Servicios del negocio (oferta + precios). Solo la LISTA (lectura).
+# Datos in: bridge ServiciosBridge. El form vive en la página (dashboard.muten).
 entity Servicio {
-  nombre   text required
-  desc     text
-  emoji    text
-  precio   number
+  id       text
+  nombre   text
+  tipo     text
   duracion number
-  activo   bool
+  precio   number
+  modelo   text
 }
 
 state {
-  items = [
-    { nombre: "Paseo Recreativo",       desc: "Diversión, ejercicio y socialización al aire libre", emoji: "🐾", precio: 15000, duracion: 60,  activo: true  },
-    { nombre: "Ejercicio Dirigido",     desc: "Rutina física guiada según la energía del perro",    emoji: "🎾", precio: 18000, duracion: 45,  activo: true  },
-    { nombre: "Acompañamiento",         desc: "Visita y compañía en casa mientras no estás",         emoji: "🏠", precio: 20000, duracion: 60,  activo: true  },
-    { nombre: "Salida a Recreación",    desc: "Jornada extendida en zona verde y parque canino",     emoji: "🌳", precio: 28000, duracion: 120, activo: true  },
-    { nombre: "Actividades Cognitivas", desc: "Juegos de olfato y estimulación mental",              emoji: "🧠", precio: 22000, duracion: 45,  activo: true  },
-    { nombre: "Amor y Mimos",           desc: "Sesión de cariño, cepillado y bienestar",             emoji: "💛", precio: 12000, duracion: 30,  activo: false }
-  ] : list<Servicio>
+  servicios = [] : list<Servicio> persist
+  zonas     = [] : list<text> persist
 }
 
-get count     = items.length
-get activos   = items.count where activo
-get precioMin = items.min by precio
+get total = servicios.length
 
-action toggle(sid: text) mutates items { items.patch where id == sid with { activo: not activo } }
+action setServicios(rows: list<Servicio>) mutates servicios { servicios.set(rows) }
+action setZonas(rows: list<text>) mutates zonas { zonas.set(rows) }
+
+# ---- Optimistas (la UI responde al instante; data.ts persiste + revierte si falla).
+action servicioUpd(pid: text, nnombre: text, ntipo: text, nduracion: number, nprecio: number, nmodelo: text) mutates servicios {
+  servicios.patch where id == pid with { nombre: nnombre, tipo: ntipo, duracion: nduracion, precio: nprecio, modelo: nmodelo }
+}
+action servicioDel(pid: text) mutates servicios { servicios.remove where id == pid }
+# Limpia el cache al hacer logout (in-memory + persist).
+action limpiar mutates servicios, zonas { servicios.reset()  zonas.reset() }

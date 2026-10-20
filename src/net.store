@@ -1,0 +1,10 @@
+# Estado de conexión (para el aviso offline). Lo alimenta el Custom NetWatch
+# (montado en cada portal, porque los Custom del shell no montan). El shell
+# renderiza el aviso desde acá.
+state {
+  online  = true : bool
+  pending = 0 : number
+}
+
+action setOnline(v: bool) mutates online { online.set(v) }
+action setPending(n: number) mutates pending { pending.set(n) }

@@ -1,0 +1,54 @@
+# Estado del portal CLIENTE (dueño del perro). Datos in: ClienteBridge.
+# Sus perros (perro_duenos → perros), sus paseos (prestaciones), y las salidas
+# disponibles del negocio para reservar (grupos).
+entity PerroMio  { id text  nombre text  raza text  tamano text  foto text }
+entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool }
+entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  cuidadorId text  tipo text }
+# Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
+entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
+# Foto de un paseo (plano: paseoId + url) — para mostrarla en la Agenda por paseo.
+entity Foto { paseoId text  url text }
+# Novedad (notificación in-app): paseo de hoy o paseo finalizado con fotos nuevas.
+entity Novedad { kind text  perro text  servicio text  hora text  fecha text  fotos bool }
+
+state {
+  misPerros = [] : list<PerroMio> persist
+  misPaseos = [] : list<PaseoMio> persist
+  misFotos  = [] : list<Foto> persist
+  novedades = [] : list<Novedad> persist
+  salidas   = [] : list<SalidaDisp> persist
+  servicios = [] : list<ServicioCat> persist
+  # Factura del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
+  facturaPerro  = "" : text
+  facturaNombre = "" : text
+  loaded        = false : bool persist
+}
+
+get nPerros    = misPerros.length
+get proximos   = misPaseos.count where futuro
+get nNovedades = novedades.length
+# Saldo pendiente = paseos realizados y cobrables aún no cobrados (facturable ya trae
+# 0 en los no-finalizados/no-cobrables). Estado de cuenta del cliente.
+get paseosImpagos  = misPaseos where not cobrado
+get saldoPendiente = paseosImpagos.sum by facturable
+# Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.
+get nOtrosServicios = servicios.count where tipo != "paseo"
+# Productos (comida/snacks) — para la Tienda.
+get nProductos = servicios.count where tipo == "comida" or tipo == "accesorio"
+# Registro del perro elegido: filas del perro, total a cobrar y cantidad de paseos.
+get facturaRows  = misPaseos where perroId == facturaPerro
+# Total = solo paseos realizados y cobrables (facturable ya trae 0 en los demás).
+get facturaTotal = facturaRows.sum by facturable
+get facturaCount = facturaRows.length
+
+action setMisPerros(rows: list<PerroMio>) mutates misPerros { misPerros.set(rows) }
+action setMisPaseos(rows: list<PaseoMio>) mutates misPaseos { misPaseos.set(rows) }
+action setMisFotos(rows: list<Foto>) mutates misFotos { misFotos.set(rows) }
+action setNovedades(rows: list<Novedad>) mutates novedades { novedades.set(rows) }
+action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
+action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
+action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
+action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
+action setLoaded mutates loaded { loaded.set(true) }
+# Limpia los datos del cliente al hacer logout (dispositivo compartido).
+action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  loaded.set(false) }

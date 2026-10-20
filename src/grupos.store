@@ -1,0 +1,108 @@
+# Grupos de HOY (timeline del paseador). Datos in: bridge GruposHoy (Custom) que agrupa
+# las prestaciones de hoy por (hora, tipo, servicio). Solo lectura + navegación.
+entity Grupo {
+  id      text
+  titulo  text
+  desde   text
+  hasta   text
+  mins    number
+  count   number
+  c1      text
+  c2      text
+  c3      text
+  extra   number
+  estado  text
+  gkey    text
+  presIds text
+  recibido text
+  entrega text
+  prox    bool
+}
+
+# Un perro dentro de un paseo de hoy (una prestación). Para el modo paseo.
+entity PerroPaseo {
+  id     text
+  gkey   text
+  nombre text
+  foto   text
+  estado text
+  motivo text
+}
+
+# Perro que sale hoy (para la fila de avatares del Inicio). Único por nombre.
+entity PerroHoy { nombre text  foto text }
+
+# Conflicto de compatibilidad: dos perros incompatibles en la MISMA salida de hoy.
+# nivel: cuidado | no_tolera (tolera NO genera conflicto: se bancan en paseo).
+entity Conflicto {
+  id      text
+  salida  text
+  aId     text
+  aNombre text
+  aFoto   text
+  bId     text
+  bNombre text
+  bFoto   text
+  nivel   text
+  motivo  text
+  nota    text
+}
+
+# Grupo completo (ABM): todos los grupos del negocio, no solo los de hoy.
+entity GrupoAdmin {
+  id       text
+  nombre   text
+  zona     text
+  hora     text
+  horaNum  number
+  duracion number
+  servicio text
+  color    text
+}
+
+state {
+  grupos      = [] : list<Grupo> persist
+  fecha       = "" : text persist
+  todos       = [] : list<GrupoAdmin> persist
+  perrosHoy   = [] : list<PerroHoy> persist
+  perrosPaseo = [] : list<PerroPaseo> persist
+  conflictos  = [] : list<Conflicto> persist
+  # Modo paseo: sheet del grupo seleccionado (el paseador ejecuta el paseo).
+  modoOpen    = false : bool
+  modoId      = "" : text
+  modoKey     = "" : text
+  modoTitulo  = "" : text
+  modoEstado  = "" : text
+  modoPresIds = "" : text
+  noSalId     = "" : text
+}
+
+get total       = grupos.length
+get totalAdmin  = todos.length
+get nConflictos = conflictos.length
+
+action setGrupos(rows: list<Grupo>) mutates grupos { grupos.set(rows) }
+action setFecha(v: text) mutates fecha { fecha.set(v) }
+action setTodos(rows: list<GrupoAdmin>) mutates todos { todos.set(rows) }
+action setPerrosHoy(rows: list<PerroHoy>) mutates perrosHoy { perrosHoy.set(rows) }
+action setPerrosPaseo(rows: list<PerroPaseo>) mutates perrosPaseo { perrosPaseo.set(rows) }
+action setConflictos(rows: list<Conflicto>) mutates conflictos { conflictos.set(rows) }
+
+# ---- Modo paseo (optimista; el page action también persiste vía data.ts) ----
+action modoAbrir(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates modoOpen, modoId, modoKey, modoTitulo, modoEstado, modoPresIds, noSalId {
+  modoId.set(id)  modoKey.set(gkey)  modoTitulo.set(titulo)  modoEstado.set(estado)  modoPresIds.set(presIds)  noSalId.set("")  modoOpen.set(true)
+}
+action modoCerrar mutates modoOpen, noSalId { modoOpen.set(false)  noSalId.set("") }
+# Iniciar: el grupo pasa a en_curso al instante (badge de la card + botón del sheet).
+action modoIniciarLocal mutates modoEstado, grupos { modoEstado.set("en_curso")  grupos.patch where id == modoId with { estado: "en_curso" } }
+# Finalizar: el grupo pasa a finalizado y se cierra el sheet.
+action modoFinalizarLocal mutates modoEstado, grupos, modoOpen { modoEstado.set("finalizado")  grupos.patch where id == modoId with { estado: "finalizado" }  modoOpen.set(false) }
+# Un perro no salió: abre/cierra el selector de motivo y marca la fila.
+action noSalAbrir(pid: text) mutates noSalId { noSalId.set(pid) }
+action noSalCerrar mutates noSalId { noSalId.set("") }
+action noSalLocal(motivoArg: text) mutates perrosPaseo, noSalId { perrosPaseo.patch where id == noSalId with { estado: "no_asistio", motivo: motivoArg }  noSalId.set("") }
+
+# Optimista: borrar una salida del ABM desaparece al instante.
+action grupoDel(pid: text) mutates todos { todos.remove where id == pid }
+# Limpia el cache al hacer logout (in-memory + persist).
+action limpiar mutates todos, grupos, perrosHoy, perrosPaseo, conflictos { todos.reset()  grupos.reset()  perrosHoy.reset()  perrosPaseo.reset()  conflictos.reset() }
