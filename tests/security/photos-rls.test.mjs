@@ -21,11 +21,15 @@ after(async () => {
   await admin().from('perro_duenos').upsert({ perro_id: d.d1, dueno_id: u.COOWNER, rol: 'co', estado: 'activo' })
 })
 
+// Each fixture walk is its own outing (its own hora): the Ley 2480 cap of 8 dogs per walker and outing
+// (trg_prestacion_ley_kiara) is not what these photo tests are about.
+let outing = 0
 async function walk(dog = d.d1, spec = {}) {
   const ind = dog === d.dI
   const { data } = await writePrestaciones({
     negocio_id: ind ? ids.negocios.I : ids.negocios.A, perro_id: dog, tipo: 'paseo', servicio_id: ind ? null : ids.servicios.paseoA,
-    cuidador_id: ind ? u.WALKER_IND : u.WALKER_CO, fecha: hoy(), estado: 'en_curso', precio_aplicado: 0, detalle: {}, ...spec,
+    cuidador_id: ind ? u.WALKER_IND : u.WALKER_CO, fecha: hoy(), estado: 'en_curso', precio_aplicado: 0,
+    detalle: { hora: `fixture-${++outing}` }, ...spec,
   })
   created.walks.push(data[0].id)
   return data[0].id
