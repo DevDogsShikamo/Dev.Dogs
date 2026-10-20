@@ -53,6 +53,9 @@ export const admin = () => (service ??= createClient(cfg().url, cfg().serviceKey
 const password = (name) => createHash('sha256').update(`${cfg().serviceKey}:${name}`).digest('hex').slice(0, 24)
 const email = (name) => `dd-${name.toLowerCase().replaceAll('_', '-')}@example.com`
 
+// Login credentials of a seeded actor (the browser E2E types them into the login form).
+export const credentials = (name) => ({ email: email(name), password: password(name) })
+
 const sessions = new Map()
 export function as(name) {
   if (!sessions.has(name)) {
