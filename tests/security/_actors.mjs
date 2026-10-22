@@ -4,7 +4,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { loadConfig } from './_env.mjs'
-import { POLITICA_VERSION } from '../../src/lib/politica.js'
+import { AVISO_ROL_VERSION, POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION } from '../../src/lib/politica.js'
 
 // Fixed ids make every re-seed an upsert. The 12-digit tail is the entity number.
 const uuid = (kind, n) => `0d0d0d${kind}-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -135,6 +135,18 @@ async function data() {
       { onConflict: 'user_id,policy_version', ignoreDuplicates: true },
     ),
     'consentimientos',
+  )
+  // Likewise every business owner accepted the Términos para negocios and every client the role notice
+  // for its business: without them the app sends them to the /aceptar-condiciones gate.
+  const owners = { OWNER: 'A', OTHER: 'B', WALKER_IND: 'I' }
+  ok(
+    await db.from('aceptaciones').upsert(
+      Object.entries(ACTORS).flatMap(([name, a]) =>
+        owners[name] ? [{ user_id: u[name], tipo: 'terminos_negocio', negocio_id: ids.negocios[a.neg], version: TERMINOS_NEGOCIO_VERSION }]
+          : a.rol === 'cliente' ? [{ user_id: u[name], tipo: 'aviso_rol', negocio_id: ids.negocios[a.neg], version: AVISO_ROL_VERSION }] : []),
+      { onConflict: 'user_id,tipo,negocio_id,version', ignoreDuplicates: true },
+    ),
+    'aceptaciones',
   )
   ok(
     await db.from('servicios').upsert([

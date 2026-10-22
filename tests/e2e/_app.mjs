@@ -123,3 +123,17 @@ export async function acceptPolicy(page) {
   await policyDoc(page).waitFor({ state: 'detached' })
   return version
 }
+
+// Acceptance gate (/aceptar-condiciones): the role notice (client) or the Términos para negocios (owner) opens
+// in the same modal, and "Entiendo y acepto" unlocks once the document is read to the end (a document that
+// fits unlocks on the first pointer move over it). New owners and new clients pass it before their portal.
+export const conditionsButton = (page) => page.getByRole('button', { name: 'Leer y aceptar' })
+export const understandButton = (page) => page.getByRole('button', { name: 'Entiendo y acepto' })
+export async function acceptConditions(page) {
+  await page.waitForURL('**/aceptar-condiciones', { timeout: 60_000 })
+  await conditionsButton(page).click()
+  await policyDoc(page).evaluate((el) => { el.scrollTop = el.scrollHeight })
+  await policyDoc(page).hover()
+  await understandButton(page).click()
+  await policyDoc(page).waitFor({ state: 'detached' })
+}

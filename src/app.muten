@@ -14,12 +14,15 @@ routes {
   #  paseador → /app (dashboard) · empresa → /empresa · cliente → /cliente
   #  Sin perfil (p. ej. primer ingreso con Google), ningún canX pasa y la cadena termina en /completar-registro.
   #  Con una política nueva sin aceptar, ningún canX pasa y la cadena termina en /aceptar-politica.
-  #  Sin sesión, la cadena termina en /login (los guards canX, debeCompletar y debeAceptar incluyen loggedIn).
+  #  Con la política al día pero el aviso de quién presta el servicio (cliente) o los Términos para negocios
+  #  (jefe del negocio) sin aceptar, ningún canX pasa y la cadena sigue a /aceptar-condiciones: la política va primero.
+  #  Sin sesión, la cadena termina en /login (los guards canX, debeCompletar, debeAceptar y debeCondiciones incluyen loggedIn).
   "/app"     -> dashboard  guard auth.canWalker   else "/empresa"
   "/empresa" -> empresa    guard auth.canBusiness else "/cliente"
   "/cliente" -> cliente    guard auth.canClient   else "/completar-registro"
   "/completar-registro" -> completar guard auth.debeCompletar else "/aceptar-politica"
-  "/aceptar-politica" -> aceptar guard auth.debeAceptar else "/login"
+  "/aceptar-politica" -> aceptar guard auth.debeAceptar else "/aceptar-condiciones"
+  "/aceptar-condiciones" -> condiciones guard auth.debeCondiciones else "/login"
 }
 
 shell {

@@ -12,10 +12,13 @@ const read = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'ut
 const shell = read('../../src/pages/politicas/politicas.muten')
 const docs = read('../../src/parts/documentoslegales.muten')
 const page = shell + '\n' + docs
-const strings = [...page.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join('\n')
+// The business terms (section #negocios) and the role notice of the /aceptar-condiciones gate.
+const terminos = read('../../src/parts/terminosnegocio.muten')
+const aviso = read('../../src/parts/avisorol.muten')
+const strings = [...[page, terminos, aviso].join('\n').matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join('\n')
 const section = (id) => page.match(new RegExp(String.raw`Section id\("${id}"\)([\s\S]*?)(?=\n    Section id|\n  }\n}\s*$)`))?.[1] ?? ''
 
-const DOCS = ['resumen', 'terminos', 'servicios', 'bienestar', 'fotos', 'resenas', 'dispositivo', 'atencion', 'datos', 'marco']
+const DOCS = ['resumen', 'terminos', 'servicios', 'bienestar', 'fotos', 'resenas', 'dispositivo', 'atencion', 'datos', 'marco', 'negocios']
 
 test('the page is public, routed, linked from the landing footer and keeps the draft marker', () => {
   assert.match(read('../../src/app.muten'), /^\s*"\/politicas" -> politicas\s*(#.*)?$/m, 'a public route with no guard')
@@ -55,6 +58,34 @@ test('the product facts match the app', () => {
   assert.match(section('atencion'), /diez \(10\) días hábiles/)
   assert.match(section('atencion'), /quince \(15\) días hábiles/)
   assert.match(section('datos'), /PoliticaTexto\(version: version\)/, 'the data policy is the shared accepted text')
+})
+
+test('the role notice says the business, not DevDogs, provides the service, and keeps what DevDogs answers for', () => {
+  assert.match(aviso, /DevDogs es la herramienta que usa \{\$negocio\} para organizar su servicio\./)
+  assert.match(aviso, /DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro\./)
+  assert.match(aviso, /Quien presta el servicio, recibe a tu perro y responde por él es \{\$negocio\}\./)
+  // Without it the notice reads as a blanket exclusion of liability (Ley 1480 art. 43).
+  assert.match(aviso, /DevDogs responde por su software y por la seguridad de los datos que almacena\./)
+  assert.match(aviso, /BORRADOR — pendiente de revisión legal/)
+  assert.match(section('terminos'), /DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro/, 'the consumer terms say the same')
+  assert.match(section('terminos'), /Términos para negocios/, 'and point businesses to their own terms')
+  const gate = read('../../src/pages/condiciones/condiciones.muten')
+  assert.match(gate, /AvisoRol\(negocio: negocio, version: version\)/)
+  assert.match(gate, /TerminosNegocio\(version: version\)/)
+})
+
+test('the business terms are published in #negocios and cover what the business answers for', () => {
+  assert.match(shell, /Section id\("negocios"\)[\s\S]*TerminosNegocio\(version: versionNegocios\)/)
+  assert.match(terminos, /BORRADOR — pendiente de revisión legal/)
+  assert.match(terminos, /Versión de estos términos: \{\$version\}/)
+  for (const fact of [
+    /licencia de uso de la plataforma/, /único prestador del servicio/, /Ley 2480 de 2025/, /no revisa ni avala/,
+    /manifiestamente ilegal[^"]*maltrato animal/, /no sustituyen su criterio/, /\[COMPLETAR: si DevDogs exigirá la póliza/,
+    /indemne a DevDogs[^"]*dolo o culpa grave de DevDogs/, /daños directos[^"]*\[COMPLETAR: monto máximo/, /lucro cesante/,
+    /artículo 1522 del Código Civil/, /encargado del tratamiento/, /artículo 25 del Decreto 1377 de 2013/,
+    /artículos 50 y 53 de la Ley 1480/, /facultades para obligarlo/, /Suspensión y terminación/, /no tiene costo para el negocio/,
+    /Ley aplicable y solución de controversias[\s\S]*\[COMPLETAR: domicilio contractual/,
+  ]) assert.match(terminos, fact)
 })
 
 test('unknown company facts are placeholders, not invented', () => {

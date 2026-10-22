@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, seed, tempUser } from '../security/_actors.mjs'
 import { startApp, acceptPolicy, consentLine, isAccepted, policyDoc } from './_app.mjs'
-import { POLITICA_VERSION } from '../../src/lib/politica.js'
+import { POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION } from '../../src/lib/politica.js'
 
 // The version S7 seeded and S5b retired (still in `politicas`, vigente = false).
 const OLD = '2026-10-14-borrador'
@@ -19,13 +19,15 @@ before(async () => {
 }, { timeout: 120_000 })
 after(async () => { await app?.stop() })
 
-// A provisioned owner whose only consent record is the retired version.
+// A provisioned owner whose only consent record is the retired version (the business terms are accepted:
+// this suite is about the policy gate; tests/e2e/aceptaciones.test.mjs covers the other one).
 async function outdatedUser(p_rol) {
   const u = await tempUser()
   const res = await u.client.rpc('provision_negocio', { p_rol, p_nombre: 'Ana Reconsent', p_negocio: 'Reconsent E2E', p_politica: POLITICA_VERSION })
   assert.equal(res.error, null, res.error?.message)
   assert.equal((await admin().from('consentimientos').delete().eq('user_id', u.id)).error, null)
   assert.equal((await admin().from('consentimientos').insert({ user_id: u.id, policy_version: OLD })).error, null)
+  assert.equal((await admin().from('aceptaciones').insert({ user_id: u.id, tipo: 'terminos_negocio', negocio_id: res.data, version: TERMINOS_NEGOCIO_VERSION })).error, null)
   return u
 }
 const versionsOf = async (userId) =>

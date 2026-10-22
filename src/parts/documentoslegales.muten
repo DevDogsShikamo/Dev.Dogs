@@ -45,6 +45,13 @@ part DocumentosLegales(version: text) {
       }
 
       Stack class("pl-sub") {
+        Title "1.2.1 Lo que DevDogs no hace" h3
+        Text "DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro. Quien presta el servicio, recibe a tu perro y responde por él es el negocio. Por eso, los reclamos sobre el servicio, las cancelaciones, los precios, los incidentes y los pagos se tratan con el negocio, cuyos datos están en Quién te presta el servicio, dentro del portal del cliente. Antes de reservar o comprar, cada cliente reconoce este aviso dentro de la aplicación y su aceptación queda registrada."
+        Text "DevDogs responde por su software y por la seguridad de los datos que almacena."
+        Text "Quien registra un negocio en DevDogs (empresa o paseador independiente) acepta además los Términos para negocios, publicados en esta misma página, que regulan su relación con DevDogs."
+      }
+
+      Stack class("pl-sub") {
         Title "1.3 Aceptación" h3
         Text "Al crear una cuenta, la persona acepta estos términos y la Política de tratamiento de datos personales. Ambos documentos se leen completos y se aceptan juntos antes de crear la cuenta; la aceptación queda registrada en el servidor con la versión aceptada y la fecha y hora (artículo 48 de la Ley 1480 de 2011). Cada usuario puede consultar las versiones que aceptó, con su fecha, en la descarga de Mis datos."
         Text "Cuando un documento cambie de forma importante, la aplicación pedirá aceptar la nueva versión antes de seguir usándola."
@@ -260,7 +267,7 @@ part DocumentosLegales(version: text) {
       Title "6. Lo que se guarda en su dispositivo" h2
       Text "DevDogs no usa cookies, ni herramientas de analítica, publicidad o rastreo. Para funcionar, guarda en el almacenamiento local del navegador solo lo siguiente:"
       List {
-        Text "La sesión de acceso y los datos básicos para mostrar el portal correcto: identificador, nombre, rol, negocio y si hay una política pendiente de aceptar."
+        Text "La sesión de acceso y los datos básicos para mostrar el portal correcto: identificador, nombre, rol, negocio y su nombre, y si hay una política, un aviso o unos términos pendientes de aceptar."
         Text "Las preferencias de la interfaz, como el idioma y la vista del calendario."
         Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) y los cambios del paseo que aún no se han enviado, para trabajar sin conexión."
         Text "Los archivos de la aplicación y las tipografías, para que cargue más rápido y sin conexión. No contienen datos personales."

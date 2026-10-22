@@ -1,6 +1,6 @@
 screen politicas
 
-use politicaVersion, irAlAncla from "~/lib/politica.js"
+use politicaVersion, condicionesVersion, irAlAncla from "~/lib/politica.js"
 
 meta {
   title       "Términos y políticas | DevDogs"
@@ -15,6 +15,8 @@ meta {
 # the part DocumentosLegales, which the consent modal also shows: one version covers terms + data policy.
 
 get version = politicaVersion()
+# The business terms are accepted apart (aceptaciones), with their own version.
+get versionNegocios = condicionesVersion("terminos_negocio")
 effect { irAlAncla() }
 
 Page class("pv") {
@@ -43,8 +45,16 @@ Page class("pv") {
       Link "7. Peticiones, quejas, reclamos y derechos" -> "#atencion" class("pl-toc-a")
       Link "8. Política de tratamiento de datos personales" -> "#datos" class("pl-toc-a")
       Link "9. Marco legal de referencia" -> "#marco" class("pl-toc-a")
+      Link "10. Términos para negocios" -> "#negocios" class("pl-toc-a")
     }
 
     DocumentosLegales(version: version)
+
+    # ---- 10. Business terms: accepted only by business owners, at the /aceptar-condiciones gate ----
+    Section id("negocios") class("pv-sec pl-doc") {
+      Title "10. Términos para negocios" h2
+      Text "Los acepta, aparte de los documentos anteriores, quien registra un negocio en DevDogs (empresa o paseador independiente)."
+      TerminosNegocio(version: versionNegocios)
+    }
   }
 }

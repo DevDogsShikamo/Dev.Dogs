@@ -53,6 +53,7 @@ part PoliticaTexto(version: text) {
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
         Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
         Text "Aceptación de esta política: identificador de usuario, versión aceptada y fecha y hora registradas por el servidor. No se guarda la dirección IP ni datos del navegador."
+        Text "Aceptación del aviso sobre quién presta el servicio (clientes) y de los Términos para negocios (jefe del negocio): identificador de usuario, documento aceptado, negocio al que se refiere, versión y fecha y hora registradas por el servidor."
       }
       Text "Fuera de los datos legales del negocio no se solicita cédula, documento de identidad ni NIT, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
       Text "[COMPLETAR: el abogado debe indicar si alguna información, por ejemplo fotos en las que aparezcan personas o menores, requiere un tratamiento especial.]"
@@ -109,7 +110,7 @@ part PoliticaTexto(version: text) {
     Section class("pv-sec") {
       Title "9. Qué se guarda en su dispositivo" h2
       List {
-        Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol y negocio."
+        Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol, negocio y su nombre, y si hay un documento pendiente de aceptar."
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
         Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión y los cambios que aún no se han enviado."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."

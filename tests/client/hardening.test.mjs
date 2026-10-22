@@ -13,7 +13,7 @@ const stores = readdirSync(join(ROOT, 'src')).filter((f) => f.endsWith('.store')
 
 // What each store may keep on the device (design section 7). Anything not listed persists nothing.
 const ALLOWED = {
-  'auth.store': ['loggedIn', 'userId', 'userName', 'rol', 'negocioId', 'isOwner', 'politicaPendiente', 'sinPerfil'], // routing guards
+  'auth.store': ['loggedIn', 'userId', 'userName', 'rol', 'negocioId', 'isOwner', 'politicaPendiente', 'sinPerfil', 'aceptacionPendiente', 'negocioNombre'], // routing guards + the business name the client portal shows
   'grupos.store': ['grupos', 'fecha', 'perrosHoy', 'perrosPaseo'], // the walker day agenda
   'calendario.store': ['anchor', 'view', 'sel', 'ocultos'], // UI preferences
   'i18n.store': ['lang'],
