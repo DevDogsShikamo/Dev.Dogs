@@ -1,4 +1,4 @@
-// Login/signup/re-consent submitter AND session reporter. Lives on the login/signup/gate pages
+// Login/signup/re-consent/acceptance submitter AND session reporter. Lives on the login/signup/gate pages
 // (Custom components in the shell do NOT mount in Muten, so the session bridge
 // must run from a page). On auth success it loads the profile and reports the
 // full session (rol + negocio) into the auth store via on(session).
@@ -23,16 +23,22 @@ function mount(el, inputs, on) {
       var nid = (pr && pr.data && pr.data.negocio_id) || "";
       // A session without a profile (first Google login, failed provisioning) opens only /completar-registro:
       // sinPerfil closes every portal guard and the chain ends there, so no empty-rol state can cycle.
-      if (!rol) return on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false, politica: "", sinPerfil: true });
+      if (!rol) return on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false, politica: "", sinPerfil: true, aceptacion: "", negocioNombre: "" });
       // A current policy version the user has not accepted closes every portal guard (the chain ends at
-      // /aceptar-politica). Fail closed: without the answer no session is reported.
-      supa.rpc("consentimiento_pendiente").then(function (cp) {
+      // /aceptar-politica); so does a pending role notice or business terms (aceptacion_pendiente, the chain
+      // ends at /aceptar-condiciones). Fail closed: without both answers no session is reported.
+      Promise.all([supa.rpc("consentimiento_pendiente"), supa.rpc("aceptacion_pendiente")]).then(function (r) {
+        var cp = r[0], ap = r[1];
         if (cp.error) return on.failed("No pudimos verificar la política de datos. Intenta de nuevo.");
-        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "", sinPerfil: false };
+        if (ap.error) return on.failed("No pudimos verificar las condiciones del servicio. Intenta de nuevo.");
+        var pend = ap.data || {};
+        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "", sinPerfil: false, aceptacion: pend.tipo || "", negocioNombre: pend.negocio_nombre || "" };
         if (!nid) return on.session(s);
         // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
-        supa.from("negocios").select("owner_id").eq("id", nid).maybeSingle().then(function (ng) {
-          s.isOwner = ((ng && ng.data) || {}).owner_id === user.id;
+        supa.from("negocios").select("owner_id,nombre").eq("id", nid).maybeSingle().then(function (ng) {
+          var n = (ng && ng.data) || {};
+          s.isOwner = n.owner_id === user.id;
+          s.negocioNombre = n.nombre || s.negocioNombre;
           on.session(s);
         }).catch(function () { on.session(s); });
       }).catch(function () { on.failed("No pudimos verificar la política de datos. Intenta de nuevo."); });
@@ -51,10 +57,23 @@ function mount(el, inputs, on) {
     }).catch(function () { on.failed("No pudimos registrar tu aceptación. Intenta de nuevo."); });
   }
 
+  // /aceptar-condiciones: record the pending role notice or business terms, then report the session again
+  // (the next pending item, or none: the portal of the role).
+  function acceptCondiciones(inp) {
+    supa.rpc("aceptacion_registrar", { p_tipo: inp.tipo, p_version: inp.version }).then(function (r) {
+      if (r.error) return on.failed(failMsg(r.error.message));
+      return supa.auth.getSession().then(function (g) {
+        var user = g.data && g.data.session && g.data.session.user;
+        user ? reportSession(user) : on.failed("Tu sesión terminó. Vuelve a iniciar sesión.");
+      });
+    }).catch(function () { on.failed("No pudimos registrar tu aceptación. Intenta de nuevo."); });
+  }
+
   // The server refuses a policy version that is not the current one (politica_invalida).
   // Profile RPCs raise perfil_existente / datos_invalidos too (provision_negocio).
   function failMsg(m) {
     if (/politica_invalida/.test(m || "")) return "La política cambió. Recarga la página y vuelve a aceptarla.";
+    if (/version_invalida/.test(m || "")) return "El documento cambió. Recarga la página y vuelve a leerlo.";
     if (/perfil_existente/.test(m || "")) return "Esta cuenta ya tiene un perfil.";
     if (/datos_invalidos/.test(m || "")) return "Revisa tus datos: el nombre es obligatorio y admite hasta 100 caracteres.";
     return m;
@@ -92,6 +111,7 @@ function mount(el, inputs, on) {
 
   function submit(inp) {
     if (!supa) return on.failed("Cliente no disponible.");
+    if (inp.mode === "condiciones") return acceptCondiciones(inp);
     // Signup and join need the accepted policy version (empty until the policy is accepted in the modal): without it
     // no account is created, so no profile-less user is left behind.
     if (inp.mode !== "login" && !inp.politica) return on.failed("Acepta la Política de tratamiento de datos para continuar.");

@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, ids, seed } from '../security/_actors.mjs'
-import { acceptButton, acceptPolicy, autoconfirmSignup, consentLine, isAccepted, policyDoc, startApp } from './_app.mjs'
+import { acceptConditions, acceptButton, acceptPolicy, autoconfirmSignup, consentLine, isAccepted, policyDoc, startApp } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
@@ -76,6 +76,7 @@ test('PC-2c: a forced click on the disabled signup button sends no provisioning 
   assert.deepEqual(calls, [])
   await acceptPolicy(page) // valid-call precondition: the same form does submit once accepted
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
+  await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/empresa', { timeout: 30_000 })
   assert.ok(calls.length >= 1)
   await admin().auth.admin.deleteUser(await sessionUserId(page))
@@ -103,6 +104,7 @@ for (const [rol, portal] of [['Empresa', 'empresa'], ['Paseador', 'app']]) {
     const version = await acceptPolicy(page)
     assert.equal(version, POLITICA_VERSION)
     await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
+    await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL(`**/${portal}`, { timeout: 30_000 })
     const id = await sessionUserId(page)
     const rows = await consentOf(id)
@@ -121,6 +123,7 @@ test('PC-2d: accepting the policy on /unirse joins the tenant and stores a conse
   const version = await acceptPolicy(page)
   assert.equal(version, POLITICA_VERSION)
   await page.getByRole('button', { name: 'Unirme' }).click()
+  await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/cliente', { timeout: 30_000 })
   const id = await sessionUserId(page)
   const rows = await consentOf(id)

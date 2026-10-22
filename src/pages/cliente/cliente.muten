@@ -52,6 +52,9 @@ action rsEditar(rating: number, texto: text, publicar: bool) mutates rsRating, r
 action rsPick(n: number) mutates rsRating { rsRating.set(n) }
 action rsCerrar mutates rsForm { rsForm.set(false) }
 action rsEnviar mutates rsForm { resenaGuardar(rsRating, rsTexto, rsPublicar)  rsForm.set(false) }
+# The business that provides the service (auth.negocioNombre, reported at login); a session stored before
+# the name was reported shows a generic label until the next login.
+get prestador = auth.negocioNombre != "" ? auth.negocioNombre : "tu negocio"
 action go(s: text) mutates section { section.set(s) }
 action notifToggle mutates notifOpen { notifOpen.toggle() }
 action notifCerrar mutates notifOpen { notifOpen.set(false) }
@@ -107,6 +110,8 @@ Stack class("dd-app") {
 
   Stack class("dd-content") {
     Stack class("dd-screen") {
+      # Who provides the service, on every screen: the business, not DevDogs (role notice, aviso_rol).
+      Span "Servicio de {prestador}" class("dd-prov")
 
       # ==== INICIO: skeleton ====
       when section == "dashboard" and not cliente.loaded {
@@ -265,6 +270,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reservar" h2 }
           Text "Elegí una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
+          Span "Prestado por {prestador}" class("dd-prov-by")
           when cliente.salidas.length == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar-plus" }  Title "Sin salidas" h2  Text "El negocio todavía no publicó salidas." }
           }
@@ -309,6 +315,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Tienda" h2 }
           Text "Comida y snacks para tu perro. La compra queda en tu cuenta." class("dd-cli-hint")
+          Span "Prestado por {prestador}" class("dd-prov-by")
           when cliente.nProductos == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:shopping-bag" }  Title "Sin productos" h2  Text "El negocio todavía no publicó productos." }
           }
@@ -333,6 +340,7 @@ Stack class("dd-app") {
       when section == "agenda" {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Agenda de paseos" h2 }
+          Span "Prestado por {prestador}" class("dd-prov-by")
           when cliente.misPaseos.length == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar" }  Title "Sin paseos" h2  Text "Todavía no hay paseos registrados." }
           }
@@ -432,6 +440,7 @@ Stack class("dd-app") {
             }
             Stack class("dd-gform") {
               Text "Sale {resHora}" class("dd-cli-hint")
+              Span "Prestado por {prestador}" class("dd-prov-by")
               Span "¿Qué perro?" class("dd-hor-lbl")
               Stack class("dd-gsvc") {
                 each cliente.misPerros as p {
@@ -457,6 +466,7 @@ Stack class("dd-app") {
               Button -> svcCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
+              Span "Prestado por {prestador}" class("dd-prov-by")
               Span "¿Qué perro?" class("dd-hor-lbl")
               Stack class("dd-gsvc") {
                 each cliente.misPerros as p {
@@ -482,6 +492,7 @@ Stack class("dd-app") {
               Button -> prodCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
+              Span "Prestado por {prestador}" class("dd-prov-by")
               Span "¿Para qué perro?" class("dd-hor-lbl")
               Stack class("dd-gsvc") {
                 each cliente.misPerros as p {
@@ -538,6 +549,7 @@ Stack class("dd-app") {
               Span "{auth.userName}" class("dueno")
               Span "{cliente.facturaCount} servicios" class("cnt")
             }
+            Span "Prestado por {prestador}" class("dd-prov-by")
             Stack class("dd-fac-table") {
               Stack class("dd-fac-row dd-fac-head") {
                 Span "Fecha" class("c-f")  Span "Servicio" class("c-s")  Span "Estado" class("c-e")  Span "Precio" class("c-p")

@@ -1,0 +1,77 @@
+screen condiciones
+use condicionesVersion, alFinal from "~/lib/politica.js"
+
+# Acceptance gate (/aceptar-condiciones). The server reported a document this user has not accepted for its
+# business (auth.aceptacionPendiente, from aceptacion_pendiente()): the role notice for a client, the
+# Términos para negocios for the owner of a business. Every portal guard is closed until "Entiendo y acepto"
+# (unlocked once the document is read to the end) sends it to aceptacion_registrar through SupaAuthForm,
+# which then reports the session again with nothing pending: the chain lands in the portal of the role.
+
+state {
+  verDoc = false : bool
+  leido  = false : bool
+  nonce  = 0     : number
+}
+
+get tipo    = auth.aceptacionPendiente
+get esAviso = auth.aceptacionPendiente == "aviso_rol"
+get negocio = auth.negocioNombre
+get version = condicionesVersion(auth.aceptacionPendiente)
+get titulo  = esAviso ? "Quién presta el servicio" : "Términos para negocios"
+action abrir mutates verDoc { verDoc.set(true) }
+action cerrar mutates verDoc { verDoc.set(false) }
+action leer mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
+action aceptar mutates verDoc, nonce { verDoc.set(false)  nonce.set(nonce + 1) }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gback-wm")
+    }
+    Stack class("glogin-photo-in") {
+      Title "Antes de continuar" h1 class("glogin-h")
+      when esAviso { Text "Cómo funciona el servicio de {negocio}." class("glogin-sub") }
+      when not esAviso { Text "Las condiciones para operar tu negocio en DevDogs." class("glogin-sub") }
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+      when esAviso {
+        Stack class("gcond") {
+          Title "Quién presta el servicio a tu perro" h2 class("pv-h1")
+          Text "DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro: lo hace {negocio}. Lee el aviso completo y acéptalo para entrar a tu portal. Si no deseas aceptarlo, puedes cerrar sesión." class("muted t-sm")
+        }
+      }
+      when not esAviso {
+        Stack class("gcond") {
+          Title "Términos para negocios" h2 class("pv-h1")
+          Text "Para operar {negocio} en DevDogs, lee los Términos para negocios hasta el final y acéptalos. Si no deseas aceptarlos, puedes cerrar sesión." class("muted t-sm")
+        }
+      }
+
+      when verDoc {
+        DocModal(titulo: "{titulo}", aceptar: "Entiendo y acepto", leido: leido, onCerrar: cerrar, onLeer: leer, onAceptar: aceptar) {
+          when esAviso { AvisoRol(negocio: negocio, version: version) }
+          when not esAviso { TerminosNegocio(version: version) }
+        }
+      }
+
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+
+      Stack class("gsignup") {
+        Button "Cerrar sesión" -> auth.logout class("glink t-sm")
+      }
+    }
+
+    Stack class("gbar") {
+      Button -> abrir class("gbar-cta") {
+        Span "Leer y aceptar"
+        Icon "lucide:arrow-right"
+      }
+    }
+
+    Custom SupaAuthForm inputs(mode: "condiciones", tipo: @tipo, version: @version, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+  }
+}

@@ -18,6 +18,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("paseador_lleno") >= 0) return "Ese paseador ya tiene 8 perros en esa salida. La Ley 2480 de 2025 permite máximo 8 por paseador.";
   if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede salir a paseo ni a guardería.";
   if (m.indexOf("datos_invalidos") >= 0) return "Revisa los datos legales: algún campo no tiene un formato válido.";
+  if (m.indexOf("aviso_rol_pendiente") >= 0) return "Antes de reservar o comprar, acepta el aviso sobre quién presta el servicio: cierra sesión y vuelve a entrar.";
   return msg;
 }
 

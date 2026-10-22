@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, ids, seed, tempUser } from '../security/_actors.mjs'
 import { loadConfig } from '../security/_env.mjs'
-import { startApp, acceptPolicy, isAccepted } from './_app.mjs'
+import { acceptConditions, startApp, acceptPolicy, isAccepted } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
@@ -81,6 +81,7 @@ test('no profile: routed to /completar-registro, no portal by URL; an independen
     assert.equal(await profileOf(u.id), null)
 
     await complete(page, 'Soy paseador independiente', { 'Ana Rondón': 'Ana Google' })
+    await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL('**/app', { timeout: 60_000 })
     await settle(page)
     assert.equal(path(page), '/app')
@@ -98,6 +99,7 @@ test('no profile: a business finishes and lands on /empresa', async () => {
   try {
     const page = await googleReturn(u)
     await complete(page, 'Tengo un negocio', { 'Ana Rondón': 'Ana Google', 'DevDogs Poblado': 'Google E2E' })
+    await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL('**/empresa', { timeout: 60_000 })
     const p = await profileOf(u.id)
     assert.equal(p.rol, 'empresa')
@@ -116,6 +118,7 @@ test('no profile: an invitation bound to the email joins the invited portal', as
     assert.ok(code, 'valid-call precondition')
     const page = await googleReturn(u)
     await complete(page, 'Tengo un código de invitación', { 'Ana Rondón': 'Ana Google', 'XXXXXXX-XXXXXXX': code })
+    await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL('**/cliente', { timeout: 60_000 })
     assert.deepEqual(await profileOf(u.id), { rol: 'cliente', negocio_id: ids.negocios.A })
     assert.deepEqual(await versionsOf(u.id), [POLITICA_VERSION])
