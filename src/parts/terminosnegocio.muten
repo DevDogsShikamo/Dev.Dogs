@@ -34,6 +34,7 @@ part TerminosNegocio(version: text) {
       Title "3. Políticas propias del negocio" h2
       List {
         Text "El negocio puede fijar sus propias condiciones de servicio (horarios, cancelaciones, recogida y entrega, emergencias, entre otras). Responde por su legalidad y por darlas a conocer a sus clientes."
+        Text "El negocio puede publicarlas en la plataforma, en Políticas de tu negocio. Cada vez que publica una versión nueva, sus clientes deben leerla y aceptarla antes de volver a reservar o comprar."
         Text "DevDogs no revisa ni avala esas condiciones, y que aparezcan en la plataforma no significa que DevDogs las apruebe."
         Text "DevDogs puede retirar contenido manifiestamente ilegal, por ejemplo condiciones que permitan el maltrato animal, e informará al negocio el motivo."
       }

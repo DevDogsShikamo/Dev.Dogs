@@ -130,6 +130,7 @@ part DocumentosLegales(version: text) {
     Section id("servicios") class("pv-sec pl-doc") {
       Title "2. Servicios, precios, cobros y cancelaciones" h2
       Text "Esta sección describe cómo la plataforma registra los servicios. Las condiciones comerciales concretas (precio, horarios, cancelación, recogida y entrega) las define cada negocio con el dueño en su contrato de servicio."
+      Text "Cada negocio puede publicar sus propias políticas de servicio en la aplicación. Si el negocio que atiende al perro las publicó, el dueño debe leerlas y aceptarlas en la aplicación antes de reservar o comprar, y de nuevo cada vez que el negocio publique una versión nueva; puede consultarlas en el Perfil de su portal. Esas políticas son del negocio, no de DevDogs: DevDogs no las revisa ni las avala, y no limitan los derechos que la Ley 1480 de 2011 reconoce al consumidor."
 
       Stack class("pl-sub") {
         Title "2.1 Servicios y productos" h3

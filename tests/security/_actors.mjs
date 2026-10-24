@@ -179,6 +179,9 @@ async function data() {
     ok(await db.from(t).delete().in('negocio_id', [A, B, I]).not(n.col, 'in', n.list), `clean ${t}`)
   }
   ok(await db.from('invitaciones').delete().in('negocio_id', [A, B, I]), 'clean invitaciones')
+  // No business policy in the fixture tenants (a published one would gate their clients' bookings).
+  ok(await db.from('negocio_politicas').delete().in('negocio_id', [A, B, I]), 'clean negocio_politicas')
+  ok(await db.from('aceptaciones').delete().eq('tipo', 'politica_negocio').in('negocio_id', [A, B, I]), 'clean politica_negocio')
 
   ok(await db.from('perro_duenos').delete().in('perro_id', fixtureDogs), 'clean perro_duenos')
   const link = (perro_id, dueno_id, rol = 'principal') => ({ perro_id, dueno_id, rol, estado: 'activo' })
