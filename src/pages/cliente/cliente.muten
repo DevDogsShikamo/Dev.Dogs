@@ -14,6 +14,10 @@ entity PerroDraft {
   sociabilidad excelente | bueno | cuidado | selectivo
   tips         text
 }
+# Policies of the business (PoliticaBridge): the published sections and {version, fecha}; read-only here
+# (the client accepts each version at /aceptar-condiciones).
+entity PolSec { clave text  titulo text  texto text }
+entity PolMeta { version text  fecha text }
 
 # Portal CLIENTE (dueño del perro). Reutiliza la estética .dd-* del paseador.
 # Datos: ClienteBridge (root) + store `cliente`. Inicio · Mis perros · Reservar
@@ -45,6 +49,10 @@ state {
   rsTexto      = "" : text
   rsPublicar   = false : bool
   rsForm       = false : bool
+  secs         = [] : list<PolSec>
+  polVer       = "" : text
+  polFecha     = "" : text
+  polForm      = false : bool
 }
 # Reseña del negocio: nueva (vacía, casilla del nombre sin marcar) o editar la mía.
 action rsNueva mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(0)  rsTexto.set("")  rsPublicar.set(false)  rsForm.set(true) }
@@ -56,6 +64,13 @@ action rsEnviar mutates rsForm { resenaGuardar(rsRating, rsTexto, rsPublicar)  r
 # the name was reported shows a generic label until the next login.
 get prestador = auth.negocioNombre != "" ? auth.negocioNombre : "tu negocio"
 action go(s: text) mutates section { section.set(s) }
+action polSecs(rows: list<PolSec>) mutates secs { secs.set(rows) }
+action polMeta(rows: list<PolMeta>) mutates polVer, polFecha {
+  if rows.length > 0 { polVer.set(rows.at(0).version)  polFecha.set(rows.at(0).fecha) }
+}
+get polTitulo = "Políticas de " + prestador
+action polAbrir mutates polForm { polForm.set(true) }
+action polCerrar mutates polForm { polForm.set(false) }
 action notifToggle mutates notifOpen { notifOpen.toggle() }
 action notifCerrar mutates notifOpen { notifOpen.set(false) }
 action irAgenda mutates section, notifOpen { section.set("agenda")  notifOpen.set(false) }
@@ -88,6 +103,7 @@ action facXLS { descargarEstadoCuentaExcel(cliente.facturaPerro, cliente.factura
 Stack class("dd-app") {
 
   Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
+  Custom PoliticaBridge on(secciones: polSecs, meta: polMeta)
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
@@ -424,8 +440,35 @@ Stack class("dd-app") {
             }
             when cliente.identidad.length == 0 { Text "Tu negocio aún no registró sus datos legales." class("dd-rel-hint") }
           }
+          # The policies the business published, which the client accepted (read-only).
+          Stack class("dd-rs") {
+            Span "Políticas de {prestador}" class("dd-emp-lbl")
+            when polVer != "" { Button -> polAbrir class("dd-cat-add") { Icon "lucide:scroll-text"  Span "Ver las políticas" } }
+            when polVer == "" { Text "Tu negocio aún no publicó sus políticas." class("dd-rel-hint") }
+          }
           Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
+        }
+      }
+
+      # ---- Modal: políticas del negocio (read-only) ----
+      when polForm {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: polCerrar)
+          Stack class("dd-cal-sheet dd-pol-sheet") aria(role: "dialog", modal: true, label: polTitulo) {
+            Stack class("dd-cat-formhead") {
+              Span "Políticas" class("dd-emp-lbl")
+              Button -> polCerrar class("dd-cal-sheet-x") aria(label: "Cerrar las políticas") { Icon "lucide:x" }
+            }
+            PoliticaNegocio(negocio: prestador, version: polVer, fecha: polFecha) {
+              each secs as s {
+                Section class("pv-sec") {
+                  Title "{s.titulo}" h2
+                  Text "{s.texto}" class("pv-pre")
+                }
+              }
+            }
+          }
         }
       }
 

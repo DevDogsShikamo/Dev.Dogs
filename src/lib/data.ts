@@ -4,6 +4,7 @@
 import { supa, toast, resolveSesion } from "./authActions";
 import { rpcOrQueue } from "./outbox";
 import { copiarCodigo } from "./share";
+import { politicaPayload } from "./politicaNegocio.js";
 
 function refresh(): void {
   if (typeof window !== "undefined") {
@@ -18,6 +19,8 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("paseador_lleno") >= 0) return "Ese paseador ya tiene 8 perros en esa salida. La Ley 2480 de 2025 permite máximo 8 por paseador.";
   if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede salir a paseo ni a guardería.";
   if (m.indexOf("datos_invalidos") >= 0) return "Revisa los datos legales: algún campo no tiene un formato válido.";
+  if (m.indexOf("politica_negocio_pendiente") >= 0) return "Antes de reservar o comprar, acepta las políticas de tu negocio: cierra sesión y vuelve a entrar para leerlas.";
+  if (m.indexOf("politica_invalida") >= 0) return "Revisa las políticas: Requisitos y Responsabilidad son obligatorias y cada sección admite hasta 4000 caracteres.";
   if (m.indexOf("aviso_rol_pendiente") >= 0) return "Antes de reservar o comprar, acepta el aviso sobre quién presta el servicio: cierra sesión y vuelve a entrar.";
   return msg;
 }
@@ -291,6 +294,13 @@ export function negocioIdentidadGuardar(razon: string, tipo: string, numero: str
     p_razon_social: razon || "", p_doc_tipo: tipo || "", p_doc_numero: numero || "",
     p_direccion: direccion || "", p_telefono: telefono || "", p_correo: correo || "",
   }).then(done("No se pudieron guardar los datos legales", function () { toast("Datos legales guardados"); refresh(); }));
+}
+
+// Policies of the business for its clients (owner only; the RPC validates and publishes version n+1, which its
+// clients must accept before booking or buying again). The page validated the rows with politicaError.
+export function negocioPoliticaPublicar(rows: unknown[]): void {
+  supa.rpc("negocio_politica_publicar", { p_secciones: politicaPayload(rows) })
+    .then(done("No se pudieron publicar las políticas", function () { toast("Políticas publicadas: tus clientes deberán aceptarlas antes de su próxima reserva o compra."); refresh(); }));
 }
 
 // Salario mensual fijo de un paseador empleado: vive en `nomina` (solo lo escribe el dueño).

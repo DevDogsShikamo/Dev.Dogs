@@ -148,3 +148,76 @@ test('policy and business terms both pending: /aceptar-politica comes first, the
     await o.drop()
   }
 })
+
+// Business policies (20261022110001_politicas_negocio.sql): the owner of tenant A publishes them from Perfil,
+// starting from the examples it must adapt; its client CLIENT3 is then gated until it reads and accepts them,
+// and reads them again from its Perfil. The policy and its acceptance are removed afterwards (no policy in
+// the fixture tenants by default).
+const removePolicies = async () => {
+  assert.equal((await admin().from('negocio_politicas').delete().eq('negocio_id', ids.negocios.A)).error, null)
+  assert.equal((await admin().from('aceptaciones').delete().eq('tipo', 'politica_negocio').eq('negocio_id', ids.negocios.A)).error, null)
+}
+const toPerfil = (page) => page.getByRole('button', { name: 'Perfil', exact: true }).filter({ visible: true }).first().click()
+
+test('owner publishes the business policies; its client is gated until it accepts them, then reads them in Perfil', async () => {
+  await removePolicies()
+  try {
+    const owner = await login(credentials('OWNER'))
+    await owner.waitForURL('**/empresa', { timeout: 60_000 })
+    await toPerfil(owner)
+    await owner.getByText('Aún no publicas las políticas de tu negocio.', { exact: false }).waitFor({ timeout: 30_000 })
+    await owner.getByText('artículos 42 y 43 de la Ley 1480 de 2011', { exact: false }).waitFor()
+    const areas = owner.locator('textarea.dd-pol-txt')
+    await areas.nth(8).waitFor({ timeout: 30_000 })
+    assert.match(await areas.nth(5).inputValue(), /^Ejemplo, edítalo según tu negocio: [^]*artículo 2353 del Código Civil/, 'the responsabilidad example')
+    assert.equal(await areas.count(), 9, 'one text area per section')
+    const publish = () => owner.getByRole('button', { name: 'Publicar nueva versión' })
+    assert.equal(await publish().isDisabled(), true, 'the examples must be adapted first')
+    for (let i = 0; i < 9; i++) {
+      const area = areas.nth(i)
+      await area.fill((await area.inputValue()).replace('Ejemplo, edítalo según tu negocio: ', ''))
+    }
+    const requisitos = owner.getByPlaceholder('Requisitos para tu perro')
+    await requisitos.fill('')
+    assert.equal(await publish().isDisabled(), true, 'requisitos is required')
+    await requisitos.fill('Carné de vacunación al día (E2E).')
+    await publish().click()
+    await owner.getByText('Políticas publicadas', { exact: false }).waitFor({ timeout: 30_000 })
+    await owner.getByText(/Versión 1, publicada el/).waitFor({ timeout: 30_000 })
+    const rows = (await admin().from('negocio_politicas').select('version, vigente, secciones').eq('negocio_id', ids.negocios.A)).data
+    assert.deepEqual(rows.map((r) => [r.version, r.vigente]), [[1, true]])
+    assert.equal(rows[0].secciones.find((s) => s.clave === 'requisitos').texto, 'Carné de vacunación al día (E2E).')
+    noErrors(owner)
+    await owner.close()
+
+    const page = await login(credentials('CLIENT3'))
+    await page.waitForURL('**/aceptar-condiciones', { timeout: 60_000 })
+    await page.getByText('Políticas de Tenant A').first().waitFor()
+    await lockedOut(page)
+    await conditionsButton(page).click()
+    const text = await policyDoc(page).innerText()
+    assert.match(text, /Políticas de Tenant A/)
+    assert.match(text, /Versión 1, publicada el/)
+    assert.match(text, /Estas políticas las fija Tenant A; DevDogs no las revisa ni las avala\./)
+    assert.match(text, /Carné de vacunación al día \(E2E\)\./)
+    assert.match(text, /artículo 2353 del Código Civil/)
+    assert.equal(await understandButton(page).isDisabled(), true, 'locked before reading to the end')
+    await policyDoc(page).evaluate((el) => { el.scrollTop = el.scrollHeight })
+    await policyDoc(page).hover()
+    await understandButton(page).click()
+    await page.waitForURL('**/cliente', { timeout: 60_000 })
+    assert.ok((await rowsOf(u.CLIENT3)).includes('politica_negocio:1'))
+
+    await toPerfil(page)
+    await page.getByRole('button', { name: 'Ver las políticas' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Políticas de Tenant A' })
+    await dialog.waitFor()
+    assert.match(await dialog.innerText(), /Carné de vacunación al día \(E2E\)\./)
+    await page.getByRole('button', { name: 'Cerrar las políticas' }).click()
+    await dialog.waitFor({ state: 'detached' })
+    noErrors(page)
+    await page.close()
+  } finally {
+    await removePolicies()
+  }
+})
