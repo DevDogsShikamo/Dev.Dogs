@@ -21,8 +21,10 @@ entity PerroDraft {
   tamano       pequeno | mediano | grande
   conducta     tranquilo | energico | reactivo | sociable | jalador
   sociabilidad excelente | bueno | cuidado | selectivo
-  # Ley 2480 de 2025: in heat (stays home from walks and daycare) + health certificate issue date.
+  # Ley 2480 de 2025: in heat or with a contagious disease (stays home from walks, daycare and training)
+  # + health certificate issue date.
   celo         bool
+  contagio     bool
   certificado  date
   tips         text
   foto         text
@@ -113,14 +115,14 @@ action servicioBorrar(id: text) { servicios.servicioDel(id)  servicioEliminar(id
 
 # ---- Catálogo de perros (ABM del jefe) ----
 action perroNuevo mutates pdraft, pedit, pform { pdraft.reset()  pedit.set("")  pform.set(true) }
-action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, cert: text) mutates pdraft, pedit, pform {
-  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, certificado: cert, tips: tips, foto: foto })
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, contagio: bool, cert: text) mutates pdraft, pedit, pform {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, contagio: contagio, certificado: cert, tips: tips, foto: foto })
   pedit.set(id)  pform.set(true)
 }
 action perroCerrar mutates pform { pform.set(false) }
 action perroGuardar(p: PerroDraft) mutates pform {
   if pedit == "" { perroCrear(p) }
-  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado)  perroActualizar(pedit, p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado)  perroActualizar(pedit, p) }
   pform.set(false)
 }
 action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
@@ -284,7 +286,7 @@ Stack class("dd-app") {
             }
           }
           when empresa.nPaseadores == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:users" }  Title "Sin paseadores" h2  Text "Invitá a tu primer paseador con el botón de arriba." }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:users" }  Title "Sin paseadores" h2  Text "Invita a tu primer paseador con el botón de arriba." }
           }
           Stack class("dd-cat-list") {
             each empresa.paseadores as p {
@@ -321,7 +323,7 @@ Stack class("dd-app") {
             InviteItem(iv: iv, onDelete: invBorrar)
           }
           when empresa.nClientes == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invitá a tu primer cliente con el botón de arriba." }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invita a tu primer cliente con el botón de arriba." }
           }
           Stack class("dd-cat-list") {
             each empresa.clientes as c {
@@ -523,7 +525,7 @@ Stack class("dd-app") {
             Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Agregar" }
           }
           when catalogo.total == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registrá los perros del negocio." }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registra los perros del negocio." }
           }
           Stack class("dd-cat-list") {
             each catalogo.perros as p {
@@ -533,12 +535,12 @@ Stack class("dd-app") {
                   when p.foto == "" { Span "🐕" }
                 }
                 Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.raza { Span "{p.raza}" class("cd") }  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") } }
+                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.raza { Span "{p.raza}" class("cd") }  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") }  when p.contagio { Span "Enfermedad contagiosa" class("dd-soc dd-soc-cuidado") } }
                   when p.tamano { Span "{p.tamano}" class("meta") }
                   Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                 }
                 Stack class("acts") {
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.certificado) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
                   Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar perro") { Icon "lucide:trash-2" }
                 }
               }
@@ -590,7 +592,7 @@ Stack class("dd-app") {
             Button -> servicioNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Agregar" }
           }
           when servicios.total == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:tag" }  Title "Sin servicios" h2  Text "Creá tu oferta: paseo, guardería, baño, corte de garras…" }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:tag" }  Title "Sin servicios" h2  Text "Crea tu oferta: paseo, guardería, baño, corte de garras…" }
           }
           Stack class("dd-cat-list") {
             each servicios.servicios as s {
@@ -653,7 +655,7 @@ Stack class("dd-app") {
                 InviteItem(iv: iv, onDelete: invBorrar)
               }
               when empresa.nGestion == 0 {
-                Text "Aún no hay empleados de gestión. Invitá a alguien para compartir la oficina." class("dd-rel-hint")
+                Text "Aún no hay empleados de gestión. Invita a alguien para compartir la oficina." class("dd-rel-hint")
               }
               Stack class("dd-cat-list") {
                 each empresa.gestion as g {
@@ -775,7 +777,7 @@ Stack class("dd-app") {
               Button -> asigCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
-              Span "Elegí un paseador" class("dd-hor-lbl")
+              Span "Elige un paseador" class("dd-hor-lbl")
               Stack class("dd-gsvc") {
                 Button "Sin asignar" -> asigElegir("", "") class("dd-gchip")
                 each empresa.paseadores as p {

@@ -24,19 +24,28 @@ part PoliticaTexto(version: text) {
         Text "Razón social: [COMPLETAR: razón social]"
         Text "NIT: [COMPLETAR: NIT]"
         Text "Domicilio: [COMPLETAR: dirección]"
+        Text "Teléfono: [COMPLETAR: teléfono]"
         Text "Correo para consultas y solicitudes: [COMPLETAR: correo de contacto]"
+        Text "Área o persona responsable de atender consultas y reclamos: [COMPLETAR: área o persona responsable]"
       }
       Text "[COMPLETAR: el abogado debe definir si DevDogs actúa como responsable o como encargado respecto de los datos que cada negocio (empresa o paseador independiente) registra de sus propios clientes y perros.]"
     }
 
     Section class("pv-sec") {
       Title "3. Finalidad" h2
-      Text "Los datos se tratan únicamente para prestar el servicio de la plataforma:"
+      Text "Los datos se tratan únicamente para estas finalidades:"
       List {
         Text "Crear y administrar la cuenta y sus accesos."
-        Text "Registrar perros, programar y ejecutar paseos y otros servicios, y coordinar a paseadores, personal de gestión y clientes."
+        Text "Operar el servicio de cada negocio: registrar perros, programar y ejecutar paseos y otros servicios, y coordinar a paseadores, personal de gestión y clientes."
         Text "Calcular y registrar cobros y saldos entre el negocio y sus clientes."
         Text "Mostrar avisos dentro de la aplicación relacionados con el servicio."
+        Text "Mostrar a los clientes de cada negocio la identidad legal de ese negocio (artículos 50 y 53 de la Ley 1480 de 2011)."
+        Text "Publicar las reseñas con el nombre y la inicial del apellido de su autor, solo cuando el autor lo acepta."
+        Text "Registrar y revisar los datos que pide la Ley 2480 de 2025: si un perro está en celo, si tiene una enfermedad contagiosa y la fecha de expedición de su certificado de salud."
+        Text "Registrar la aceptación de esta política, de los términos y de los demás documentos que se aceptan en la aplicación."
+        Text "Atender las consultas, solicitudes y reclamos de los titulares, incluidos los que se presentan desde “Mis datos”."
+        Text "Proteger la seguridad de las cuentas, prevenir fraudes y auditar los accesos."
+        Text "Atender obligaciones legales y defender reclamaciones ante las autoridades."
       }
       Text "Los datos no se usan para publicidad ni se venden a terceros."
     }
@@ -47,12 +56,13 @@ part PoliticaTexto(version: text) {
         Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
         Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
         Text "Datos legales del negocio, que registra el jefe para identificarse ante sus clientes (artículos 50 y 53 de la Ley 1480 de 2011): nombre o razón social, tipo y número de documento (NIT, cédula o pasaporte), dirección de notificaciones, teléfono y correo. En el caso del paseador independiente, el documento es su número de identificación personal."
-        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, la fecha de expedición del certificado de salud, observaciones y enlace a la foto de perfil."
+        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, si tiene una enfermedad contagiosa, la fecha de expedición del certificado de salud, observaciones y enlace a la foto de perfil."
         Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, hora de recogida y de entrega, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
         Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
-        Text "Aceptación de esta política: identificador de usuario, versión aceptada y fecha y hora registradas por el servidor. No se guarda la dirección IP ni datos del navegador."
+        Text "Aceptación de esta política: el registro de la aceptación guarda solo el identificador de usuario, la versión aceptada y la fecha y hora registradas por el servidor."
+        Text "Registros técnicos de acceso: los proveedores de alojamiento y de autenticación (Supabase, en sus registros de auditoría de acceso, y Cloudflare) guardan registros técnicos que pueden incluir la dirección IP y el navegador, con fines de seguridad, durante [COMPLETAR: plazo]."
         Text "Aceptación del aviso sobre quién presta el servicio (clientes) y de los Términos para negocios (jefe del negocio): identificador de usuario, documento aceptado, negocio al que se refiere, versión y fecha y hora registradas por el servidor."
       }
       Text "Fuera de los datos legales del negocio no se solicita cédula, documento de identidad ni NIT, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
@@ -79,7 +89,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
         Text "Demás datos: mientras la cuenta del negocio o del usuario esté activa."
-        Text "Después del cierre de la cuenta y por obligaciones legales o contables: [COMPLETAR: plazos que fije el abogado]."
+        Text "Vigencia de las bases de datos: mientras la cuenta esté activa y, después, durante [COMPLETAR: plazo legal], por obligaciones legales o contables."
       }
     }
 
@@ -93,7 +103,16 @@ part PoliticaTexto(version: text) {
         Text "Presentar quejas ante la Superintendencia de Industria y Comercio."
       }
       Text "Dentro de la aplicación, en “Mis datos” (desde el perfil), cada usuario puede ver, corregir y descargar sus datos personales y presentar una consulta, una solicitud de rectificación, de supresión de su cuenta o de revocación de la autorización. La solicitud queda registrada con su fecha y se responde dentro del plazo legal; la supresión y la revocación no son inmediatas."
-      Text "Otro canal para ejercer estos derechos: [COMPLETAR: correo de contacto]. Plazos de respuesta: [COMPLETAR: plazos que fije el abogado]."
+      Text "Otro canal para ejercer estos derechos: [COMPLETAR: correo de contacto]."
+      Text "Procedimiento para consultas y reclamos (artículos 14 y 15 de la Ley 1581 de 2012):"
+      List {
+        Text "Canales: “Mis datos” dentro de la aplicación o el correo indicado en la sección 2."
+        Text "Consultas: se responden dentro de diez (10) días hábiles desde que se reciben. Si no es posible en ese plazo, se informa el motivo y la nueva fecha, que no supera cinco (5) días hábiles más."
+        Text "Contenido de un reclamo (corrección, actualización o supresión de datos, o un posible incumplimiento de esta política): debe incluir la identificación del titular, la descripción de los hechos que dan lugar al reclamo, la dirección y los documentos que se quieran hacer valer."
+        Text "Si el reclamo está incompleto, se pide completarlo dentro de los cinco (5) días siguientes a su recepción. Si pasan dos (2) meses desde ese requerimiento sin que se complete, se entiende que se desistió del reclamo."
+        Text "Dentro de los dos (2) días hábiles siguientes a recibir un reclamo completo, el dato se marca con la leyenda “reclamo en trámite” y su motivo, hasta que se resuelva."
+        Text "Plazo de los reclamos: se responden dentro de quince (15) días hábiles desde el día siguiente a su recepción. Si no es posible en ese plazo, se informa el motivo y la nueva fecha, que no supera ocho (8) días hábiles más."
+      }
     }
 
     Section class("pv-sec") {

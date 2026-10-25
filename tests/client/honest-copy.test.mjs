@@ -105,3 +105,28 @@ test('the landing promises no service or feature the app does not have, and uses
   const voseo = landing.filter((s) => /\b(llevá|cerrá|elegí|abrís|necesitás|buscá|encontrá|escribí|tocá|creá|probá|tenés|podés|querés|sos|vos)\b/i.test(s))
   assert.deepEqual(voseo, [])
 })
+
+// The whole app speaks neutral tú/usted, never voseo. Voseo verbs carry a stress mark that tú does not
+// (tenés/tienes, necesitás/necesitas, creá/crea, elegí/elige), so any word ending in a stressed á/é/í(s) is
+// suspect unless it is a future (podrá, quedará), a common non-verb (más, después, aquí) or a tú form
+// (estás, esté). Pronouns, "sos" and the enclitic or -rar imperatives without a telltale accent are listed.
+const VOSEO_WORDS = /(?<!\p{L})(vos|sos|unite|pedile|compartilo|compartila|fijate|contanos|avisanos|escribinos|decinos|acordate|mirá|esperá|prepará|compará|separá|operá|aclará|generá|considerá)(?!\p{L})/iu
+const STRESSED = /(?<!\p{L})\p{L}{2,}(?:ás|és|ís|á|é|í)(?!\p{L})/giu
+const FUTURE = /(?:[aei]r|[bd]r)ás?$/i
+const NOT_VOSEO = new Set(['qué', 'mié', 'está', 'esté', 'estás', 'estés', 'acá', 'allá', 'así', 'aquí', 'ahí', 'allí', 'demás',
+  'además', 'atrás', 'detrás', 'jamás', 'quizás', 'después', 'través', 'interés', 'inglés', 'carné', 'carnés', 'país', 'bogotá'])
+const voseo = (s) => VOSEO_WORDS.test(s) || (s.match(STRESSED) ?? []).some((w) => !NOT_VOSEO.has(w.toLowerCase()) && !FUTURE.test(w))
+
+test('voseo detector: flags voseo and lets tú, usted, futures and common words through', () => {
+  for (const s of ['Tenés 3 grupos', 'Creá tu negocio', '¿No tenés código?', 'Unite con tu código', 'pedile al negocio',
+    'Compartilo ahora', 'si lo perdés, revocá la invitación', 'si cerrás sesión', 'Elegí un perro', 'Mirá tus paseos', 'Sos el jefe'])
+    assert.ok(voseo(s), s)
+  for (const s of ['Tienes 3 grupos', 'Crea tu negocio', 'Únete con tu código', 'Elige un perro', 'Puede consultar sus datos',
+    'El negocio te avisará', 'Aquí está tu agenda', 'Después de pagar, quedará registrado', 'No estés lejos', 'Bogotá'])
+    assert.ok(!voseo(s), s)
+})
+
+test('no user-facing string in src uses voseo', () => {
+  const found = all.filter(({ s }) => voseo(s)).map(({ file, s }) => `${file}: "${s.trim().slice(0, 80)}"`)
+  assert.deepEqual(found, [])
+})

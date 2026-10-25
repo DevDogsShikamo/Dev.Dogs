@@ -26,8 +26,10 @@ entity PerroPaseo {
   nombre text
   estado text
   motivo text
-  # In heat on a walk/daycare not started yet: it does not go out (Ley 2480 art. 9.7).
+  # In heat or with a contagious disease on a walk/daycare/training not started yet: it does not go out
+  # (Ley 2480 arts. 7 and 9.7).
   celo   bool
+  contagio bool
   # Health certificate issue date (YYYY-MM-DD or "").
   cert   text
 }

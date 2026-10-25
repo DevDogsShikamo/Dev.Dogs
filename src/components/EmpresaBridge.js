@@ -57,13 +57,13 @@ function mount(el, inputs, on) {
 
       // Perros del negocio: lista (para el ABM del jefe) + total (KPI).
       if (on.perros || on.perrosTot) {
-        supa.from("perros").select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,en_celo,certificado_salud").eq("negocio_id", neg).eq("activo", true).order("nombre").then(function (dr) {
+        supa.from("perros").select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,en_celo,enfermedad_contagiosa,certificado_salud").eq("negocio_id", neg).eq("activo", true).order("nombre").then(function (dr) {
           if (dr && dr.error) return;
           var raw = dr.data || [];
           if (on.perrosTot) on.perrosTot(raw.length);
           if (on.perros) {
             on.perros(raw.map(function (r) {
-              return { id: r.id, nombre: r.nombre || "", raza: r.raza || "", tamano: r.tamano || "", conducta: r.conducta || "", tips: r.tips || "", foto: r.foto_url || "", sociabilidad: r.sociabilidad || "", celo: !!r.en_celo, certificado: r.certificado_salud || "", relN: 0, relWorst: "" };
+              return { id: r.id, nombre: r.nombre || "", raza: r.raza || "", tamano: r.tamano || "", conducta: r.conducta || "", tips: r.tips || "", foto: r.foto_url || "", sociabilidad: r.sociabilidad || "", celo: !!r.en_celo, contagio: !!r.enfermedad_contagiosa, certificado: r.certificado_salud || "", relN: 0, relWorst: "" };
             }));
           }
         });

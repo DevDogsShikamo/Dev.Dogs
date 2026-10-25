@@ -48,7 +48,7 @@ function mount(el, inputs, on) {
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       supa.from("perros")
-        .select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,en_celo,certificado_salud,incompatibles")
+        .select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,en_celo,enfermedad_contagiosa,certificado_salud,incompatibles")
         .eq("negocio_id", s.negocioId).eq("activo", true).order("nombre")
         .then(function (res) {
           if (res && res.error) return;   // SWR: no pisar el cache si la red falló
@@ -75,7 +75,7 @@ function mount(el, inputs, on) {
             return {
               id: r.id, nombre: r.nombre || "", raza: r.raza || "", tamano: r.tamano || "",
               conducta: r.conducta || "", tips: r.tips || "", foto: r.foto_url || "",
-              sociabilidad: r.sociabilidad || "", celo: !!r.en_celo, certificado: r.certificado_salud || "",
+              sociabilidad: r.sociabilidad || "", celo: !!r.en_celo, contagio: !!r.enfermedad_contagiosa, certificado: r.certificado_salud || "",
               relN: ids.length, relWorst: worst
             };
           });
@@ -162,7 +162,7 @@ function mount(el, inputs, on) {
     globalThis.__ddSesion().then(function (s) {
       if (!s.uid) return;
       supa.from("prestaciones")
-        .select("id,estado,tipo,detalle,perros(id,nombre,foto_url,incompatibles,en_celo,certificado_salud),servicios(nombre,duracion_min)")
+        .select("id,estado,tipo,detalle,perros(id,nombre,foto_url,incompatibles,en_celo,enfermedad_contagiosa,certificado_salud),servicios(nombre,duracion_min)")
         .eq("cuidador_id", s.uid).eq("fecha", today())
         .then(function (res) {
           if (res && res.error) return;   // no pisar con vacío si la red falló
@@ -174,18 +174,21 @@ function mount(el, inputs, on) {
             if (!groups[key]) { groups[key] = { gid: r.id, hora: hora, tipo: tipo, svc: svc.nombre || "", dur: 0, dogs: [], presIds: [], estados: [], recibido: "", entrega: "" }; order.push(key); }
             var g = groups[key], dur = d.duracion || svc.duracion_min || 60;
             if (dur > g.dur) g.dur = dur;
-            // Ley 2480 art. 9.7: a dog in heat does not start a walk or daycare (the server leaves its row
-            // as it was), so it stays out of the ids the group starts and finishes and out of the group state.
-            var celo = !!pobj.en_celo && (tipo === "paseo" || tipo === "guarderia") && estado === "programado";
-            if (!celo) { g.presIds.push(r.id); g.estados.push(estado); }
+            // Ley 2480 arts. 7 and 9.7: a dog in heat or with a contagious disease does not start a walk, daycare
+            // or training (the server leaves its row as it was), so it stays out of the ids the group starts and
+            // finishes and out of the group state.
+            var retenido = (tipo === "paseo" || tipo === "guarderia" || tipo === "adiestramiento") && estado === "programado";
+            var celo = retenido && !!pobj.en_celo;
+            var contagio = retenido && !!pobj.enfermedad_contagiosa;
+            if (!celo && !contagio) { g.presIds.push(r.id); g.estados.push(estado); }
             if (d.hora_recibido && !g.recibido) g.recibido = d.hora_recibido;
             if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
             g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
-            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "", celo: celo, cert: pobj.certificado_salud || "" });
+            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "", celo: celo, contagio: contagio, cert: pobj.certificado_salud || "" });
             if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre }); }
           });
-          // A group whose dogs are all in heat never starts: it stays programado and each dog is marked "No salió".
+          // A group whose dogs are all held back (in heat or contagious) never starts: it stays programado and each dog is marked "No salió".
           var cards = order.map(function (k) {
             var g = groups[k], start = timeNum(g.hora), durH = Math.max(1, (g.dur || 60) / 60);
             var endN = start + durH, hh = Math.floor(endN), mm = Math.round((endN - hh) * 60), count = g.dogs.length;

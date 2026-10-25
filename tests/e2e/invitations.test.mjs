@@ -72,7 +72,7 @@ test('IV-7b: /unirse without a code (or from a business link) joins nobody and e
   for (const path of ['/unirse', '/unirse?negocio=dd-test-a']) {
     const page = await app.newPage()
     await page.goto(app.url + path)
-    assert.ok(await page.getByText('Necesitás una invitación').first().isVisible())
+    assert.ok(await page.getByText('pídele a tu negocio que te invite').first().isVisible())
     await page.getByPlaceholder('Ana Rondón').fill('Sin Codigo')
     await page.getByPlaceholder('tu@correo.com').fill(mail())
     await page.getByPlaceholder('••••••••').fill('Abcdefg1')

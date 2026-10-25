@@ -75,7 +75,7 @@ export function flush(): void {
     flushing = false;
     refresh();
     if (rejected) toast(rejected + (rejected === 1 ? " cambio no se pudo aplicar" : " cambios no se pudieron aplicar"));
-    else if (reason === "auth") toast("Sesión vencida — iniciá sesión para sincronizar");
+    else if (reason === "auth") toast("Sesión vencida — inicia sesión para sincronizar");
     else if (reason === "done") toast("Sincronizado ✓");
   };
   const step = (i: number): void => {
@@ -109,7 +109,7 @@ export function rpcOrQueue(name: string, params: Record<string, unknown>): void 
     .then((r: { error?: unknown; status?: number }) => {
       const c = classify(r as never);
       if (c === "network") enqueue(name, params); // postgrest-js reports a dead network as an error, not a throw
-      else if (c === "auth") toast("Sesión vencida — iniciá sesión de nuevo");
+      else if (c === "auth") toast("Sesión vencida — inicia sesión de nuevo");
       else if (c === "rejected") {
         toast("No se pudo guardar");
         refresh();

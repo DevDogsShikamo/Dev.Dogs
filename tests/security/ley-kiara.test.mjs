@@ -1,6 +1,8 @@
 // Ley 2480 de 2025 (Ley Kiara), enforced by the database whatever the path that writes the walk:
 //   art. 9.6 - no more than eight (8) dogs per walker on one outing (same walker, date and time);
 //   art. 9.7 - no walk or daycare for a female in heat (perros.en_celo);
+//   art. 7   - no daycare, hotel or training for a female in heat nor for a dog with an infectious-contagious
+//              disease (perros.enfermedad_contagiosa); walks are held back the same way;
 //   art. 9.3 - the health certificate date is recorded (perros.certificado_salud), valid six months.
 // Throwaway dogs in tenant A on a far-away date keep the seeded fixtures untouched.
 import { after, before, test } from 'node:test'
@@ -96,9 +98,58 @@ test('K-2c: a walk or daycare cannot be written as already started for a dog in 
   assert.match(daycare.error?.message ?? '', /perro_en_celo/)
 })
 
+test('K-2e: training is not started for a dog in heat either (art. 7)', async () => {
+  const started = await insertWalk(dogs[1], { fecha: day(1), estado: 'en_curso', tipo: 'adiestramiento', cuidador_id: null, detalle: {} })
+  assert.match(started.error?.message ?? '', /perro_en_celo/)
+  const booked = await insertWalk(dogs[1], { fecha: day(1), tipo: 'adiestramiento', cuidador_id: null, detalle: {} })
+  assert.equal(booked.error, null)
+  await admin().from('prestaciones').update({ estado: 'en_curso' }).eq('id', booked.data.id)
+  assert.equal((await admin().from('prestaciones').select('estado').eq('id', booked.data.id).single()).data.estado, 'programado')
+})
+
 test('K-2d: once the heat is over the dog goes out again', async () => {
   await (await as('OWNER')).from('perros').update({ en_celo: false }).eq('id', dogs[1])
   const w = await insertWalk(dogs[1], { fecha: day(0), detalle: { hora: '04:00' } })
+  assert.equal((await (await as('WALKER_CO')).rpc('paseo_marcar', { p_ids: [w.data.id], p_estado: 'en_curso' })).error, null)
+  assert.equal((await admin().from('prestaciones').select('estado').eq('id', w.data.id).single()).data.estado, 'en_curso')
+})
+
+// ---- art. 7: no walk, daycare or training for a dog with an infectious-contagious disease -----------------
+test('K-4a: only the business owner marks a dog with a contagious disease; the walker and the client cannot', async () => {
+  const dog = ids.perros.d1
+  for (const who of ['WALKER_CO', 'CLIENT']) {
+    await (await as(who)).from('perros').update({ enfermedad_contagiosa: true }).eq('id', dog)
+    assert.equal((await admin().from('perros').select('enfermedad_contagiosa').eq('id', dog).single()).data.enfermedad_contagiosa, false, who)
+  }
+  assert.equal((await (await as('OWNER')).from('perros').update({ enfermedad_contagiosa: true }).eq('id', dogs[4])).error, null)
+  assert.equal((await admin().from('perros').select('enfermedad_contagiosa').eq('id', dogs[4]).single()).data.enfermedad_contagiosa, true)
+})
+
+test('K-4b: a walk, daycare or training cannot be written as already started for a contagious dog', async () => {
+  for (const over of [
+    { estado: 'en_curso' },
+    { estado: 'recibido', tipo: 'guarderia', cuidador_id: null, detalle: {} },
+    { estado: 'en_curso', tipo: 'adiestramiento', cuidador_id: null, detalle: {} },
+  ]) {
+    const res = await insertWalk(dogs[4], { fecha: day(1), detalle: { hora: '05:00' }, ...over })
+    assert.match(res.error?.message ?? '', /perro_enfermo/, over.tipo ?? 'paseo')
+  }
+})
+
+test('K-4c: starting the outing leaves the contagious dog at home and starts the others', async () => {
+  const hoy = day(0)
+  const sick = await insertWalk(dogs[4], { fecha: hoy, detalle: { hora: '03:00' } })
+  const fine = await insertWalk(dogs[5], { fecha: hoy, detalle: { hora: '03:00' } })
+  const res = await (await as('WALKER_CO')).rpc('paseo_marcar', { p_ids: [sick.data.id, fine.data.id], p_estado: 'en_curso' })
+  assert.equal(res.error, null, 'the batch does not fail because of one dog')
+  const rows = (await admin().from('prestaciones').select('id, estado').in('id', [sick.data.id, fine.data.id])).data
+  assert.equal(rows.find((r) => r.id === sick.data.id).estado, 'programado')
+  assert.equal(rows.find((r) => r.id === fine.data.id).estado, 'en_curso')
+})
+
+test('K-4d: once healed the dog goes out again', async () => {
+  await (await as('OWNER')).from('perros').update({ enfermedad_contagiosa: false }).eq('id', dogs[4])
+  const w = await insertWalk(dogs[4], { fecha: day(0), detalle: { hora: '02:00' } })
   assert.equal((await (await as('WALKER_CO')).rpc('paseo_marcar', { p_ids: [w.data.id], p_estado: 'en_curso' })).error, null)
   assert.equal((await admin().from('prestaciones').select('estado').eq('id', w.data.id).single()).data.estado, 'en_curso')
 })
