@@ -182,6 +182,7 @@ async function data() {
   // No business policy in the fixture tenants (a published one would gate their clients' bookings).
   ok(await db.from('negocio_politicas').delete().in('negocio_id', [A, B, I]), 'clean negocio_politicas')
   ok(await db.from('aceptaciones').delete().eq('tipo', 'politica_negocio').in('negocio_id', [A, B, I]), 'clean politica_negocio')
+  ok(await identidades(), 'negocio_identidad')
 
   ok(await db.from('perro_duenos').delete().in('perro_id', fixtureDogs), 'clean perro_duenos')
   const link = (perro_id, dueno_id, rol = 'principal') => ({ perro_id, dueno_id, rol, estado: 'activo' })
@@ -225,6 +226,16 @@ async function data() {
     { upsert: true },
   )
 }
+
+// Every fixture tenant has its legal identity (Ley 1480 art. 53): without it reservar and comprar_producto
+// refuse its clients (negocio_sin_identidad). Idempotent; a test that removes one calls it again to restore it.
+export const IDENTIDADES = {
+  A: { razon_social: 'Tenant A SAS', doc_tipo: 'NIT', doc_numero: '900123456-1', direccion: 'Calle 10 # 43-21, Medellín', telefono: '+57 604 444 5566', correo: 'legal@tenant-a.example.com' },
+  B: { razon_social: 'Tenant B SAS', doc_tipo: 'NIT', doc_numero: '900654321-7', direccion: 'Carrera 7 # 72-10, Bogotá', telefono: '+57 601 555 6677', correo: 'legal@tenant-b.example.com' },
+  I: { razon_social: 'Walker Ind', doc_tipo: 'CC', doc_numero: '1020304050', direccion: 'Calle 50 # 20-30, Cali', telefono: '+57 310 555 0101', correo: 'walker-ind@example.com' },
+}
+export const identidades = () =>
+  admin().from('negocio_identidad').upsert(Object.entries(IDENTIDADES).map(([t, row]) => ({ negocio_id: ids.negocios[t], ...row })))
 
 // Money lives in `cobros`, not in `prestaciones` (S4b). Fixtures and tests keep writing one row shape;
 // this splits the money keys off, writes the booking and then its charge (service role). Rows keep their order.

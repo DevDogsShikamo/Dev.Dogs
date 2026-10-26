@@ -163,7 +163,8 @@ function mount(el, inputs, on) {
       if (!s.uid) return;
       supa.from("prestaciones")
         .select("id,estado,tipo,detalle,perros(id,nombre,foto_url,incompatibles,en_celo,enfermedad_contagiosa,certificado_salud),servicios(nombre,duracion_min)")
-        .eq("cuidador_id", s.uid).eq("fecha", today())
+        // A booking the client cancelled is not walked: it stays out of today's groups.
+        .eq("cuidador_id", s.uid).eq("fecha", today()).neq("estado", "cancelado")
         .then(function (res) {
           if (res && res.error) return;   // no pisar con vacío si la red falló
           var rows = res.data || [], groups = {}, order = [], perrosSeen = {}, perrosHoy = [], perrosPaseo = [];

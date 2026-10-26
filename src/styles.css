@@ -1455,6 +1455,7 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
 .dd-app .dd-agrp-badge.b-programado{background:#eef;color:#4338ca}
 .dd-app .dd-agrp-badge.b-en_curso{background:#fef3c7;color:#92620e}
 .dd-app .dd-agrp-badge.b-finalizado{background:#dcfce7;color:#166534}
+.dd-app .dd-agrp-badge.b-cancelado{background:#f1f1f4;color:#78717f}
 .dd-app .dd-cat-add svg{width:1.05rem;height:1.05rem}
 .dd-app .dd-cat-list{display:flex;flex-direction:column;gap:0.6rem;max-width:40rem}
 .dd-app .dd-cat-item{display:flex;flex-direction:row;align-items:center;gap:0.9rem;background:var(--panel);border:0.0625rem solid var(--line);border-radius:1.1rem;padding:0.7rem 0.85rem}

@@ -17,8 +17,10 @@ function mount(el, inputs, on) {
     if (i === 1) return "Mañana";
     return ES.DIASC[d.getDay()] + " " + d.getDate() + " " + ES.MESC[d.getMonth()];
   }
-  // Estado agregado de la salida: en_curso > programado > finalizado (lo relevante arriba).
+  // Estado agregado de la salida: en_curso > programado > finalizado (lo relevante arriba). Cancelled bookings
+  // (the client cancelled them) do not count; a group with only cancelled bookings shows as cancelado.
   function rollup(estados) {
+    if (!estados.length) return "cancelado";
     if (estados.indexOf("en_curso") >= 0) return "en_curso";
     if (estados.indexOf("programado") >= 0) return "programado";
     if (estados.length && estados.every(function (e) { return e === "finalizado" || e === "no_asistio"; })) return "finalizado";
@@ -56,16 +58,17 @@ function mount(el, inputs, on) {
                 groups[key] = {
                   fecha: r.fecha || "", hora: hora, tipo: tipo, servicio: svc.nombre || tipo,
                   cuidador: cid ? (nombres[cid] || "Paseador") : "Sin asignar",
-                  dogs: 0, estados: [],
+                  dogs: 0, cancelados: 0, estados: [],
                 };
                 order.push(key);
               }
+              if (r.estado === "cancelado") { groups[key].cancelados += 1; return; }
               groups[key].dogs += 1;
               groups[key].estados.push(r.estado || "programado");
             });
             var rows = order.map(function (k) {
               var g = groups[k];
-              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, estado: rollup(g.estados), color: colorFor(g.tipo) };
+              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, cancelados: g.cancelados, estado: rollup(g.estados), color: colorFor(g.tipo) };
             }).sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
             // Contar salidas por día para mostrar solo los días con actividad.
             var cnt = {};

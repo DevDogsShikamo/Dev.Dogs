@@ -78,7 +78,7 @@ part PoliticaTexto(version: text) {
         Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios ni teléfonos de clientes."
         Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
         Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Ningún cliente edita los datos del perro: los administra el negocio. Un co-dueño puede ver y reservar, pero no comprar productos."
-        Text "Datos legales del negocio: todos los miembros de ese negocio, incluidos sus clientes, pueden verlos; solo el jefe los registra y los cambia."
+        Text "Datos legales del negocio: el jefe y el personal de gestión de ese negocio los ven completos; sus paseadores y sus clientes los ven con el número de documento de una persona natural (cédula o pasaporte) oculto, salvo sus últimos cuatro dígitos. Solo el jefe los registra y los cambia."
         Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }

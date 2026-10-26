@@ -75,6 +75,9 @@ state {
   ltel    = "" : text
   lcorreo = "" : text
   lhay    = false : bool
+  lcargado = false : bool
+  # The review whose rejection cause the owner is choosing.
+  rechazoId = "" : text
   # Business policies editor (owner only; not persisted): one row per section.
   pol      = [] : list<PolEdit>
   polVer   = "" : text
@@ -85,7 +88,8 @@ action go(s: text) mutates section { section.set(s) }
 action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  auth.logout() }
 
 # ---- Legal identity of the business (owner only; the RPC validates) ----
-action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, ltel, lcorreo, lhay {
+action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, ltel, lcorreo, lhay, lcargado {
+  lcargado.set(true)
   if rows.length > 0 { lrazon.set(rows.at(0).razon_social)  ltipo.set(rows.at(0).doc_tipo)  lnum.set(rows.at(0).doc_numero)  ldir.set(rows.at(0).direccion)  ltel.set(rows.at(0).telefono)  lcorreo.set(rows.at(0).correo)  lhay.set(true) }
 }
 action idTipo(t: text) mutates ltipo { ltipo.set(t) }
@@ -175,7 +179,11 @@ action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 action finanzasToggle(id: text, on: bool) { empresa.finanzasSet(id, on)  permisoFinanzas(id, on) }
 
 # ---- Moderar una reseña (solo el dueño; optimista + RPC) ----
-action moderar(id: text, estado: text) { empresa.resenaSet(id, estado)  resenaModerar(id, estado) }
+# Rejecting needs one of the four fixed causes (ofensiva | datos_personales | no_relacionada | falsa_o_spam).
+action aprobar(id: text) { empresa.resenaSet(id, "aprobada")  resenaModerar(id, "aprobada", "") }
+action rechazoAbrir(id: text) mutates rechazoId { rechazoId.set(id) }
+action rechazoCerrar mutates rechazoId { rechazoId.set("") }
+action rechazar(id: text, motivo: text) mutates rechazoId { empresa.resenaSet(id, "rechazada")  resenaModerar(id, "rechazada", motivo)  rechazoId.set("") }
 
 Stack class("dd-app") {
 
@@ -243,6 +251,14 @@ Stack class("dd-app") {
             Stack class("dd-greet") {
               Span "{initial(auth.userName)}" class("dd-ga")
               Stack { Span "Buen día 👋" class("dd-gm")  Span "{auth.userName}" class("dd-gn") }
+            }
+          }
+          # Ley 1480 art. 53: without the legal identity of the business its clients cannot book or buy.
+          when auth.isOwner and lcargado and not lhay {
+            Button -> go("perfil") class("dd-saldo") aria(label: "Completar los datos legales") {
+              Stack class("dd-saldo-ic") { Icon "lucide:building-2" }
+              Stack class("dd-saldo-info") { Span "Completa los datos legales de tu negocio: sin ellos tus clientes no pueden reservar ni comprar." class("dd-saldo-l") }
+              Icon "lucide:chevron-right" class("chev")
             }
           }
 
@@ -436,6 +452,7 @@ Stack class("dd-app") {
                   Stack class("dd-agrp-info") {
                     Span "{e.servicio}" class("nm")
                     Span "{e.cuidador} · {e.dogs} 🐕" class("meta")
+                    when e.cancelados > 0 { Span "{e.cancelados} cancelada(s) por el cliente" class("meta") }
                   }
                   Span "{e.estado}" class("dd-agrp-badge b-{e.estado}")
                 }
@@ -495,21 +512,38 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reseñas" h2 }
           Text "Solo se publican las aprobadas cuyo autor aceptó mostrar su nombre." class("dd-cli-hint")
+          Text "Causas de rechazo: ofensiva o discriminatoria, contiene datos personales, no es sobre el servicio, o falsa o spam. Su autor ve la causa." class("dd-cli-hint")
+          Text "Solo puedes rechazar una reseña por estas causas; una opinión negativa no es causa de rechazo." class("dd-cli-hint")
           when empresa.nResenas == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:star" }  Title "Sin reseñas" h2  Text "Tus clientes pueden dejar una reseña después de un servicio finalizado." }
           }
           Stack class("dd-cat-list") {
             each empresa.resenas as r {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:star" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{r.estado}" class("cd") }
-                  Span "{r.texto}" class("dd-rs-txt")
-                  when not r.publicar { Span "Sin permiso para publicar su nombre" class("obs") }
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-sv-ic") { Icon "lucide:star" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{r.estado}" class("cd") }
+                    Span "{r.texto}" class("dd-rs-txt")
+                    when not r.publicar { Span "Sin permiso para publicar su nombre" class("obs") }
+                  }
+                  Stack class("acts") {
+                    when r.estado != "aprobada" { Button "Aprobar" -> aprobar(r.id) class("dd-cat-add") }
+                    when r.estado != "rechazada" { Button "Rechazar" -> rechazoAbrir(r.id) class("dd-cat-icon dd-danger") }
+                  }
                 }
-                Stack class("acts") {
-                  when r.estado != "aprobada" { Button "Aprobar" -> moderar(r.id, "aprobada") class("dd-cat-add") }
-                  when r.estado != "rechazada" { Button "Rechazar" -> moderar(r.id, "rechazada") class("dd-cat-icon dd-danger") }
+                # The cause is mandatory and fixed: the business cannot reject a review only for being negative.
+                when rechazoId == r.id {
+                  Stack class("dd-cat-item") aria(role: "group", label: "Causa del rechazo") {
+                    Span "¿Por qué la rechazas?" class("dd-hor-lbl")
+                    Stack class("dd-gsvc") {
+                      Button "Ofensiva o discriminatoria" -> rechazar(r.id, "ofensiva") class("dd-gchip")
+                      Button "Contiene datos personales" -> rechazar(r.id, "datos_personales") class("dd-gchip")
+                      Button "No es sobre el servicio" -> rechazar(r.id, "no_relacionada") class("dd-gchip")
+                      Button "Falsa o spam" -> rechazar(r.id, "falsa_o_spam") class("dd-gchip")
+                      Button "Cancelar" -> rechazoCerrar class("dd-gchip")
+                    }
+                  }
                 }
               }
             }
@@ -677,7 +711,8 @@ Stack class("dd-app") {
             Stack class("dd-pf-team") {
               Title "Datos legales del negocio" h2
               Text "Tus clientes los ven en su portal; la ley pide que el proveedor se identifique." class("dd-rel-hint")
-              when not lhay { Text "Aún no registras los datos legales de tu negocio." class("dd-rel-hint") }
+              Text "Una cédula o un pasaporte se muestra a tus clientes y paseadores solo con sus últimos 4 dígitos." class("dd-rel-hint")
+              when not lhay { Text "Aún no registras los datos legales de tu negocio: sin ellos tus clientes no pueden reservar ni comprar." class("dd-rel-hint") }
               Stack class("dd-gform") {
                 Span "Nombre o razón social" class("dd-hor-lbl")
                 SearchField bind(lrazon) "Nombre o razón social"

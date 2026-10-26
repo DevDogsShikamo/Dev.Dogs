@@ -16,8 +16,8 @@ function mount(el, inputs, on) {
     negocio().then(function (neg) {
       if (!neg) return;
 
-      // Paseos de HOY del negocio → métricas + conteo por paseador.
-      supa.from("prestaciones").select("cuidador_id,estado").eq("negocio_id", neg).eq("fecha", globalThis.__ddUtils.today()).then(function (res) {
+      // Paseos de HOY del negocio → métricas + conteo por paseador (a booking the client cancelled does not count).
+      supa.from("prestaciones").select("cuidador_id,estado").eq("negocio_id", neg).eq("fecha", globalThis.__ddUtils.today()).neq("estado", "cancelado").then(function (res) {
         if (res && res.error) return;
         var rows = res.data || [];
         var prog = 0, curso = 0, fin = 0, porCuidador = {};
