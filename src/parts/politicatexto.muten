@@ -120,7 +120,6 @@ part PoliticaTexto(version: text) {
       List {
         Text "Los datos de la cuenta y del negocio se alojan con Supabase, proveedor de base de datos y autenticación, en la región us-west-2 de Estados Unidos. Esto implica enviar los datos fuera de Colombia."
         Text "Las fotos de los paseos se alojan en Cloudflare R2 y se entregan a través de Cloudflare Workers (Cloudflare, Estados Unidos), en un almacenamiento privado sin enlaces públicos. Cada foto se entrega solo a quien tiene permiso, mediante una solicitud autenticada. Esto implica enviar las fotos fuera de Colombia."
-        Text "La aplicación carga tipografías desde Google Fonts, por lo que Google puede ver la dirección IP del navegador."
         Text "Proveedor de alojamiento de la aplicación web: [COMPLETAR: proveedor y país]."
       }
       Text "Fundamento de la transferencia internacional: [COMPLETAR: fundamento que indique el abogado]."

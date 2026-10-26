@@ -133,7 +133,22 @@ test('retention: expires_at defaults to 30 days and can never exceed them; regis
   assert.deepEqual((await admin().from('paseo_foto_perros').select('foto_id').eq('foto_id', stale)).data, [], 'its tags survived')
 })
 
-// ---- foto_registrar (P5, WP-3a) ---------------------------------------------------------------------
+test('retention: a daily pg_cron job runs fotos_purgar_vencidas(), which deletes expired rows and their tags and keeps live ones', async () => {
+  const stale = await viejo(31)
+  const live = await viejo(29)
+  sql('select public.fotos_purgar_vencidas()')
+  assert.deepEqual((await admin().from('paseo_fotos').select('id').in('id', [stale, live])).data.map((r) => r.id), [live])
+  assert.deepEqual((await admin().from('paseo_foto_perros').select('foto_id').eq('foto_id', stale)).data, [], 'its tags survived')
+  assert.equal((await admin().from('paseo_foto_perros').select('foto_id').eq('foto_id', live)).data.length, 1)
+  assert.deepEqual(sql(`select schedule, command, active from cron.job where jobname = 'dd_purga_fotos'`),
+    [{ schedule: '15 3 * * *', command: 'select public.fotos_purgar_vencidas()', active: true }])
+  const [f] = sql(`select prosecdef, proconfig @> array['search_path=""'] as pinned,
+      has_function_privilege('anon', oid, 'execute') as anon, has_function_privilege('authenticated', oid, 'execute') as auth
+    from pg_proc where pronamespace = 'public'::regnamespace and proname = 'fotos_purgar_vencidas'`)
+  assert.deepEqual(f, { prosecdef: true, pinned: true, anon: false, auth: false })
+})
+
+// ---- foto_registrar (P5, WP-3a)---------------------------------------------------------------------
 test('WP-3a: only the assigned walker registers a photo, and one foreign id denies the batch', async () => {
   const mine = await walk(d.d1)
   const theirs = await walk(d.d3, { cuidador_id: u.WALKER_CO2 })

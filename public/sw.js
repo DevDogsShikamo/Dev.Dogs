@@ -2,8 +2,7 @@
 // Estrategia:
 //   • Supabase (API/realtime) y Worker de fotos → SIEMPRE red. Los DATOS ya se cachean por los stores
 //     con `persist` (SWR en localStorage); no duplicamos acá.
-//   • Fuentes (Google Fonts, immutables) → cache-first.
-//   • Shell + assets same-origin (HTML/JS/CSS/imágenes) → network-first: online trae
+//   • Shell + assets same-origin (HTML/JS/CSS/imágenes/fuentes en /fonts/) → network-first: online trae
 //     lo fresco (seguro para el HMR de `muten dev`), y si NO hay red cae al cache →
 //     la app arranca y navega offline (lo que se haya visitado online queda cacheado).
 //   • Escrituras (no-GET) → nunca se tocan (van directo a la red / a la cola offline).
@@ -40,16 +39,6 @@ self.addEventListener("fetch", function (e) {
   // Worker de fotos (requests con bearer, privadas): nunca se interceptan ni se cachean.
   // Si el Worker pasa a un dominio propio, agregar ese host aquí.
   if (url.hostname.indexOf("devdogs-fotos") === 0) return;
-
-  // Fuentes (immutables) → cache-first.
-  if (url.hostname.indexOf("gstatic.com") !== -1 || url.hostname.indexOf("googleapis.com") !== -1) {
-    e.respondWith(
-      caches.match(req).then(function (m) {
-        return m || fetch(req).then(function (res) { putInCache(req, res); return res; }).catch(function () { return m; });
-      })
-    );
-    return;
-  }
 
   // Shell + assets → network-first, con fallback al cache offline.
   e.respondWith(
