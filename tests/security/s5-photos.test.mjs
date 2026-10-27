@@ -64,11 +64,13 @@ test('WP-3f/4d/5b: a clean JPEG is stored for d1+d3; its uploader and the owners
 test('WP-4a/4b/2b: group-mates, the business owner, office, other walkers and other tenants get the same 404 as a missing photo', opts, async () => {
   const id = await registrar('WALKER_CO', [ids.perros.d1])
   assert.equal((await worker('PUT', id, 'WALKER_CO', { body: CLEAN })).status, 201)
-  const missing = await worker('GET', crypto.randomUUID(), 'CLIENT')
+  // Read the reference body once: cloning the same response on every iteration intermittently failed with
+  // "Body has already been consumed".
+  const missing = await (await worker('GET', crypto.randomUUID(), 'CLIENT')).text()
   for (const actor of ['CLIENT3', 'OWNER', 'OFFICE', 'OFFICE_FIN', 'WALKER_CO2', 'WALKER_IND', 'CLIENT_I', 'OTHER']) {
     const res = await worker('GET', id, actor)
     assert.equal(res.status, 404, actor)
-    assert.equal(await res.text(), await missing.clone().text(), `${actor}: body differs from a missing photo`)
+    assert.equal(await res.text(), missing, `${actor}: body differs from a missing photo`)
   }
 })
 

@@ -53,7 +53,11 @@ async function listo(actor, ps, bytes = 1234) {
 async function viejo(days, perro = d.d1) {
   const id = crypto.randomUUID()
   created.fotos.push(id)
-  const row = { id, negocio_id: ids.negocios.A, subido_por: u.WALKER_CO, estado: 'lista', bytes: 10, created_at: ago(days), expires_at: ago(days - 30) }
+  // One clock reading for both dates: two separate Date.now() calls made the span 30 days + 1 ms now and then,
+  // which the 30-day check rejects.
+  const base = Date.now()
+  const at = (d) => new Date(base - d * 864e5).toISOString()
+  const row = { id, negocio_id: ids.negocios.A, subido_por: u.WALKER_CO, estado: 'lista', bytes: 10, created_at: at(days), expires_at: at(days - 30) }
   assert.equal((await admin().from('paseo_fotos').insert(row)).error, null)
   const p = await walk(perro)
   assert.equal((await admin().from('paseo_foto_perros').insert({ foto_id: id, prestacion_id: p, perro_id: perro, subido_por: u.WALKER_CO })).error, null)
