@@ -37,7 +37,9 @@ export const ids = {
 }
 
 // Local date (YYYY-MM-DD) shifted by n days.
-export const day = (n = 0) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10)
+// The Bogotá calendar day (UTC-5, no DST): the clock every RPC uses for "today". A UTC date is already
+// tomorrow from 19:00 Bogotá on, which put "today's" fixtures outside the walk window in the evening.
+export const day = (n = 0) => new Date(Date.now() - 5 * 36e5 + n * 864e5).toISOString().slice(0, 10)
 
 const quiet = { auth: { persistSession: false, autoRefreshToken: false }, realtime: { transport: class {} } }
 let config

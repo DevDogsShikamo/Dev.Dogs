@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar, fotoReportar from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -55,11 +55,18 @@ state {
   polForm      = false : bool
   # The scheduled service the client is about to cancel (in-page confirmation step).
   cancelId     = "" : text
+  # Photo with its "Reportar" reasons open (Ley 1581 art. 7: a person or a minor appears in it).
+  repFoto      = "" : text
 }
 # Cancel a scheduled service of my dog: ask first, then the RPC (any fee is the business's own policy).
 action cancelPedir(id: text) mutates cancelId { cancelId.set(id) }
 action cancelNo mutates cancelId { cancelId.set("") }
 action cancelConfirmar mutates cancelId { reservaCancelar(cancelId)  cancelId.set("") }
+action repAbrir(id: text) mutates repFoto { repFoto.set(id) }
+action repCerrar mutates repFoto { repFoto.set("") }
+action repEnviar(motivo: text) mutates repFoto { fotoReportar(repFoto, motivo)  repFoto.set("") }
+# The bell: incidents of my dogs (a loss or a death always, the others for 7 days) and then the walk news.
+get nAvisos = cliente.nNovedades + incidentes.avisos
 # Reseña del negocio: nueva (vacía, casilla del nombre sin marcar) o editar la mía.
 action rsNueva mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(0)  rsTexto.set("")  rsPublicar.set(false)  rsForm.set(true) }
 action rsEditar(rating: number, texto: text, publicar: bool) mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(rating)  rsTexto.set(texto)  rsPublicar.set(publicar)  rsForm.set(true) }
@@ -85,7 +92,7 @@ action perroNuevo mutates pdraft, pform { pdraft.reset()  pform.set(true) }
 action perroCerrar mutates pform { pform.set(false) }
 action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
-action salir { cliente.limpiar()  auth.logout() }
+action salir { cliente.limpiar()  incidentes.limpiar()  auth.logout() }
 action resAbrir(sid: text, svc: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resHora, resZona, resPerro, resFecha, resForm {
   resSalidaId.set(sid)  resSvcId.set(svc)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
 }
@@ -110,6 +117,7 @@ Stack class("dd-app") {
 
   Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
   Custom PoliticaBridge on(secciones: polSecs, meta: polMeta)
+  Custom IncidentesBridge on(items: incidentes.setItems)
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
@@ -164,7 +172,7 @@ Stack class("dd-app") {
             }
             Button -> notifToggle class("dd-bell dd-bell-count") aria(label: "Novedades") {
               Icon "lucide:bell"
-              when cliente.nNovedades > 0 { Span "{cliente.nNovedades}" class("dd-bell-badge") }
+              when nAvisos > 0 { Span "{nAvisos}" class("dd-bell-badge") }
             }
           }
           # Panel de novedades (notificaciones in-app).
@@ -176,10 +184,30 @@ Stack class("dd-app") {
                   Title "Novedades" h3
                   Button -> notifCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
-                when cliente.nNovedades == 0 {
+                when nAvisos == 0 {
                   Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:bell" }  Text "Sin novedades por ahora." }
                 }
                 Stack class("dd-cat-list") {
+                  each incidentes.items as i where i.grave {
+                    Stack class("dd-notif dd-notif-grave") {
+                      Stack class("dd-notif-ic") { Icon "lucide:triangle-alert" }
+                      Stack class("dd-cat-info") {
+                        Span "{i.tipo}: {i.perro}" class("nm")
+                        Span "{i.descripcion}" class("meta")
+                        Span "Reportado el {i.fecha} por {prestador}" class("meta")
+                      }
+                    }
+                  }
+                  each incidentes.items as i where i.reciente and not i.grave {
+                    Stack class("dd-notif") {
+                      Stack class("dd-notif-ic") { Icon "lucide:triangle-alert" }
+                      Stack class("dd-cat-info") {
+                        Span "{i.tipo}: {i.perro}" class("nm")
+                        Span "{i.descripcion}" class("meta")
+                        Span "Reportado el {i.fecha}" class("meta")
+                      }
+                    }
+                  }
                   each cliente.novedades as n {
                     Button -> irAgenda class("dd-notif") {
                       Stack class("dd-notif-ic") {
@@ -401,7 +429,18 @@ Stack class("dd-app") {
                 # Fotos del paseo (si el paseador subió alguna).
                 Stack class("dd-paseo-fotos-grid") {
                   each cliente.misFotos as ft where ft.paseoId == p.id {
-                    Image "{ft.url}" alt("Foto del paseo de {p.perro}") class("dd-paseo-foto")
+                    Stack class("dd-foto-rep") {
+                      Image "{ft.url}" alt("Foto del paseo de {p.perro}") class("dd-paseo-foto")
+                      when repFoto != ft.id { Button "Reportar foto" -> repAbrir(ft.id) class("dd-gchip") }
+                      when repFoto == ft.id {
+                        Stack class("dd-gsvc") aria(role: "group", label: "Por qué reportas la foto") {
+                          Button "Aparece una persona" -> repEnviar("aparece_persona") class("dd-gchip")
+                          Button "Aparece un menor de edad" -> repEnviar("aparece_menor") class("dd-gchip")
+                          Button "Otro motivo" -> repEnviar("otro") class("dd-gchip")
+                          Button "Cancelar" -> repCerrar class("dd-gchip")
+                        }
+                      }
+                    }
                   }
                 }
               }

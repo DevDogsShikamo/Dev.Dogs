@@ -11,10 +11,12 @@ const opts = FOTOS ? {} : { skip: 'FOTOS_URL is not set: deploy the staging Work
 const u = ids.users
 const hoy = new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10)
 const CLEAN = jpeg({ parts: [APP0, COMMENT], size: 3000 })
-const created = { walks: [], fotos: [] }
+const created = { walks: [], fotos: [], incidentes: [] }
 
 before(() => FOTOS && seed())
 after(async () => {
+  await admin().from('fotos_reportes').delete().in('foto_id', created.fotos)
+  await admin().from('incidentes').delete().in('id', created.incidentes)
   await admin().from('paseo_fotos').delete().in('id', created.fotos)
   await admin().from('prestaciones').delete().in('id', created.walks)
 })
@@ -108,4 +110,24 @@ test('origin allow-list: an unknown browser origin is refused before anything el
   const id = await registrar('WALKER_CO', [ids.perros.d1])
   assert.equal((await worker('GET', id, 'WALKER_CO', { origin: 'https://evil.example' })).status, 403)
   assert.equal((await worker('GET', id, 'WALKER_CO', { origin: 'http://localhost:5173' })).headers.get('access-control-allow-origin'), 'http://localhost:5173')
+})
+
+// Batch C2: incident evidence. The r/ copy stays in the staging bucket (no lifecycle on r/); it is a few KB.
+test('retener: the reporter copies the retained photo to r/, a stranger is refused, and a reported photo is then served to the business', opts, async () => {
+  const id = await registrar('WALKER_CO', [ids.perros.d1])
+  assert.equal((await worker('PUT', id, 'WALKER_CO', { body: CLEAN })).status, 201)
+  const walk = created.walks.at(-1)
+  const inc = await (await as('WALKER_CO')).rpc('incidente_reportar', { p_perro: ids.perros.d1, p_prestacion: walk, p_tipo: 'lesion', p_descripcion: 'Cojea de la pata trasera después del paseo.' })
+  assert.equal(inc.error, null, inc.error?.message)
+  created.incidentes.push(inc.data)
+  const retener = async (actor) => fetch(`${FOTOS}/retener/${inc.data}`, { method: 'POST', headers: { authorization: `Bearer ${await token(actor)}` } })
+  for (const actor of ['CLIENT2', 'WALKER_CO2']) assert.equal((await retener(actor)).status, 403, actor)
+  const ok = await retener('WALKER_CO')
+  assert.equal(ok.status, 200)
+  assert.deepEqual(await ok.json(), { copiadas: 1 })
+  assert.equal((await (await as('CLIENT')).rpc('foto_reportar', { p_foto: id, p_motivo: 'aparece_persona' })).error, null)
+  assert.equal((await worker('GET', id, 'CLIENT')).status, 404, 'hidden from the client')
+  const res = await worker('GET', id, 'OWNER')
+  assert.equal(res.status, 200, 'kept for the business owner')
+  assert.deepEqual(await bytes(res), CLEAN)
 })

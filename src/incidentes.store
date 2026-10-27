@@ -1,0 +1,14 @@
+# Incidents (Ley 2480 de 2025 arts. 15 and 16) the signed-in user may read (RLS): the owner and office of the
+# business, the active owners of the dog and the reporter. Data in: IncidentesBridge (cliente, empresa, dashboard).
+# grave = lost or dead (always in the client's bell); reciente = reported in the last 7 days.
+entity Incidente { id text  fecha text  perro text  tipo text  descripcion text  grave bool  reciente bool }
+
+state {
+  items = [] : list<Incidente>
+}
+
+get total   = items.length
+get avisos  = items.count where grave or reciente
+
+action setItems(rows: list<Incidente>) mutates items { items.set(rows) }
+action limpiar mutates items { items.reset() }

@@ -1112,6 +1112,8 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
 /* Item de novedad en el panel */
 .dd-app .dd-notif{display:flex;flex-direction:row;align-items:center;gap:0.7rem;width:100%;text-align:left;padding:0.6rem 0.7rem;border-radius:0.8rem;background:var(--panel)}
 .dd-app .dd-notif:hover{background:var(--purple-soft)}
+.dd-app .dd-notif-grave{background:#fdecec}
+.dd-app .dd-notif-grave .dd-notif-ic{background:#f8d4d4;color:#b42318}
 .dd-app .dd-notif-ic{width:2.2rem;height:2.2rem;border-radius:0.7rem;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .dd-app .dd-notif-ic svg{width:1.1rem;height:1.1rem}
 /* Saldo pendiente del cliente (#3) */
@@ -1414,6 +1416,10 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
 .dd-app .dd-paseo-foto{width:100%;aspect-ratio:1;object-fit:cover;border-radius:0.6rem;background:#eee}
 .dd-app .dd-cli-paseo{display:flex;flex-direction:column;gap:0.4rem}
 .dd-app .dd-cli-paseo .dd-paseo-fotos-grid:empty{display:none}
+.dd-app .dd-foto-rep{display:flex;flex-direction:column;gap:0.3rem;min-width:0}
+.dd-app .dd-foto-rep .dd-gchip{font-size:0.72rem;padding:0.25rem 0.45rem}
+.dd-app .dd-foto-rep:has(.dd-gsvc){grid-column:1/-1}
+.dd-app .dd-foto-rep:has(.dd-gsvc) .dd-paseo-foto{max-width:9rem}
 .dd-app .dd-gr-dogs{display:flex;flex-direction:row;align-items:center}
 .dd-app .dd-gr-dogs span{width:2.15rem;height:2.15rem;border-radius:999px;border:0.15rem solid var(--panel);margin-left:-0.55rem;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.05rem;box-shadow:0 0.3rem 0.7rem -0.4rem rgba(30,20,60,.22)}
 .dd-app .dd-gr-dogs span:first-child{margin-left:0}

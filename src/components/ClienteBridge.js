@@ -35,7 +35,7 @@ function mount(el, inputs, on) {
       return tok ? Promise.all(Object.keys(vigentes).map(function (id) { return traer(id, tok); })) : null;
     }).then(function () {
       var rows = [];
-      tags.forEach(function (t) { if (blobs[t.foto_id]) rows.push({ paseoId: t.prestacion_id, url: blobs[t.foto_id] }); });
+      tags.forEach(function (t) { if (blobs[t.foto_id]) rows.push({ id: t.foto_id, paseoId: t.prestacion_id, url: blobs[t.foto_id] }); });
       on.misFotos(rows);
       Object.keys(blobs).forEach(function (id) { if (!vigentes[id]) { URL.revokeObjectURL(blobs[id]); delete blobs[id]; } });
     });

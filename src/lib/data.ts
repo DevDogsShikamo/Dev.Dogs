@@ -26,6 +26,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("negocio_sin_identidad") >= 0) return "Tu negocio todavía no completó sus datos legales. Cuando lo haga podrás reservar y comprar.";
   if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
   if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
+  if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
   return msg;
 }
 
@@ -412,6 +413,43 @@ export function reservaCancelar(id: string): void {
   if (!id) return;
   supa.rpc("reserva_cancelar", { p_id: id })
     .then(done("No se pudo cancelar la reserva", function () { toast("Reserva cancelada. Las condiciones de cancelación las fija tu negocio."); refresh(); }));
+}
+
+// ---- Incidents (Ley 2480 de 2025 arts. 15 and 16) and photo reports (Ley 1581 art. 7) ----------------
+// incidente_reportar: the assigned walker on his walk of today or yesterday, or the owner/office on any dog of the
+// business. On a walk the server marks its photos of that dog as evidence; the photo Worker then copies them out
+// of the 30-day expiry (POST /retener). If that copy fails, the photos still last their 30 days.
+export function incidenteReportar(perro: string, prestacion: string, tipo: string, descripcion: string): void {
+  if (!perro || !tipo) { toast("Elige el perro y el tipo de incidente"); return; }
+  supa.rpc("incidente_reportar", { p_perro: perro, p_prestacion: prestacion || null, p_tipo: tipo, p_descripcion: descripcion })
+    .then(function (res) {
+      if (res.error) { toast(errMsg(res.error, "No se pudo reportar el incidente")); return; }
+      toast("Incidente reportado. Lo ven el negocio y los dueños del perro.");
+      refresh();
+      if (prestacion) retenerFotos(String(res.data));
+    });
+}
+
+// ponytail: one attempt, a failure is only announced; add a retry (POST /retener is idempotent) if it shows up.
+function retenerFotos(incidente: string): void {
+  const fotos = (globalThis as Record<string, unknown>).__ddFotos as string;
+  supa.auth.getSession().then(function (r) {
+    const tok = r.data.session?.access_token;
+    if (!tok || !fotos) throw new Error("sin_sesion");
+    return fetch(fotos + "/retener/" + incidente, { method: "POST", headers: { authorization: "Bearer " + tok } });
+  }).then(function (res) {
+    if (!res.ok) throw new Error(String(res.status));
+  }).catch(function () {
+    toast("No se pudieron copiar las fotos del paseo como evidencia: siguen disponibles 30 días. Avísale al negocio.");
+  });
+}
+
+// foto_reportar (active owners of a tagged dog): a photo that is not incident evidence is deleted; one that is
+// stays only for the business owner and office. Either way it disappears from the client's view.
+export function fotoReportar(id: string, motivo: string): void {
+  if (!id || !motivo) return;
+  supa.rpc("foto_reportar", { p_foto: id, p_motivo: motivo })
+    .then(done("No se pudo reportar la foto", function () { toast("Foto reportada: ya no se muestra."); refresh(); }));
 }
 
 // ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
