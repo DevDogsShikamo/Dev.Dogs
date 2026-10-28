@@ -1,0 +1,12 @@
+# The policies a business published for its clients (negocio_politicas): its own text, which DevDogs does not
+# review or endorse (Términos para negocios, section 3). The caller renders the sections in the slot (a part
+# cannot take a list). Shown by the /aceptar-condiciones gate (tipo politica_negocio) and the client Perfil.
+part PoliticaNegocio(negocio: text, version: text, fecha: text) {
+  Stack class("pv-doc") {
+    Title "Políticas de {$negocio}" h1 class("pv-h1")
+    Text "Versión {$version}, publicada el {$fecha}" class("pv-meta")
+    Text "Estas políticas las fija {$negocio}; DevDogs no las revisa ni las avala." class("pv-meta")
+    slot
+    Text "Estas políticas no limitan los derechos que la Ley 1480 de 2011 te reconoce como consumidor." class("pv-meta")
+  }
+}

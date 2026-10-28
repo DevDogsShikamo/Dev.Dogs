@@ -1,6 +1,7 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar, negocioIdentidadGuardar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar from "~/lib/data.ts"
+use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 use estadoCertificado from "~/lib/kiara.js"
@@ -29,6 +30,10 @@ entity PerroDraft {
 
 # Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row from the bridge.
 entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direccion text  telefono text  correo text }
+# Policies of the business (PoliticaBridge): the published sections and {version, fecha}; the editor rows.
+entity PolSec { clave text  titulo text  texto text }
+entity PolMeta { version text  fecha text }
+entity PolEdit { clave text  titulo text  texto text  req bool }
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -68,6 +73,10 @@ state {
   ltel    = "" : text
   lcorreo = "" : text
   lhay    = false : bool
+  # Business policies editor (owner only; not persisted): one row per section.
+  pol      = [] : list<PolEdit>
+  polVer   = "" : text
+  polFecha = "" : text
 }
 action go(s: text) mutates section { section.set(s) }
 # Logout: limpia el cache del negocio (dispositivo compartido) y cierra sesión.
@@ -79,6 +88,14 @@ action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, lte
 }
 action idTipo(t: text) mutates ltipo { ltipo.set(t) }
 action idGuardar { negocioIdentidadGuardar(lrazon, ltipo, lnum, ldir, ltel, lcorreo) }
+
+# ---- Policies of the business (owner only; the RPC validates and publishes version n+1) ----
+action polCargar(rows: list<PolSec>) mutates pol { pol.set(politicaEditable(rows)) }
+action polMeta(rows: list<PolMeta>) mutates polVer, polFecha {
+  if rows.length > 0 { polVer.set(rows.at(0).version)  polFecha.set(rows.at(0).fecha) }
+}
+get polError = politicaError(pol)
+action polPublicar { negocioPoliticaPublicar(pol) }
 
 # ---- Catálogo de servicios (ABM del jefe) ----
 action servicioNuevo mutates sdraft, sedit, sform { sdraft.reset()  sedit.set("")  sform.set(true) }
@@ -161,6 +178,8 @@ action moderar(id: text, estado: text) { empresa.resenaSet(id, estado)  resenaMo
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
+  Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
+  Custom Toast
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
@@ -676,6 +695,19 @@ Stack class("dd-app") {
                 Span "Correo" class("dd-hor-lbl")
                 SearchField bind(lcorreo) "correo@ejemplo.com"
                 Button "Guardar" -> idGuardar class("dd-cat-add dd-hor-save")
+              }
+            }
+          }
+
+          # ---- Políticas de tu negocio — only the owner publishes them; its clients accept each version ----
+          when auth.isOwner {
+            PoliticaEditor(version: polVer, fecha: polFecha, error: polError, onPublicar: polPublicar) {
+              each pol as s {
+                Stack class("dd-pol-sec") {
+                  Span "{s.titulo}" class("dd-hor-lbl")
+                  when s.req { Span "Obligatoria" class("dd-pol-req") }
+                  Textarea bind(s.texto) "{s.titulo}" aria(label: s.titulo) class("dd-pol-txt")
+                }
               }
             }
           }

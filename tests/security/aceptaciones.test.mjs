@@ -134,7 +134,7 @@ for (const [label, version] of Object.entries({ old: '2026-01-01-borrador', empt
 for (const [actor, tipo] of [
   ['OFFICE', 'terminos_negocio'], ['WALKER_CO', 'terminos_negocio'], ['CLIENT', 'terminos_negocio'],
   ['OWNER', 'aviso_rol'], ['OFFICE', 'aviso_rol'], ['WALKER_CO', 'aviso_rol'], ['WALKER_IND', 'aviso_rol'],
-  ['OWNER', 'politica_negocio'], ['CLIENT', 'politica_negocio'], ['CLIENT', 'otro'], ['CLIENT', null], ['NOPROFILE', 'aviso_rol'],
+  ['OWNER', 'politica_negocio'], ['OFFICE', 'politica_negocio'], ['CLIENT', 'otro'], ['CLIENT', null], ['NOPROFILE', 'aviso_rol'],
 ]) {
   test(`registrar: ${actor} cannot accept ${tipo} (42501) and nothing is stored`, async () => {
     const before = await rowsOf(u[actor])

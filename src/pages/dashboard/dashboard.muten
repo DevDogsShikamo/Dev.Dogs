@@ -1,5 +1,6 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar from "~/lib/data.ts"
+use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -27,6 +28,10 @@ entity GrupoHoraPayload { grupo text  hora text  fecha text }
 entity ReprogPayload { grupo text  fechaOld text  fechaNew text  hora text  modo text }
 # Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row from the bridge.
 entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direccion text  telefono text  correo text }
+# Policies of the business (PoliticaBridge): the published sections and {version, fecha}; the editor rows.
+entity PolSec { clave text  titulo text  texto text }
+entity PolMeta { version text  fecha text }
+entity PolEdit { clave text  titulo text  texto text  req bool }
 # Horario laboral (editor). Horas como número (7 = 07:00).
 entity Franja { desde number  hasta number }
 # Servicio (oferta + precio). Duración en minutos, precio en COP.
@@ -87,6 +92,10 @@ state {
   ltel    = "" : text
   lcorreo = "" : text
   lhay    = false : bool
+  # Business policies editor (owner only; not persisted): one row per section.
+  pol      = [] : list<PolEdit>
+  polVer   = "" : text
+  polFecha = "" : text
 }
 action go(s: text) mutates section { section.set(s) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
@@ -133,6 +142,14 @@ action idCargar(rows: list<NegocioLegal>) mutates lrazon, ltipo, lnum, ldir, lte
 }
 action idTipo(t: text) mutates ltipo { ltipo.set(t) }
 action idGuardar { negocioIdentidadGuardar(lrazon, ltipo, lnum, ldir, ltel, lcorreo) }
+
+# ---- Policies of the business (owner only; the RPC validates and publishes version n+1) ----
+action polCargar(rows: list<PolSec>) mutates pol { pol.set(politicaEditable(rows)) }
+action polMeta(rows: list<PolMeta>) mutates polVer, polFecha {
+  if rows.length > 0 { polVer.set(rows.at(0).version)  polFecha.set(rows.at(0).fecha) }
+}
+get polError = politicaError(pol)
+action polPublicar { negocioPoliticaPublicar(pol) }
 
 # ---- Horario laboral (editor) ----
 action hsetDias(rows: list<text>) mutates hdias { hdias.set(rows) }
@@ -229,6 +246,7 @@ Stack class("dd-app") {
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
+  Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
   Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
@@ -782,6 +800,7 @@ Stack class("dd-app") {
             when auth.isOwner {
               Button -> go("invitar") class("dd-pf-opt") { Icon "lucide:user-plus"  Span "Invitar clientes"  Icon "lucide:chevron-right" class("chev") }
               Button -> go("legales") class("dd-pf-opt") { Icon "lucide:building-2"  Span "Datos legales del negocio"  Icon "lucide:chevron-right" class("chev") }
+              Button -> go("politicas") class("dd-pf-opt") { Icon "lucide:scroll-text"  Span "Políticas de tu negocio"  Icon "lucide:chevron-right" class("chev") }
             }
             Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
@@ -852,6 +871,24 @@ Stack class("dd-app") {
               Span "Correo" class("dd-hor-lbl")
               SearchField bind(lcorreo) "correo@ejemplo.com"
               Button "Guardar" -> idGuardar class("dd-cat-add dd-hor-save")
+            }
+          }
+        }
+      }
+
+      # ==== POLÍTICAS DE TU NEGOCIO (the independent walker owns his business; its clients accept each version) ====
+      when section == "politicas" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+          }
+          PoliticaEditor(version: polVer, fecha: polFecha, error: polError, onPublicar: polPublicar) {
+            each pol as s {
+              Stack class("dd-pol-sec") {
+                Span "{s.titulo}" class("dd-hor-lbl")
+                when s.req { Span "Obligatoria" class("dd-pol-req") }
+                Textarea bind(s.texto) "{s.titulo}" aria(label: s.titulo) class("dd-pol-txt")
+              }
             }
           }
         }

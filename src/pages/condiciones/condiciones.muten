@@ -3,11 +3,19 @@ use condicionesVersion, alFinal from "~/lib/politica.js"
 
 # Acceptance gate (/aceptar-condiciones). The server reported a document this user has not accepted for its
 # business (auth.aceptacionPendiente, from aceptacion_pendiente()): the role notice for a client, the
-# Términos para negocios for the owner of a business. Every portal guard is closed until "Entiendo y acepto"
+# Términos para negocios for the owner of a business, the policies its business published (PoliticaBridge)
+# for a client once its role notice is accepted. Every portal guard is closed until "Entiendo y acepto"
 # (unlocked once the document is read to the end) sends it to aceptacion_registrar through SupaAuthForm,
 # which then reports the session again with nothing pending: the chain lands in the portal of the role.
 
+# The current policy of the client's business (tipo politica_negocio): its sections and {version, fecha}.
+entity PolSec { clave text  titulo text  texto text }
+entity PolMeta { version text  fecha text }
+
 state {
+  secs     = [] : list<PolSec>
+  polVer   = "" : text
+  polFecha = "" : text
   verDoc = false : bool
   leido  = false : bool
   nonce  = 0     : number
@@ -15,9 +23,16 @@ state {
 
 get tipo    = auth.aceptacionPendiente
 get esAviso = auth.aceptacionPendiente == "aviso_rol"
+get esPolitica = auth.aceptacionPendiente == "politica_negocio"
+get esTerminos = auth.aceptacionPendiente == "terminos_negocio"
 get negocio = auth.negocioNombre
-get version = condicionesVersion(auth.aceptacionPendiente)
-get titulo  = esAviso ? "Quién presta el servicio" : "Términos para negocios"
+# A business policy is accepted in the version that was loaded and read, not in a constant.
+get version = esPolitica ? polVer : condicionesVersion(auth.aceptacionPendiente)
+get titulo  = esAviso ? "Quién presta el servicio" : (esPolitica ? "Políticas del negocio" : "Términos para negocios")
+action polSecs(rows: list<PolSec>) mutates secs { secs.set(rows) }
+action polMeta(rows: list<PolMeta>) mutates polVer, polFecha {
+  if rows.length > 0 { polVer.set(rows.at(0).version)  polFecha.set(rows.at(0).fecha) }
+}
 action abrir mutates verDoc { verDoc.set(true) }
 action cerrar mutates verDoc { verDoc.set(false) }
 action leer mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
@@ -32,7 +47,8 @@ Page class("glogin") {
     Stack class("glogin-photo-in") {
       Title "Antes de continuar" h1 class("glogin-h")
       when esAviso { Text "Cómo funciona el servicio de {negocio}." class("glogin-sub") }
-      when not esAviso { Text "Las condiciones para operar tu negocio en DevDogs." class("glogin-sub") }
+      when esPolitica { Text "Las políticas de servicio de {negocio}." class("glogin-sub") }
+      when esTerminos { Text "Las condiciones para operar tu negocio en DevDogs." class("glogin-sub") }
     }
   }
 
@@ -44,7 +60,13 @@ Page class("glogin") {
           Text "DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro: lo hace {negocio}. Lee el aviso completo y acéptalo para entrar a tu portal. Si no deseas aceptarlo, puedes cerrar sesión." class("muted t-sm")
         }
       }
-      when not esAviso {
+      when esPolitica {
+        Stack class("gcond") {
+          Title "Políticas de {negocio}" h2 class("pv-h1")
+          Text "{negocio} publicó sus políticas de servicio. Léelas completas y acéptalas para entrar a tu portal y volver a reservar. Estas políticas las fija {negocio}; DevDogs no las revisa ni las avala. Si no deseas aceptarlas, puedes cerrar sesión." class("muted t-sm")
+        }
+      }
+      when esTerminos {
         Stack class("gcond") {
           Title "Términos para negocios" h2 class("pv-h1")
           Text "Para operar {negocio} en DevDogs, lee los Términos para negocios hasta el final y acéptalos. Si no deseas aceptarlos, puedes cerrar sesión." class("muted t-sm")
@@ -54,7 +76,17 @@ Page class("glogin") {
       when verDoc {
         DocModal(titulo: "{titulo}", aceptar: "Entiendo y acepto", leido: leido, onCerrar: cerrar, onLeer: leer, onAceptar: aceptar) {
           when esAviso { AvisoRol(negocio: negocio, version: version) }
-          when not esAviso { TerminosNegocio(version: version) }
+          when esTerminos { TerminosNegocio(version: version) }
+          when esPolitica {
+            PoliticaNegocio(negocio: negocio, version: version, fecha: polFecha) {
+              each secs as s {
+                Section class("pv-sec") {
+                  Title "{s.titulo}" h2
+                  Text "{s.texto}" class("pv-pre")
+                }
+              }
+            }
+          }
         }
       }
 
@@ -72,6 +104,7 @@ Page class("glogin") {
       }
     }
 
+    Custom PoliticaBridge on(secciones: polSecs, meta: polMeta)
     Custom SupaAuthForm inputs(mode: "condiciones", tipo: @tipo, version: @version, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
   }
 }

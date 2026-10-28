@@ -1,0 +1,23 @@
+# Editor frame of "Políticas de tu negocio" (owner only; empresa Perfil and the independent walker's
+# dashboard): current version, the fixed warning about clauses that may have no effect, the caller's rows
+# (one Textarea per section, bound to its page state, in the slot) and "Publicar nueva versión", locked while
+# the rows break a rule of politicaError (src/lib/politicaNegocio.js; the server validates again).
+part PoliticaEditor(version: text, fecha: text, error: text, onPublicar: action) {
+  Stack class("dd-pf-team") {
+    Title "Políticas de tu negocio" h2
+    when $version != "" { Text "Versión {$version}, publicada el {$fecha}. Tus clientes la aceptan antes de reservar o comprar; cada versión nueva deben aceptarla de nuevo." class("dd-rel-hint") }
+    when $version == "" { Text "Aún no publicas las políticas de tu negocio. Te dejamos un modelo con textos de ejemplo: adáptalo antes de publicarlo. Mientras no publiques, tus clientes reservan sin aceptarlas." class("dd-rel-hint") }
+    Text "Estas políticas son tuyas: DevDogs no las revisa ni las avala (Términos para negocios, sección 3). Una cláusula que quite a tu negocio la responsabilidad por su propia negligencia o por lo que la ley lo obliga a hacer puede no tener efecto (artículos 42 y 43 de la Ley 1480 de 2011)." class("dd-pol-aviso")
+    Stack class("dd-gform") {
+      slot
+      # `disabled when` does not take part params, so the locked and unlocked buttons are two branches.
+      when $error != "" {
+        Stack class("dd-gform") {
+          Text "{$error}" class("dd-rel-hint")
+          Button "Publicar nueva versión" class("dd-cat-add dd-hor-save") disabled
+        }
+      }
+      when $error == "" { Button "Publicar nueva versión" -> $onPublicar class("dd-cat-add dd-hor-save") }
+    }
+  }
+}
