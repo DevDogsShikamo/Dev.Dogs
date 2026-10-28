@@ -1,0 +1,115 @@
+# Términos para negocios (B2B): what the owner of a business (company or independent walker) accepts before
+# operating (aceptaciones tipo terminos_negocio). Shown by /politicas#negocios and by the /aceptar-condiciones
+# gate. DRAFT for legal review: when the text changes, bump TERMINOS_NEGOCIO_VERSION in src/lib/politica.js and
+# public.version_vigente(). Unknown facts are [COMPLETAR: ...] markers.
+part TerminosNegocio(version: text) {
+  Stack class("pv-doc") {
+    Stack class("pv-draft") {
+      Span "BORRADOR — pendiente de revisión legal" class("pv-draft-t")
+      Text "Estos términos son un borrador preparado para que los revise un abogado. Aún no han sido aprobados y no deben entenderse como garantía de adecuación legal. Los datos que todavía no se conocen aparecen entre corchetes con la indicación COMPLETAR." class("pv-draft-d")
+    }
+
+    Title "Términos para negocios de DevDogs" h1 class("pv-h1")
+    Text "Versión de estos términos: {$version}" class("pv-meta")
+    Text "Fecha de entrada en vigor: [COMPLETAR: fecha, una vez aprobados por el abogado]" class("pv-meta")
+    Text "Estos términos rigen la relación entre DevDogs y cada negocio que se registra en la plataforma para organizar su servicio de cuidado de perros, sea una empresa o un paseador independiente (en adelante, el negocio). Los acepta el jefe del negocio dentro de la aplicación antes de operar, y se suman a los Términos y condiciones de uso y a la Política de tratamiento de datos personales."
+
+    Section class("pv-sec") {
+      Title "1. Objeto" h2
+      Text "DevDogs otorga al negocio una licencia de uso de la plataforma, no exclusiva e intransferible, mientras estos términos estén vigentes, para organizar su servicio: registrar clientes, perros y personal, armar grupos y agendas, publicar su catálogo y registrar lo que presta y lo que cobra. DevDogs ofrece software como servicio: no presta servicios de cuidado de animales y no es intermediario, agente ni empleador del negocio ni de su personal."
+    }
+
+    Section class("pv-sec") {
+      Title "2. El negocio es el único prestador del servicio" h2
+      List {
+        Text "El negocio es el único prestador del servicio frente a sus clientes: contrata con cada dueño, recibe a los perros y responde por ellos mientras están bajo su custodia."
+        Text "Responde por su personal (selección, capacitación, pago y seguridad social), por los precios que fija, por los productos que vende, por los cobros que registra y por la información que da a sus clientes."
+        Text "Responde por las obligaciones que la Ley 2480 de 2025 (Ley Kiara) impone a quienes prestan servicios de cuidado para animales de compañía, y por las demás normas que apliquen a su actividad."
+        Text "Informa a sus clientes el precio total y las condiciones del servicio antes de que reserven o compren."
+      }
+      Text "DevDogs muestra a cada cliente, antes de que use su portal, un aviso de que el negocio es quien presta el servicio y responde por su perro, y registra que el cliente lo aceptó."
+    }
+
+    Section class("pv-sec") {
+      Title "3. Políticas propias del negocio" h2
+      List {
+        Text "El negocio puede fijar sus propias condiciones de servicio (horarios, cancelaciones, recogida y entrega, emergencias, entre otras). Responde por su legalidad y por darlas a conocer a sus clientes."
+        Text "DevDogs no revisa ni avala esas condiciones, y que aparezcan en la plataforma no significa que DevDogs las apruebe."
+        Text "DevDogs puede retirar contenido manifiestamente ilegal, por ejemplo condiciones que permitan el maltrato animal, e informará al negocio el motivo."
+      }
+    }
+
+    Section class("pv-sec") {
+      Title "4. Herramientas de apoyo" h2
+      Text "La plataforma ofrece herramientas que ayudan a organizar el servicio: alertas cuando dos perros incompatibles quedan en la misma salida, el tope de ocho (8) perros por paseador en cada salida, la marca de perro en celo y el aviso sobre la fecha del certificado de salud."
+      Text "Estas herramientas dependen de los datos que carga el negocio y no sustituyen su criterio ni su deber de cuidado: si un dato falta o está desactualizado, la herramienta no puede advertirlo. Revisar a los perros, sus documentos y sus condiciones le corresponde al negocio."
+    }
+
+    Section class("pv-sec") {
+      Title "5. Póliza de responsabilidad civil" h2
+      Text "Se recomienda que el negocio tenga una póliza de responsabilidad civil que cubra los daños que puedan sufrir los perros bajo su custodia o terceros. La Ley 2480 de 2025, en su artículo 18, permite adquirir una póliza que cubra muerte, lesiones, enfermedades o pérdida de los animales. [COMPLETAR: si DevDogs exigirá la póliza para operar en la plataforma y con qué cobertura mínima.]"
+    }
+
+    Section class("pv-sec") {
+      Title "6. Indemnidad" h2
+      Text "El negocio mantendrá indemne a DevDogs frente a reclamos, sanciones o condenas de sus clientes o de terceros que tengan origen en el servicio de cuidado que presta, en su personal, en sus precios, productos o cobros, o en las normas que le aplican, y asumirá los costos razonables de la defensa. Esta obligación no aplica cuando el daño se deba a dolo o culpa grave de DevDogs."
+    }
+
+    Section class("pv-sec") {
+      Title "7. Límite de responsabilidad de DevDogs frente al negocio" h2
+      Text "Frente al negocio, DevDogs responde solo por los daños directos que cause la plataforma, hasta [COMPLETAR: monto máximo, o lo pagado por el negocio a DevDogs en los doce (12) meses anteriores al hecho]. DevDogs no responde frente al negocio por daños indirectos ni por lucro cesante."
+      Text "Este límite no aplica en caso de dolo o culpa grave de DevDogs, cuya responsabilidad no puede excluirse por contrato (artículo 1522 del Código Civil), y no limita los derechos que la ley reconoce a los consumidores."
+    }
+
+    Section class("pv-sec") {
+      Title "8. Tratamiento de datos personales" h2
+      Text "El negocio es el responsable del tratamiento de los datos personales de sus clientes y de su personal que registra en la plataforma: decide qué datos registra y para qué, obtiene la autorización de sus titulares y atiende sus consultas y reclamos. DevDogs es el encargado del tratamiento: trata esos datos por cuenta del negocio y solo para prestarle la plataforma. Estos términos son el contrato de transmisión de datos personales entre ambos (artículo 25 del Decreto 1377 de 2013, compilado en el Decreto 1074 de 2015)."
+      Text "Como encargado, DevDogs se obliga a:"
+      List {
+        Text "Tratar los datos solo para prestar la plataforma y según las instrucciones del negocio, sin usarlos para fines propios, publicidad ni venta."
+        Text "Mantener medidas de seguridad para impedir su adulteración, pérdida, consulta, uso o acceso no autorizado o fraudulento."
+        Text "Guardar confidencialidad sobre los datos, también después de terminada la relación."
+        Text "Dar a cada persona acceso solo a la información que su rol le permite ver."
+        Text "Informar al negocio, sin demora injustificada, los incidentes de seguridad que afecten sus datos, para que el negocio informe a la Superintendencia de Industria y Comercio cuando corresponda."
+        Text "Apoyar al negocio para atender las consultas y reclamos de los titulares, por ejemplo con la página Mis datos."
+        Text "Al terminar la relación, eliminar o devolver los datos según lo indique el negocio, salvo los que la ley obligue a conservar. [COMPLETAR: plazo de devolución o eliminación.]"
+        Text "Informar al negocio qué proveedores alojan la plataforma y los datos. [COMPLETAR: lista de proveedores, por ejemplo base de datos y almacenamiento de fotos.]"
+      }
+      Text "[COMPLETAR: el abogado debe revisar este contrato de transmisión frente al artículo 25 del Decreto 1377 de 2013 y ajustar la Política de tratamiento de datos personales a la división entre responsable y encargado.]"
+    }
+
+    Section class("pv-sec") {
+      Title "9. Identificación del negocio" h2
+      Text "El negocio registra en la plataforma su nombre o razón social, su documento de identificación (NIT, cédula de ciudadanía, cédula de extranjería o pasaporte), su dirección de notificaciones, su teléfono y su correo, y los mantiene actualizados. Sus clientes los consultan en Quién te presta el servicio, dentro de su portal (artículos 50 y 53 de la Ley 1480 de 2011)."
+    }
+
+    Section class("pv-sec") {
+      Title "10. Representación" h2
+      Text "Quien acepta estos términos declara que es el titular del negocio o que tiene facultades para obligarlo. Si no las tiene, responde personalmente por la aceptación."
+    }
+
+    Section class("pv-sec") {
+      Title "11. Suspensión y terminación" h2
+      List {
+        Text "El negocio puede dejar de usar la plataforma en cualquier momento. Al cerrar la cuenta del jefe se elimina el negocio y todo lo que depende de él, por lo que conviene descargar antes la información necesaria."
+        Text "DevDogs puede suspender o terminar el acceso del negocio que infrinja estos términos o la ley, informando el motivo y dando la oportunidad de explicarse, salvo cuando haya riesgo para animales o personas, en cuyo caso puede suspenderlo de inmediato."
+        Text "[COMPLETAR: preaviso para que DevDogs termine la relación sin una causa.]"
+      }
+    }
+
+    Section class("pv-sec") {
+      Title "12. Precio" h2
+      Text "Hoy el uso de DevDogs no tiene costo para el negocio. Si en el futuro se cobra, el precio y sus condiciones se informarán con [COMPLETAR: antelación del aviso], y solo se cobrará al negocio que lo acepte de forma expresa."
+    }
+
+    Section class("pv-sec") {
+      Title "13. Cambios a estos términos" h2
+      Text "Cada cambio se publica con una nueva versión. Los cambios importantes se aceptan de nuevo dentro de la aplicación antes de seguir operando."
+    }
+
+    Section class("pv-sec") {
+      Title "14. Ley aplicable y solución de controversias" h2
+      Text "Estos términos se rigen por las leyes de la República de Colombia. [COMPLETAR: domicilio contractual y mecanismo de solución de controversias, por ejemplo conciliación previa y jueces competentes, o arbitraje.]"
+    }
+  }
+}

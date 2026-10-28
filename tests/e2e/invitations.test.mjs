@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, credentials, ids, seed } from '../security/_actors.mjs'
-import { autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
+import { acceptConditions, autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
 
 let app
 before(async () => { await seed(); app = await startApp() }, { timeout: 120_000 })
@@ -98,6 +98,7 @@ test('a client joins tenant A through /unirse with the code and the invited emai
   const code = (await (await as('OWNER')).rpc('invitacion_crear', { p_rol: 'cliente', p_email: email })).data
   assert.match(code, CODE)
   const page = await join(code, email)
+  await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/cliente', { timeout: 30_000 })
   const id = await sessionUserId(page)
   const profile = (await admin().from('profiles').select('rol, negocio_id').eq('id', id).single()).data

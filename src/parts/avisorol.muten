@@ -1,0 +1,30 @@
+# Role notice every client accepts (aceptaciones tipo aviso_rol) for its business before using the portal:
+# DevDogs is the software, the business is the provider and answers for the dog. DRAFT for legal review:
+# when the text changes, bump AVISO_ROL_VERSION in src/lib/politica.js and public.version_vigente().
+# The last sentence of the list (what DevDogs does answer for) keeps the notice from being a blanket
+# exclusion of liability (Ley 1480 art. 43); do not drop it.
+part AvisoRol(negocio: text, version: text) {
+  Stack class("pv-doc") {
+    Stack class("pv-draft") {
+      Span "BORRADOR — pendiente de revisión legal" class("pv-draft-t")
+      Text "Este aviso es un borrador preparado para que lo revise un abogado. Aún no ha sido aprobado y no debe entenderse como garantía de adecuación legal." class("pv-draft-d")
+    }
+
+    Title "Quién presta el servicio a tu perro" h1 class("pv-h1")
+    Text "Versión del aviso: {$version}" class("pv-meta")
+
+    Section class("pv-sec") {
+      Text "DevDogs es la herramienta que usa {$negocio} para organizar su servicio. DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro. Quien presta el servicio, recibe a tu perro y responde por él es {$negocio}."
+    }
+
+    Section class("pv-sec") {
+      Title "Qué significa en la práctica" h2
+      List {
+        Text "Los reclamos sobre el servicio, las cancelaciones, los precios, los incidentes y los pagos se tratan con {$negocio}."
+        Text "Los datos legales de {$negocio} (nombre o razón social, documento, dirección, teléfono y correo) están en Quién te presta el servicio, en el Perfil de tu portal."
+        Text "DevDogs responde por su software y por la seguridad de los datos que almacena."
+      }
+      Text "Este aviso no limita los derechos que la Ley 1480 de 2011 te reconoce como consumidor."
+    }
+  }
+}

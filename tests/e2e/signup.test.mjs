@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, tempUser } from '../security/_actors.mjs'
-import { autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
+import { acceptConditions, autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
@@ -77,6 +77,7 @@ test('the Dueño card goes to /unirse instead of the signup form', async () => {
 
 test('TI-1b: a business signup provisions an owned empresa and lands in the company portal', async () => {
   const { page } = await signUp('Empresa', 'Peludos E2E')
+  await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/empresa', { timeout: 30_000 })
   const { profile, negocio } = await cleanup(page)
   assert.equal(profile.rol, 'empresa')
@@ -86,6 +87,7 @@ test('TI-1b: a business signup provisions an owned empresa and lands in the comp
 
 test('TI-1b: an independent-walker signup provisions an independiente and lands in the walker portal', async () => {
   const { page } = await signUp('Paseador', 'Paseos E2E')
+  await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/app', { timeout: 30_000 })
   const { profile, negocio } = await cleanup(page)
   assert.equal(profile.rol, 'paseador')
@@ -101,6 +103,7 @@ test('an existing account can still log in and reaches its portal', async () => 
     await page.getByPlaceholder('tu@correo.com').fill(u.email)
     await page.getByPlaceholder('••••••••').fill(u.password)
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+    await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL('**/empresa', { timeout: 30_000 })
     await page.close()
   } finally {
