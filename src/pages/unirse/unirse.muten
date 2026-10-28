@@ -1,20 +1,26 @@
 screen unirse
 use codigoDeURL from "~/lib/share.ts"
+use politicaVersion, abrirPolitica from "~/lib/politica.js"
 
 # Canje de invitación: el invitado (paseador / cliente / gestión) crea su cuenta con
-# el CÓDIGO que le compartió el negocio. redeem_invite lo asocia al negocio con su rol
-# y la cadena de guards de app.muten lo rutea a su portal. No crea negocio propio.
+# el CÓDIGO que le compartió el negocio (atado al correo con que se registra). redeem_invite lo
+# asocia al negocio con su rol y la cadena de guards de app.muten lo rutea a su portal. Es la ÚNICA
+# entrada a un negocio existente: no hay unión por link/slug. No crea negocio propio.
 
 state {
   nombre = "" : text
   email  = "" : text
   pw     = "" : text
   codigo = "" : text
+  acepta = false : bool
   nonce  = 0  : number
 }
 
-get valido = nombre.length > 1 and email.length > 4 and pw.length > 5 and codigo.length > 3
+get valido = nombre.length > 1 and email.length > 4 and pw.length > 5 and codigo.length > 12 and acepta
+# La versión viaja al servidor solo si la casilla está marcada.
+get politicaAceptada = acepta ? politicaVersion() : ""
 action submit mutates nonce { nonce.set(nonce + 1) }
+action leerPolitica { abrirPolitica() }
 
 # Precarga el código si venís por un link /unirse?codigo=XXX (al montar).
 effect { codigo.set(codigoDeURL()) }
@@ -28,7 +34,7 @@ Page class("glogin") {
     }
     Stack class("glogin-photo-in") {
       Title "Te invitaron a un negocio." h1 class("glogin-h")
-      Text "Ingresá tu código y quedás dentro del equipo — sin armar nada." class("glogin-sub")
+      Text "Ingresá el código con el mismo correo al que te invitaron y quedás dentro del equipo." class("glogin-sub")
     }
   }
 
@@ -65,8 +71,20 @@ Page class("glogin") {
         Stack class("gfield-ic") { Icon "lucide:ticket" }
         Stack class("gfield-body") {
           Text "Código de invitación" class("gfield-label")
-          SearchField bind(codigo) "ABC123" class("gfield-input")
+          SearchField bind(codigo) "XXXXXXX-XXXXXXX" class("gfield-input")
         }
+      }
+
+      when codigo.length < 13 {
+        Text "Necesitás una invitación para unirte: pedile al negocio su código o el link de invitación." class("muted t-sm")
+      }
+
+      Stack class("gconsent") {
+        Checkbox bind(acepta) "He leído y acepto la Política de tratamiento de datos"
+        Text "Tus datos se usan solo para prestar el servicio: tu cuenta, los paseos y los cobros del negocio que te invitó." class("gconsent-note")
+        Button "Política de tratamiento de datos" -> leerPolitica class("glink t-sm") aria(label: "Política de tratamiento de datos (se abre en una pestaña nueva)")
+        Span "Versión de la política: {politicaVersion()}" class("gconsent-note")
+        Span "BORRADOR — pendiente de revisión legal" class("gconsent-draft")
       }
 
       when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
@@ -84,6 +102,6 @@ Page class("glogin") {
       }
     }
 
-    Custom SupaAuthForm inputs(mode: "join", email: @email, pw: @pw, nombre: @nombre, codigo: @codigo, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+    Custom SupaAuthForm inputs(mode: "join", email: @email, pw: @pw, nombre: @nombre, codigo: @codigo, politica: @politicaAceptada, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
   }
 }

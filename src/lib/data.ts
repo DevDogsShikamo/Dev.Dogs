@@ -3,6 +3,7 @@
 // (DataBootstrap, etc.) re-read and update the stores reactively.
 import { supa, toast, resolveSesion } from "./authActions";
 import { rpcOrQueue } from "./outbox";
+import { copiarCodigo } from "./share";
 
 function refresh(): void {
   if (typeof window !== "undefined") {
@@ -56,24 +57,24 @@ export function perroActualizar(id: string, p: PerroInput): void {
   });
 }
 
+// Borrado OPTIMISTA (ya se quitó del store). El RPC (solo el jefe) da de baja el perro sin
+// perder su historial y limpia agenda futura, grupos y relaciones de los demás; el refresh
+// reconcilia el conteo. Si falla, el refresh revierte.
 export function perroEliminar(id: string): void {
-  // Borrado OPTIMISTA (ya se quitó del store). Limpiamos refs y borramos; el refresh
-  // final reconcilia el conteo de relaciones de los demás. Si falla, refresh revierte.
-  supa.from("perros").select("incompatibles").eq("id", id).single().then(function (res) {
-    const lst: RelEntry[] = ((res.data && (res.data as { incompatibles?: RelEntry[] }).incompatibles) || []);
-    const others = lst.map(function (e) { return (e && e.id) ? e.id : (e as unknown as string); }).filter(Boolean);
-    const doDelete = function () {
-      supa.from("perros").delete().eq("id", id).then(function (dr) {
-        if (dr && (dr as { error?: unknown }).error) toast("No se pudo eliminar el perro");
-        refresh();
-      });
-    };
-    if (!others.length) { doDelete(); return; }
-    let pending = others.length;
-    others.forEach(function (otherId) {
-      relPut(otherId, id, "", "", "", function () { pending -= 1; if (pending === 0) doDelete(); });
-    });
+  supa.rpc("perro_eliminar", { p_id: id }).then(function (res) {
+    if (res && (res as { error?: unknown }).error) toast("No se pudo eliminar el perro");
+    refresh();
   });
+}
+
+// Co-dueños (solo el jefe): el RPC valida que el perro y el cliente sean del negocio.
+export function coduenioAgregar(perroId: string, duenoId: string): void {
+  if (!perroId || !duenoId) return;
+  supa.rpc("coduenio_agregar", { p_perro: perroId, p_dueno: duenoId }).then(done("No se pudo agregar el co-dueño", refresh));
+}
+export function coduenioQuitar(perroId: string, duenoId: string): void {
+  if (!perroId || !duenoId) return;
+  supa.rpc("coduenio_quitar", { p_perro: perroId, p_dueno: duenoId }).then(done("No se pudo quitar el co-dueño", refresh));
 }
 
 // ---- Relaciones entre perros (perros.incompatibles jsonb) -----------------
@@ -108,28 +109,21 @@ export function relacionQuitar(a: string, b: string): void {
 // El paseador define su oferta: tipo, nombre, duración y precio (por uso o mensual).
 type ServicioInput = { nombre?: string; tipo?: string; duracion?: number; precio?: number; modelo?: string };
 
-function servicioFields(s: ServicioInput): Record<string, unknown> {
-  const mensual = s.modelo === "mensual";
-  return {
-    nombre: s.nombre || "",
-    tipo: s.tipo || "paseo",
-    duracion_min: s.duracion || 0,
-    modelo_cobro: mensual ? "mensual" : "por_uso",
-    precio: mensual ? 0 : (s.precio || 0),
-    precio_mensual: mensual ? (s.precio || 0) : 0,
-  };
+// El precio vive en `tarifas`, no en `servicios`: crear y editar pasan por el RPC servicio_guardar (solo el dueño).
+function servicioGuardar(id: string | null, s: ServicioInput, msg: string, onOk?: () => void): void {
+  supa.rpc("servicio_guardar", {
+    p_id: id, p_nombre: s.nombre || "", p_tipo: s.tipo || "paseo", p_duracion: s.duracion || 0,
+    p_precio: Math.round(s.precio || 0), p_modelo: s.modelo === "mensual" ? "mensual" : "por_uso",
+  }).then(done(msg, onOk));
 }
 
 export function servicioCrear(s: ServicioInput): void {
-  resolveSesion().then(function (sesion) {
-    if (!sesion.negocioId) return;
-    supa.from("servicios").insert({ negocio_id: sesion.negocioId, activo: true, ...servicioFields(s) }).then(done("No se pudo agregar el servicio", refresh));
-  });
+  servicioGuardar(null, s, "No se pudo agregar el servicio", refresh);
 }
 
 // Optimista (servicioUpd ya patcheó el store): éxito → nada; error → toast+revert.
 export function servicioActualizar(id: string, s: ServicioInput): void {
-  supa.from("servicios").update(servicioFields(s)).eq("id", id).then(done("No se pudo guardar el servicio"));
+  servicioGuardar(id, s, "No se pudo guardar el servicio");
 }
 
 // Soft-delete OPTIMISTA (servicioDel ya lo quitó): éxito → nada; error → toast+revert.
@@ -270,83 +264,56 @@ export function paseoFinalizar(ids: string, nota: string): void {
   if (!arr.length) return;
   rpcOrQueue("paseo_marcar", { p_ids: arr, p_estado: "finalizado", p_nota: nota || null });
 }
-// Anexa la URL de una foto (ya subida a Storage por el Custom FotoUpload) a
-// detalle.fotos de TODAS las prestaciones del grupo → cada dueño ve las fotos de la
-// salida de su perro. Requiere red (la foto ya se subió online). Ver migration_fotos.sql.
-export function paseoAgregarFoto(ids: string, url: string): void {
-  const arr = idsArr(ids);
-  if (!arr.length || !url) return;
-  supa.rpc("paseo_agregar_foto", { p_ids: arr, p_url: url }).then(done("No se pudo guardar la foto"));
-}
-
 export function perroNoSalio(presId: string, motivo: string): void {
   if (!presId) return;
   rpcOrQueue("paseo_no_salio", { p_id: presId, p_motivo: motivo || "" });
 }
 
 // ---- Gestión del negocio (portal EMPRESA) --------------------------------
-// Salario mensual fijo de un paseador empleado (profiles.salario_fijo).
+// Salario mensual fijo de un paseador empleado: vive en `nomina` (solo lo escribe el dueño).
 export function paseadorSalario(id: string, salario: number): void {
-  supa.from("profiles").update({ salario_fijo: salario || 0 }).eq("id", id).then(done("No se pudo actualizar el salario"));
-}
-
-// Código de invitación legible (sin caracteres ambiguos).
-function genCodigo(): string {
-  const s = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  let c = "";
-  for (let i = 0; i < 6; i++) c += s.charAt(Math.floor(Math.random() * s.length));
-  return c;
-}
-
-// Crea una invitación (paseador o cliente) con un código único para compartir.
-// La ACEPTACIÓN (signup con código → linkear al negocio) es un flujo aparte, pendiente.
-export function invitarCrear(rol: string, email: string): void {
   resolveSesion().then(function (s) {
-    if (!s.uid || !s.negocioId) return;
-    supa.from("invitaciones").insert({
-      negocio_id: s.negocioId, rol: rol, email: email || null, codigo: genCodigo(), estado: "pendiente", invitado_por: s.uid,
-    }).then(done("No se pudo crear la invitación", refresh));
+    if (!s.negocioId) return;
+    supa.from("nomina").upsert({ user_id: id, negocio_id: s.negocioId, salario_fijo: Math.max(0, Math.round(salario || 0)) }).then(done("No se pudo actualizar el salario"));
   });
 }
 
-// Da de baja una invitación pendiente (soft: estado 'expirada').
-export function invitacionQuitar(id: string): void {
-  supa.from("invitaciones").update({ estado: "expirada" }).eq("id", id).then(done("No se pudo quitar la invitación"));
+// Permiso de finanzas de un empleado de gestión (optimista: finanzasSet ya lo reflejó). Solo el dueño.
+export function permisoFinanzas(userId: string, on: boolean): void {
+  if (!userId) return;
+  supa.rpc("permiso_finanzas_set", { p_user: userId, p_on: !!on }).then(done("No se pudo cambiar el permiso", refresh));
 }
 
-// Asigna un paseador a una salida (grupos.cuidador_id). Las prestaciones FUTURAS
+// Crea una invitación por RPC: el servidor genera el código (14 símbolos, solo se guarda su hash) y lo
+// devuelve UNA vez. Se copia al portapapeles y se avisa a la página ("invite:code") para mostrarlo; no se
+// guarda en ningún store. Código perdido = revocar y crear otra.
+export function invitarCrear(rol: string, email: string): void {
+  const correo = (email || "").trim();
+  supa.rpc("invitacion_crear", { p_rol: rol, p_email: correo }).then(function (res) {
+    if (res.error || !res.data) { toast(/email_invalido/.test((res.error && res.error.message) || "") ? "El correo no es válido" : "No se pudo crear la invitación"); return; }
+    copiarCodigo(res.data as string);
+    window.dispatchEvent(new CustomEvent("invite:code", { detail: { codigo: res.data, email: correo.toLowerCase() } }));
+    refresh();
+  });
+}
+
+// Revoca una invitación pendiente (el código deja de servir).
+export function invitacionQuitar(id: string): void {
+  supa.rpc("invitacion_revocar", { p_id: id }).then(done("No se pudo revocar la invitación", refresh));
+}
+
+// Asigna un paseador a una salida (grupos.cuidador_id) vía el RPC grupo_asignar: dueño u
+// oficina, y el cuidador debe ser paseador del negocio o el dueño. Las prestaciones FUTURAS
 // que genere el grupo usarán este cuidador; las ya materializadas no se retro-cambian.
 export function grupoAsignar(grupoId: string, cuidadorId: string): void {
-  supa.from("grupos").update({ cuidador_id: cuidadorId || null }).eq("id", grupoId).then(done("No se pudo asignar el paseador"));
+  supa.rpc("grupo_asignar", { p_grupo: grupoId, p_cuidador: cuidadorId || null }).then(done("No se pudo asignar el paseador"));
 }
 
 // ---- Cobros (empresa/jefe): marcar una prestación como cobrada (optimista) ----
-// RLS "prestaciones owner all" ya deja al dueño actualizar; registra quién/cuándo.
-export function cobroMarcar(id: string, uid: string): void {
+// RPC cobro_marcar: solo el dueño; el server fija quién y cuándo (auth.uid() / now()).
+export function cobroMarcar(id: string): void {
   if (!id) return;
-  supa.from("prestaciones").update({ cobrado: true, confirmado_por: uid || null, confirmado_at: new Date().toISOString() }).eq("id", id).then(done("No se pudo marcar cobrado"));
-}
-
-// ---- Crear una prestación con el precio del CATÁLOGO (compartido) ----------
-// Toma precio/modelo del servicio y arma el insert; `cobrable` sale del modelo
-// (mensual → no se cobra por uso). `base` trae los campos propios de cada vía
-// (perro, tipo, fecha, y opcional cuidador/grupo/detalle). El trigger de la DB
-// es la red de seguridad para las vías que no pasan por acá (RPC mover_perro, seeds).
-function insertarPrestacion(neg: string, base: Record<string, unknown>, servicioId: string, errMsg: string): void {
-  const finish = function (precio: number, cobrable: boolean): void {
-    supa.from("prestaciones")
-      .insert({ ...base, negocio_id: neg, servicio_id: servicioId || null, estado: "programado", precio_aplicado: precio, cobrable: cobrable })
-      .then(done(errMsg, refresh));
-  };
-  if (servicioId) {
-    supa.from("servicios").select("precio,modelo_cobro").eq("id", servicioId).single().then(function (sr) {
-      const s = (sr.data as { precio?: number; modelo_cobro?: string }) || {};
-      const mensual = s.modelo_cobro === "mensual";
-      finish(mensual ? 0 : (s.precio || 0), !mensual);
-    });
-  } else {
-    finish(0, true);
-  }
+  supa.rpc("cobro_marcar", { p_prestacion: id }).then(done("No se pudo marcar cobrado"));
 }
 
 // ---- El CLIENTE registra su propio perro (RPC crear_mi_perro, SECURITY DEFINER)
@@ -365,46 +332,69 @@ export function crearMiPerro(p: PerroInput): void {
   }).then(done("No se pudo registrar el perro", refresh));
 }
 
-// ---- Reserva del CLIENTE: acopla su perro a una salida de paseo -------------
-export function reservarPaseo(perroId: string, servicioId: string, tipo: string, cuidadorId: string, hora: string, grupoId: string, fecha: string): void {
+// ---- Reserva del CLIENTE ------------------------------------------------------
+// El browser NUNCA manda precio ni tipo: el RPC reservar (valida que el perro sea del
+// cliente y el servicio de su negocio) saca tipo, cuidador, hora y precio del catálogo/salida.
+function reservar(perroId: string, servicioId: string, grupoId: string, fecha: string, errMsg: string): void {
   if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  resolveSesion().then(function (s) {
-    if (!s.negocioId) return;
-    insertarPrestacion(s.negocioId, {
-      perro_id: perroId, tipo: tipo || "paseo", cuidador_id: cuidadorId || null,
-      fecha: fecha, grupo_id: grupoId || null, detalle: { hora: hora || "" },
-    }, servicioId, "No se pudo reservar el paseo");
-  });
+  supa.rpc("reservar", { p_perro: perroId, p_servicio: servicioId || null, p_grupo: grupoId || null, p_fecha: fecha }).then(done(errMsg, refresh));
 }
 
-// ---- Pedir un SERVICIO cualquiera (baño, guardería, corte, vet…) sin salida --
-// Crea una prestación programada del tipo del servicio; el negocio la asigna/atiende.
-export function reservarServicio(perroId: string, servicioId: string, tipo: string, fecha: string): void {
-  if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
-  resolveSesion().then(function (s) {
-    if (!s.negocioId) return;
-    insertarPrestacion(s.negocioId, {
-      perro_id: perroId, tipo: tipo || "paseo", fecha: fecha, detalle: {},
-    }, servicioId, "No se pudo agendar el servicio");
-  });
+// Acopla su perro a una salida de paseo (el servicio es el de la salida).
+export function reservarPaseo(perroId: string, servicioId: string, grupoId: string, fecha: string): void {
+  reservar(perroId, servicioId, grupoId, fecha, "No se pudo reservar el paseo");
 }
 
-// ---- Venta de PRODUCTO (comida / snack): se registra como prestación finalizada
-// (tipo comida/accesorio) con la cantidad, así entra directo a factura/reportes/cobros.
-// precio_aplicado = precio unitario del catálogo × cantidad (explícito, no unitario).
-export function venderProducto(perroId: string, servicioId: string, tipo: string, cantidad: number, fecha: string): void {
-  if (!perroId || !servicioId || !fecha) { toast("Elegí producto, perro y fecha"); return; }
-  const qty = cantidad > 0 ? cantidad : 1;
+// Pedir un SERVICIO cualquiera (baño, guardería, corte, vet…) sin salida; el negocio lo atiende.
+export function reservarServicio(perroId: string, servicioId: string, fecha: string): void {
+  reservar(perroId, servicioId, "", fecha, "No se pudo agendar el servicio");
+}
+
+// ---- Reseñas ------------------------------------------------------------------
+// El cliente deja o edita su reseña del negocio (el RPC exige un servicio finalizado); vuelve a pendiente.
+export function resenaGuardar(rating: number, texto: string, publicar: boolean): void {
   resolveSesion().then(function (s) {
     if (!s.negocioId) return;
-    const neg = s.negocioId;
-    supa.from("servicios").select("precio").eq("id", servicioId).single().then(function (sr) {
-      const precio = ((sr.data as { precio?: number }) || {}).precio || 0;
-      supa.from("prestaciones").insert({
-        negocio_id: neg, perro_id: perroId, servicio_id: servicioId, tipo: tipo || "comida",
-        fecha: fecha, estado: "finalizado", precio_aplicado: precio * qty, cobrable: true,
-        detalle: { cantidad: qty },
-      }).then(done("No se pudo registrar la compra", refresh));
+    supa.rpc("resena_guardar", { p_negocio: s.negocioId, p_rating: rating, p_texto: texto, p_publicar_nombre: !!publicar }).then(function (res) {
+      if (res.error) { toast("No se pudo guardar la reseña"); return; }
+      toast("¡Gracias! Tu reseña quedará visible cuando el negocio la apruebe.");
+      refresh();
     });
   });
+}
+// El dueño aprueba o rechaza (optimista: la página ya cambió el estado; si falla, toast + refresh).
+export function resenaModerar(id: string, estado: string): void {
+  supa.rpc("resena_moderar", { p_id: id, p_estado: estado }).then(done("No se pudo moderar la reseña"));
+}
+
+// ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
+// RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
+// como prestación finalizada de hoy, así entra directo al estado de cuenta/reportes/cobros.
+export function venderProducto(perroId: string, servicioId: string, cantidad: number): void {
+  if (!perroId || !servicioId) { toast("Elegí producto y perro"); return; }
+  const qty = Math.min(20, Math.max(1, Math.floor(cantidad) || 1));
+  supa.rpc("comprar_producto", { p_perro: perroId, p_servicio: servicioId, p_cantidad: qty }).then(done("No se pudo registrar la compra", refresh));
+}
+
+// ---- Mis datos (Ley 1581): the signed-in user's own corrections and data-rights requests ----------
+// Name: own-row profile update (RLS "profiles update self"; 1..100 characters, CHECK profiles_nombre_len).
+// Phone: contacto_set. Request: solicitud_datos_crear (server timestamp and due date). Each re-reads on success.
+function avisar(msg: string) {
+  return function (): void { toast(msg); refresh(); };
+}
+
+export function miNombreGuardar(nombre: string): void {
+  resolveSesion().then(function (s) {
+    if (!s.uid) return;
+    supa.from("profiles").update({ nombre: nombre.trim() }).eq("id", s.uid).then(done("No se pudo guardar el nombre", avisar("Nombre actualizado")));
+  });
+}
+
+export function miTelefonoGuardar(telefono: string): void {
+  supa.rpc("contacto_set", { p_telefono: telefono.trim() }).then(done("No se pudo guardar el teléfono", avisar("Teléfono actualizado")));
+}
+
+export function solicitudDatosCrear(tipo: string, detalle: string): void {
+  supa.rpc("solicitud_datos_crear", { p_tipo: tipo, p_detalle: detalle })
+    .then(done("No se pudo registrar la solicitud", avisar("Tu solicitud quedó registrada. Te responderemos dentro del plazo legal.")));
 }

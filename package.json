@@ -4,15 +4,22 @@
   "type": "module",
   "scripts": {
     "dev": "muten dev",
-    "build": "muten bundle",
-    "lint": "muten lint"
+    "build": "muten bundle && node scripts/csp-inject.mjs",
+    "lint": "muten lint",
+    "test": "npm run test:security",
+    "test:security": "node --test --test-concurrency=1 tests/security/",
+    "test:client": "node --test tests/client/",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/",
+    "test:worker": "node --test worker/test/",
+    "staging:push": "node supabase/staging.mjs push",
+    "staging:reset": "node supabase/staging.mjs reset"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@muten/core": "^0.0.43",
     "@supabase/supabase-js": "^2.109.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.0",

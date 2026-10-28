@@ -1,0 +1,14 @@
+# Código de invitación recién creado: se muestra UNA vez (ni el servidor ni un store lo guardan).
+# Perdido = revocar la invitación y crear otra.
+part InviteCode(code: text, email: text, onCopyCode: action, onCopyLink: action, onClose: action) {
+  Stack class("dd-inv-new") {
+    Text "Código para {$email}" class("dd-rel-hint")
+    Span "{$code}" class("dd-inv-newcode")
+    Text "Se muestra una sola vez. Compartilo ahora; si lo perdés, revocá la invitación y creá otra." class("dd-rel-hint")
+    Stack class("dd-inv-acts") {
+      Button "Copiar código" -> $onCopyCode($code) class("dd-cat-add")
+      Button "Copiar link" -> $onCopyLink($code) class("dd-cat-add")
+      Button "Listo" -> $onClose class("dd-cat-add dd-hor-save")
+    }
+  }
+}

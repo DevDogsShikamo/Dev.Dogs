@@ -114,15 +114,15 @@ function mount(el, inputs, on) {
       }
       if (on.servicios) {
         supa.from("servicios")
-          .select("id,nombre,tipo,duracion_min,precio,precio_mensual,modelo_cobro")
+          .select("id,nombre,tipo,duracion_min,modelo_cobro,tarifas(precio,precio_mensual)")
           .eq("negocio_id", s.negocioId).eq("activo", true).order("tipo")
           .then(function (res) {
             if (res && res.error) return;   // SWR: no pisar el cache si falló
             var rows = (res.data || []).map(function (r) {
-              var mensual = r.modelo_cobro === "mensual";
+              var mensual = r.modelo_cobro === "mensual", t = r.tarifas || {};   // tarifas: null si el rol no ve precios
               return {
                 id: r.id, nombre: r.nombre || "", tipo: r.tipo || "paseo", duracion: r.duracion_min || 0,
-                precio: mensual ? (r.precio_mensual || 0) : (r.precio || 0), modelo: mensual ? "mensual" : "por_uso"
+                precio: mensual ? (t.precio_mensual || 0) : (t.precio || 0), modelo: mensual ? "mensual" : "por_uso"
               };
             });
             on.servicios(rows);
@@ -179,8 +179,8 @@ function mount(el, inputs, on) {
             if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
             g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
-            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, foto: pobj.foto_url || "", estado: estado, motivo: d.motivo_no_salio || "" });
-            if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre, foto: pobj.foto_url || "" }); }
+            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "" });
+            if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre }); }
           });
           var cards = order.map(function (k) {
             var g = groups[k], start = timeNum(g.hora), durH = Math.max(1, (g.dur || 60) / 60);
@@ -236,7 +236,26 @@ function mount(el, inputs, on) {
     });
   }
 
+  // ---------- INVITACIONES (panel "invitar cliente" del paseador independiente) ----------
+  // Solo correo y vencimiento; el código existe una única vez, al crearla. RLS: solo el dueño las lee.
+  function loadInvitaciones() {
+    var supa = globalThis.__supa;
+    if (!supa || !on.invitaciones) return;
+    globalThis.__ddSesion().then(function (s) {
+      if (!s.negocioId) return;
+      supa.from("invitaciones").select("id,rol,email,estado,expires_at").eq("negocio_id", s.negocioId)
+        .eq("estado", "pendiente").gt("expires_at", new Date().toISOString()).order("created_at")
+        .then(function (res) {
+          if (res && res.error) return;   // SWR: no pisar el cache si falló
+          on.invitaciones((res.data || []).map(function (i) {
+            return { id: i.id, rol: i.rol || "", email: i.email || "", estado: i.estado || "", vence: new Date(i.expires_at).toLocaleDateString("es") };
+          }));
+        });
+    });
+  }
+
   function loadAll() {
+    loadInvitaciones();
     loadPerros();
     loadServicios();
     loadGruposAdmin();
@@ -245,6 +264,8 @@ function mount(el, inputs, on) {
 
   loadAll();
   window.addEventListener("supa:refresh", loadAll);
+  // Código recién creado (data.ts invitarCrear): se entrega una vez a la página.
+  window.addEventListener("invite:code", function (e) { if (on.codigoNuevo) on.codigoNuevo(e.detail); });
   // Solo grupos-hoy depende del idioma (etiqueta de fecha + emojis).
   window.addEventListener("lang:changed", loadGruposHoy);
 

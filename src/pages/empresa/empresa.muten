@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, grupoCrear, grupoActualizar, grupoEliminar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar from "~/lib/data.ts"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
 
@@ -85,6 +85,9 @@ action perroGuardar(p: PerroDraft) mutates pform {
   pform.set(false)
 }
 action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
+# Co-dueños: solo el jefe (RPC coduenio_*); el perro es el que está abierto en el form.
+action coAgregar(did: text) { coduenioAgregar(pedit, did) }
+action coQuitar(did: text) { coduenioQuitar(pedit, did) }
 
 # ---- Salidas / grupos (ABM del jefe) ----
 action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
@@ -111,10 +114,11 @@ action salGuardar mutates salForm { empresa.salarioSet(salEdit, salVal)  paseado
 
 # ---- Invitar paseador / cliente ----
 action invAbrir(rol: text) mutates invRol, invEmail, invForm { invRol.set(rol)  invEmail.set("")  invForm.set(true) }
+get invValido = invEmail.length > 4
 action invCerrar mutates invForm { invForm.set(false) }
 action invGuardar mutates invForm { invitarCrear(invRol, invEmail)  invForm.set(false) }
 action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
-# Compartir invitación: copiar el código o un link con el código precargado.
+# El código recién creado se muestra una vez (empresa.codigoNuevo): copiar el código o un link con el código precargado.
 action copCod(c: text) { copiarCodigo(c) }
 action copLink(c: text) { copiarLink(c) }
 
@@ -124,13 +128,19 @@ action asigCerrar mutates asigForm { asigForm.set(false) }
 action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(asigSalida, cid, cnom)  grupoAsignar(asigSalida, cid)  asigForm.set(false) }
 
 # ---- Cobrar un paseo pendiente (optimista + persiste) ----
-action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id, auth.userId) }
+action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
+
+# ---- Permiso de finanzas de la oficina (solo el dueño; optimista + RPC) ----
+action finanzasToggle(id: text, on: bool) { empresa.finanzasSet(id, on)  permisoFinanzas(id, on) }
+
+# ---- Moderar una reseña (solo el dueño; optimista + RPC) ----
+action moderar(id: text, estado: text) { empresa.resenaSet(id, estado)  resenaModerar(id, estado) }
 
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
-  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom SalidasBridge on(salidas: empresa.setSalidas)
   # Agenda semanal multi-paseador (#5).
   Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda)
@@ -143,9 +153,7 @@ Stack class("dd-app") {
     Span "Empresa" class("dd-navlbl")
     Button -> go("dashboard")  class("dd-lnk") class("dd-on" when section == "dashboard")  { Icon "lucide:home"        Span "Inicio" }
     Button -> go("paseadores") class("dd-lnk") class("dd-on" when section == "paseadores") { Icon "lucide:users"       Span "Paseadores" }
-    when auth.isOwner {
-      Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
-    }
+    Button -> go("clientes") class("dd-lnk") class("dd-on" when section == "clientes") { Icon "lucide:user-round"  Span "Clientes" }
     Button -> go("salidas")    class("dd-lnk") class("dd-on" when section == "salidas")    { Icon "lucide:map-pin"     Span "Salidas" }
     Button -> go("agenda")     class("dd-lnk") class("dd-on" when section == "agenda")     { Icon "lucide:calendar"    Span "Agenda" }
     when auth.isOwner {
@@ -155,6 +163,9 @@ Stack class("dd-app") {
       Button -> go("perros") class("dd-lnk") class("dd-on" when section == "perros") { Icon "lucide:dog" Span "Perros" }
     }
     when auth.isOwner {
+      Button -> go("resenas") class("dd-lnk") class("dd-on" when section == "resenas") { Icon "lucide:star" Span "Reseñas" }
+    }
+    when auth.verFinanzas {
       Button -> go("reportes") class("dd-lnk") class("dd-on" when section == "reportes") { Icon "lucide:bar-chart-3" Span "Reportes" }
     }
     Button -> go("perfil")     class("dd-lnk") class("dd-on" when section == "perfil")     { Icon "lucide:user"        Span "Perfil" }
@@ -228,7 +239,7 @@ Stack class("dd-app") {
           # Invitaciones pendientes (paseador) — solo el jefe las gestiona.
           when auth.isOwner {
             each empresa.invitaciones as iv where iv.rol == "paseador" {
-              InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+              InviteItem(iv: iv, onDelete: invBorrar)
             }
           }
           when empresa.nPaseadores == 0 {
@@ -242,7 +253,6 @@ Stack class("dd-app") {
                   Stack class("nmline") {
                     Span "{p.nombre}" class("nm")
                     when p.verificado { Span "✓" class("dd-emp-ver") }
-                    when p.zona { Span "{p.zona}" class("cd") }
                   }
                   when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
                   when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
@@ -264,10 +274,10 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") {
             Title "Clientes" h2
-            Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" }
+            when auth.isOwner { Button -> invAbrir("cliente") class("dd-cat-add") { Icon "lucide:user-plus"  Span "Invitar" } }
           }
           each empresa.invitaciones as iv where iv.rol == "cliente" {
-            InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+            InviteItem(iv: iv, onDelete: invBorrar)
           }
           when empresa.nClientes == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invitá a tu primer cliente con el botón de arriba." }
@@ -397,7 +407,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reportes" h2 }
           Stack class("dd-emp-kpis") {
-            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(empresa.facturado)}" class("v")  Span "Facturado (30d)" class("l") }
+            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(empresa.facturado)}" class("v")  Span "Total del periodo (30d)" class("l") }
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:circle-check"  Span "{cop(empresa.cobrado)}" class("v")    Span "Cobrado" class("l") }
             Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:clock"         Span "{cop(empresa.pendiente)}" class("v")  Span "Pendiente" class("l") }
           }
@@ -431,6 +441,33 @@ Stack class("dd-app") {
                   Span "{pp.paseos} paseos" class("meta")
                 }
                 Span "{cop(pp.monto)}" class("dd-rep-monto")
+              }
+            }
+          }
+        }
+      }
+
+      # ==== RESEÑAS (el jefe aprueba o rechaza antes de que sean públicas) ====
+      when section == "resenas" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-cat-head") { Title "Reseñas" h2 }
+          Text "Solo se publican las aprobadas cuyo autor aceptó mostrar su nombre." class("dd-cli-hint")
+          when empresa.nResenas == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:star" }  Title "Sin reseñas" h2  Text "Tus clientes pueden dejar una reseña después de un servicio finalizado." }
+          }
+          Stack class("dd-cat-list") {
+            each empresa.resenas as r {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:star" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{r.estado}" class("cd") }
+                  Span "{r.texto}" class("dd-rs-txt")
+                  when not r.publicar { Span "Sin permiso para publicar su nombre" class("obs") }
+                }
+                Stack class("acts") {
+                  when r.estado != "aprobada" { Button "Aprobar" -> moderar(r.id, "aprobada") class("dd-cat-add") }
+                  when r.estado != "rechazada" { Button "Rechazar" -> moderar(r.id, "rechazada") class("dd-cat-icon dd-danger") }
+                }
               }
             }
           }
@@ -474,6 +511,28 @@ Stack class("dd-app") {
                   Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
                 Form bind(pdraft) submit(perroGuardar) "Guardar perro"
+                when pedit {
+                  when auth.isOwner {
+                    Stack class("dd-cat-list") {
+                      Title "Dueños" h4
+                      each empresa.duenos as d where d.perroId == pedit {
+                        Stack class("dd-cat-item") {
+                          Stack class("dd-cat-info") { Stack class("nmline") { Span "{d.nombre}" class("nm")  Span "{d.rol}" class("cd") } }
+                          when d.rol == "co" {
+                            Stack class("acts") { Button -> coQuitar(d.id) class("dd-cat-icon dd-danger") aria(label: "Quitar co-dueño") { Icon "lucide:user-minus" } }
+                          }
+                        }
+                      }
+                      Title "Agregar co-dueño" h4
+                      each empresa.clientes as c {
+                        Stack class("dd-cat-item") {
+                          Stack class("dd-cat-info") { Span "{c.nombre}" class("nm") }
+                          Stack class("acts") { Button -> coAgregar(c.id) class("dd-cat-icon") aria(label: "Agregar co-dueño") { Icon "lucide:user-plus" } }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -548,7 +607,7 @@ Stack class("dd-app") {
               }
               # Invitaciones de gestión pendientes.
               each empresa.invitaciones as iv where iv.rol == "empresa" {
-                InviteItem(iv: iv, onCopyCode: copCod, onCopyLink: copLink, onDelete: invBorrar)
+                InviteItem(iv: iv, onDelete: invBorrar)
               }
               when empresa.nGestion == 0 {
                 Text "Aún no hay empleados de gestión. Invitá a alguien para compartir la oficina." class("dd-rel-hint")
@@ -561,12 +620,14 @@ Stack class("dd-app") {
                       Stack class("nmline") { Span "{g.nombre}" class("nm") }
                       when g.telefono { Span "{g.telefono}" class("meta") }
                     }
+                    Checkbox checked(g.finanzas) -> finanzasToggle(g.id, not g.finanzas) "Finanzas"
                   }
                 }
               }
             }
           }
 
+          Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }
@@ -601,11 +662,20 @@ Stack class("dd-app") {
               Button -> invCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
             }
             Stack class("dd-gform") {
-              Span "Email (opcional)" class("dd-hor-lbl")
+              Span "Correo del invitado" class("dd-hor-lbl")
               SearchField bind(invEmail) "correo@ejemplo.com"
-              Text "Se genera un código único para que se una al negocio." class("dd-rel-hint")
-              Button "Crear invitación" -> invGuardar class("dd-cat-add dd-hor-save")
+              Text "El código queda atado a este correo, vence en 7 días y se muestra una sola vez." class("dd-rel-hint")
+              Button "Crear invitación" -> invGuardar class("dd-cat-add dd-hor-save") disabled when not invValido
             }
+          }
+        }
+      }
+
+      # ---- Código recién creado: se ve una vez y se descarta ----
+      when empresa.codigoNuevo.length > 0 {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            InviteCode(code: empresa.codigoNuevo, email: empresa.codigoEmail, onCopyCode: copCod, onCopyLink: copLink, onClose: empresa.codigoCerrar)
           }
         }
       }
@@ -638,15 +708,16 @@ Stack class("dd-app") {
   Nav class("dd-tabbar") {
     Button -> go("dashboard")  class("dd-on" when section == "dashboard")  aria(label: "Inicio") { Icon "lucide:home" }
     Button -> go("paseadores") class("dd-on" when section == "paseadores") aria(label: "Paseadores") { Icon "lucide:users" }
-    when auth.isOwner {
-      Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
-    }
+    Button -> go("clientes") class("dd-on" when section == "clientes")   aria(label: "Clientes") { Icon "lucide:user-round" }
     Button -> go("salidas")    class("dd-on" when section == "salidas")    aria(label: "Salidas") { Icon "lucide:map-pin" }
     Button -> go("agenda")     class("dd-on" when section == "agenda")     aria(label: "Agenda") { Icon "lucide:calendar" }
     when auth.isOwner {
       Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
     }
     when auth.isOwner {
+      Button -> go("resenas") class("dd-on" when section == "resenas") aria(label: "Reseñas") { Icon "lucide:star" }
+    }
+    when auth.verFinanzas {
       Button -> go("reportes") class("dd-on" when section == "reportes")   aria(label: "Reportes") { Icon "lucide:bar-chart-3" }
     }
     Button -> go("perfil")     class("dd-on" when section == "perfil")     aria(label: "Perfil") { Icon "lucide:user" }

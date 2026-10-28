@@ -3,7 +3,7 @@
 # app.muten routes each rol to its portal.
 use signOut from "~/lib/authActions.ts"
 
-entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  slug text  isOwner bool }
+entity Session { loggedIn bool  userId text  userName text  rol text  negocioId text  isOwner bool  politica text  sinPerfil bool }
 
 state {
   loggedIn  = false : bool persist
@@ -11,9 +11,16 @@ state {
   userName  = ""    : text persist
   rol       = ""    : text persist
   negocioId = ""    : text persist
-  slug      = ""    : text persist
   isOwner   = false : bool persist   # dueño del negocio (jefe) vs empleado de gestión
+  # Current policy version the user has not accepted yet ("" = up to date). Persisted so a reload
+  # keeps the portals closed until /aceptar-politica records the acceptance.
+  politicaPendiente = "" : text persist
+  # Signed in (e.g. a first Google login) but without a profile: only /completar-registro opens.
+  # Persisted like politicaPendiente so a reload keeps the portals closed.
+  sinPerfil = false : bool persist
   authError = ""    : text
+  # Permiso de finanzas (lo informa ReportesBridge desde has_finanzas()). Solo gobierna la UI; el servidor decide.
+  finanzas  = false : bool
 }
 
 get isPaseador = rol == "paseador"
@@ -21,33 +28,47 @@ get isEmpresa  = rol == "empresa"
 get isCliente  = rol == "cliente"
 # Empleado de gestión = trabaja en la oficina (rol empresa) pero NO es el dueño.
 get isGestion  = rol == "empresa" and not isOwner
+# Ve cobros y reportes: el dueño, o la oficina con el permiso que el dueño le dio.
+get verFinanzas = isOwner or finanzas
 
-# Guards de portal: rol correcto Y sesión activa (los usa app.muten en las rutas link-based).
-get canWalker   = loggedIn and rol == "paseador"
-get canBusiness = loggedIn and rol == "empresa"
-get canClient   = loggedIn and rol == "cliente"
+# Guards de portal: rol correcto, sesión activa Y política vigente aceptada (los usa app.muten).
+get canWalker   = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "paseador"
+get canBusiness = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "empresa"
+get canClient   = loggedIn and not sinPerfil and politicaPendiente == "" and rol == "cliente"
+# /mis-datos: any role with a profile and the current policy accepted.
+get canMisDatos = loggedIn and not sinPerfil and politicaPendiente == ""
+# Sesión activa sin perfil: solo se abre /completar-registro.
+get debeCompletar = loggedIn and sinPerfil
+# Sesión activa con una política nueva sin aceptar: solo se abre /aceptar-politica.
+get debeAceptar = loggedIn and not sinPerfil and politicaPendiente != ""
 
-action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, sinPerfil, authError {
   loggedIn.set(s.loggedIn)
   userId.set(s.userId)
   userName.set(s.userName)
   rol.set(s.rol)
   negocioId.set(s.negocioId)
-  slug.set(s.slug)
   isOwner.set(s.isOwner)
+  politicaPendiente.set(s.politica)
+  sinPerfil.set(s.sinPerfil)
   authError.set("")
 }
 
 action setError(msg: text) mutates authError { authError.set(msg) }
+# /mis-datos reports the stored name, so a correction shows in the portals without a new login.
+action setUserName(n: text) mutates userName { userName.set(n) }
+action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
 
-action logout mutates loggedIn, userId, userName, rol, negocioId, slug, isOwner, authError {
+action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, sinPerfil, authError, finanzas {
+  finanzas.set(false)
   signOut()
   loggedIn.set(false)
   userId.set("")
   userName.set("")
   rol.set("")
   negocioId.set("")
-  slug.set("")
   isOwner.set(false)
+  politicaPendiente.set("")
+  sinPerfil.set(false)
   authError.set("")
 }

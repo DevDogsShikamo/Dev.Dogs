@@ -1,5 +1,3 @@
-var SUPABASE_URL = "https://agutaluxzruuthbbagkh.supabase.co";
-var ANON_KEY = "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj";
 var mxCache = {};
 
 function mount(el, inputs, on) {
@@ -15,14 +13,15 @@ function mount(el, inputs, on) {
       return;
     }
 
-    fetch(SUPABASE_URL + "/functions/v1/check-email", {
+    var cfg = globalThis.__ddCfg; // effective url/key, set by authActions.ts
+    fetch(cfg.url + "/functions/v1/check-email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": ANON_KEY,
-        "Authorization": "Bearer " + ANON_KEY
+        "apikey": cfg.key,
+        "Authorization": "Bearer " + cfg.key
       },
-      body: JSON.stringify({ email: email }),
+      body: JSON.stringify({ domain: domain }), // the address itself never leaves the page
     })
       .then(function (r) { return r.json(); })
       .then(function (d) {

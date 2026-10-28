@@ -14,24 +14,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <title>DevDogs</title>
-  <script>
-    // Silencia el warning BENIGNO de ResizeObserver (los Charts nativos lo disparan);
-    // el overlay de error de dev de Muten lo trataba como fatal. Capturing + temprano.
-    window.addEventListener("error", function (e) {
-      if (e && e.message && e.message.indexOf("ResizeObserver loop") !== -1) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }
-    }, true);
-  </script>
-  <script>
-    // PWA: registra el Service Worker (usar sin conexión). network-first, seguro para dev.
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/sw.js").catch(function () { /* noop */ });
-      });
-    }
-  </script>
+  <script src="/boot.js"></script>
   <!-- Boot splash (lazy-load screen): painted instantly from HTML, before the app JS boots,
        then fades out on its own via CSS. No bootstrap script. -->
   <style>

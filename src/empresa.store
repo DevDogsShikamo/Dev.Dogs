@@ -4,7 +4,6 @@ entity PaseadorRow {
   id        text
   nombre    text
   telefono  text
-  zona      text
   salario   number
   verificado bool
   paseosHoy number
@@ -19,14 +18,25 @@ entity GestionRow {
   id       text
   nombre   text
   telefono text
+  finanzas bool
 }
+# Dueños (principal y co) de cada perro del negocio. Solo el jefe los lee (RLS); no se persiste.
+entity Dueno {
+  id      text
+  perroId text
+  nombre  text
+  rol     text
+}
+# Invitación pendiente: nunca lleva el código (el servidor solo guarda su hash).
 entity Invitacion {
   id     text
   rol    text
   email  text
-  codigo text
   estado text
+  vence  text
 }
+# Código recién creado: se muestra UNA vez y no se persiste.
+entity CodigoNuevo { codigo text  email text }
 # Reportes / cobros (agregados sobre prestaciones del negocio).
 entity IngresoDia   { dia text  monto number }
 entity TopServicio  { servicio text  monto number }
@@ -38,32 +48,41 @@ entity Pendiente { id text  fecha text  perro text  servicio text  monto number 
 # Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
 entity AgendaDia  { fecha text  label text  count number }
 entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  estado text  color text }
+# Reseña de un cliente (solo el jefe la lee y la modera; RLS).
+entity ResenaNeg { id text  autor text  rating number  texto text  publicar bool  estado text  fecha text }
 
 state {
-  # persist = SWR: offline pinta del cache (los bridges revalidan online). Se limpia en logout.
-  paseadores  = [] : list<PaseadorRow> persist
-  clientes    = [] : list<ClienteRow> persist
-  gestion     = [] : list<GestionRow> persist
+  # Sin persist (data-protection P8): el portal empresa no guarda nada en el dispositivo ni abre offline.
+  paseadores  = [] : list<PaseadorRow>
+  clientes    = [] : list<ClienteRow>
+  gestion     = [] : list<GestionRow>
   # Métricas de hoy (todos los paseadores del negocio).
-  paseosHoy   = 0 : number persist
-  programados = 0 : number persist
-  enCurso     = 0 : number persist
-  finalizados = 0 : number persist
-  perrosTot   = 0 : number persist
-  invitaciones = [] : list<Invitacion> persist
+  paseosHoy   = 0 : number
+  programados = 0 : number
+  enCurso     = 0 : number
+  finalizados = 0 : number
+  perrosTot   = 0 : number
+  invitaciones = [] : list<Invitacion>
+  codigoNuevo  = "" : text
+  codigoEmail  = "" : text
+  duenos      = [] : list<Dueno>
   # Finanzas del período (últimos 30 días).
-  facturado    = 0 : number persist
-  cobrado      = 0 : number persist
-  pendiente    = 0 : number persist
-  ingresosDia  = [] : list<IngresoDia> persist
-  topServicios = [] : list<TopServicio> persist
-  porPaseador  = [] : list<PaseadorIng> persist
-  salidas      = [] : list<Salida> persist
-  pendientes   = [] : list<Pendiente> persist
-  agendaDias   = [] : list<AgendaDia> persist
-  agenda       = [] : list<AgendaItem> persist
-  loaded       = false : bool persist
+  facturado    = 0 : number
+  cobrado      = 0 : number
+  pendiente    = 0 : number
+  ingresosDia  = [] : list<IngresoDia>
+  topServicios = [] : list<TopServicio>
+  porPaseador  = [] : list<PaseadorIng>
+  salidas      = [] : list<Salida>
+  pendientes   = [] : list<Pendiente>
+  agendaDias   = [] : list<AgendaDia>
+  agenda       = [] : list<AgendaItem>
+  resenas      = [] : list<ResenaNeg>
+  loaded       = false : bool
 }
+get nResenas = resenas.length
+action setResenas(rows: list<ResenaNeg>) mutates resenas { resenas.set(rows) }
+action resenaSet(rid: text, est: text) mutates resenas { resenas.patch where id == rid with { estado: est } }
 
 get pendienteTotal = pendientes.sum by monto
 get nPendientes    = pendientes.length
@@ -78,6 +97,11 @@ action setClientes(rows: list<ClienteRow>) mutates clientes { clientes.set(rows)
 action setGestion(rows: list<GestionRow>) mutates gestion { gestion.set(rows) }
 action setPerrosTot(n: number) mutates perrosTot { perrosTot.set(n) }
 action setInvitaciones(rows: list<Invitacion>) mutates invitaciones { invitaciones.set(rows) }
+action setCodigoNuevo(c: CodigoNuevo) mutates codigoNuevo, codigoEmail { codigoNuevo.set(c.codigo)  codigoEmail.set(c.email) }
+action codigoCerrar mutates codigoNuevo, codigoEmail { codigoNuevo.set("")  codigoEmail.set("") }
+action setDuenos(rows: list<Dueno>) mutates duenos { duenos.set(rows) }
+# Optimista: el permiso de finanzas cambia al instante (el RPC lo confirma).
+action finanzasSet(pid: text, on: bool) mutates gestion { gestion.patch where id == pid with { finanzas: on } }
 # Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
 action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
 action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
@@ -101,7 +125,7 @@ action setStats(hoy: number, prog: number, curso: number, fin: number) mutates p
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, loaded {
-  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+action limpiar mutates paseadores, clientes, gestion, invitaciones, codigoNuevo, codigoEmail, duenos, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, resenas, loaded {
+  resenas.reset()  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  codigoNuevo.set("")  codigoEmail.set("")  duenos.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
   facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)  loaded.set(false)
 }

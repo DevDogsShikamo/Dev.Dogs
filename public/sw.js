@@ -1,6 +1,6 @@
 // Service Worker de DevDogs — hace la app usable sin conexión (PWA).
 // Estrategia:
-//   • Supabase (API/realtime) → SIEMPRE red. Los DATOS ya se cachean por los stores
+//   • Supabase (API/realtime) y Worker de fotos → SIEMPRE red. Los DATOS ya se cachean por los stores
 //     con `persist` (SWR en localStorage); no duplicamos acá.
 //   • Fuentes (Google Fonts, immutables) → cache-first.
 //   • Shell + assets same-origin (HTML/JS/CSS/imágenes) → network-first: online trae
@@ -37,6 +37,10 @@ self.addEventListener("fetch", function (e) {
   // API / realtime de Supabase → siempre red (datos vía persist).
   if (url.hostname.indexOf("supabase.co") !== -1) return;
 
+  // Worker de fotos (requests con bearer, privadas): nunca se interceptan ni se cachean.
+  // Si el Worker pasa a un dominio propio, agregar ese host aquí.
+  if (url.hostname.indexOf("devdogs-fotos") === 0) return;
+
   // Fuentes (immutables) → cache-first.
   if (url.hostname.indexOf("gstatic.com") !== -1 || url.hostname.indexOf("googleapis.com") !== -1) {
     e.respondWith(
@@ -51,7 +55,12 @@ self.addEventListener("fetch", function (e) {
   e.respondWith(
     fetch(req)
       .then(function (res) {
-        if (res && res.status === 200 && url.origin === self.location.origin) putInCache(req, res);
+        if (res && res.status === 200 && url.origin === self.location.origin) {
+          putInCache(req, res);
+          // Every SPA route serves the same shell: keep a copy under /index.html so ANY route
+          // (e.g. /login after an offline sign-out) opens offline, not only the visited ones.
+          if (req.mode === "navigate") putInCache(new Request("/index.html"), res);
+        }
         return res;
       })
       .catch(function () {

@@ -15,24 +15,45 @@ function mount(el, inputs, on) {
   var p = U.pad, iso = U.iso;
   function shiftDays(n) { return U.addDays(new Date(), n); }
 
+  // Los importes viven en `cobros` (RLS: dueño u oficina con el permiso de finanzas). Sin permiso no se
+  // pide nada: has_finanzas() decide, y `on.permiso` le avisa a la página para mostrar u ocultar la sección.
   function load() {
     var supa = globalThis.__supa;
     if (!supa) return;
     negocio().then(function (neg) {
       if (!neg) return;
+      supa.rpc("has_finanzas").then(function (pm) {
+        if (!pm || pm.error) return;
+        var ok = pm.data === true;
+        if (on.permiso) on.permiso(ok);
+        if (ok) cargar(supa, neg);
+      });
+    });
+  }
+
+  function cargar(supa, neg) {
       var desde = iso(shiftDays(-29)), hasta = iso(new Date());
+
+      // Dueño de cada perro (solo el nombre) para rotular los cobros pendientes.
+      var duenos = {};
+      var duenosP = supa.rpc("perro_duenos_nombres").then(function (dr) {
+        if (!(dr && dr.error)) (dr.data || []).forEach(function (d) { duenos[d.perro_id] = d.nombre || ""; });
+      });
 
       // Pendientes de cobro: paseos realizados (finalizados), cobrables y aún no cobrados.
       if (on.pendientes) {
-        supa.from("prestaciones")
-          .select("id,fecha,precio_aplicado,perros(nombre),servicios(nombre)")
-          .eq("negocio_id", neg).eq("estado", "finalizado").eq("cobrable", true).eq("cobrado", false).order("fecha")
+        supa.from("cobros")
+          .select("prestacion_id,precio_aplicado,prestaciones!inner(fecha,estado,perro_id,perros(nombre),servicios(nombre))")
+          .eq("negocio_id", neg).eq("cobrable", true).eq("cobrado", false).eq("prestaciones.estado", "finalizado")
           .then(function (pr) {
             if (pr && pr.error) return;
-            var rows = (pr.data || []).map(function (r) {
-              return { id: r.id, fecha: r.fecha || "", perro: (r.perros && r.perros.nombre) || "", servicio: (r.servicios && r.servicios.nombre) || "", monto: r.precio_aplicado || 0 };
+            duenosP.then(function () {
+              var rows = (pr.data || []).map(function (r) {
+                var q = r.prestaciones || {}, pe = (q.perros && q.perros.nombre) || "", du = duenos[q.perro_id];
+                return { id: r.prestacion_id, fecha: q.fecha || "", perro: du ? pe + " · " + du : pe, servicio: (q.servicios && q.servicios.nombre) || "", monto: r.precio_aplicado || 0 };
+              }).sort(function (x, y) { return x.fecha < y.fecha ? -1 : x.fecha > y.fecha ? 1 : 0; });
+              on.pendientes(rows);
             });
-            on.pendientes(rows);
           });
       }
 
@@ -41,18 +62,19 @@ function mount(el, inputs, on) {
       supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
 
-        supa.from("prestaciones")
-          .select("precio_aplicado,cobrable,cobrado,servicio_id,cuidador_id,fecha,servicios(nombre)")
-          .eq("negocio_id", neg).gte("fecha", desde).lte("fecha", hasta)
+        supa.from("cobros")
+          .select("precio_aplicado,cobrable,cobrado,prestaciones!inner(fecha,cuidador_id,servicios(nombre))")
+          .eq("negocio_id", neg).gte("prestaciones.fecha", desde).lte("prestaciones.fecha", hasta)
           .then(function (res) {
             if (res && res.error) return;
             var rows = res.data || [];
             var facturado = 0, cobrado = 0;
             var porSvc = {}, porCuid = {}, porDia = {};
-            rows.forEach(function (r) {
-              var monto = (r.cobrable === false) ? 0 : (r.precio_aplicado || 0);
+            rows.forEach(function (c) {
+              var r = c.prestaciones || {};
+              var monto = (c.cobrable === false) ? 0 : (c.precio_aplicado || 0);
               facturado += monto;
-              if (r.cobrado) cobrado += monto;
+              if (c.cobrado) cobrado += monto;
               var svc = (r.servicios && r.servicios.nombre) || "Otro";
               porSvc[svc] = (porSvc[svc] || 0) + monto;
               if (r.cuidador_id) {
@@ -90,7 +112,6 @@ function mount(el, inputs, on) {
             }
           });
       });
-    });
   }
 
   load();

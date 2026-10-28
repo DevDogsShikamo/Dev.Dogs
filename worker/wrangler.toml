@@ -1,0 +1,20 @@
+# Photo Worker. Zero secrets: the R2 bucket is a native binding and the vars below are public.
+# Only STAGING is configured here (bucket devdogs-staging, staging Supabase). The production env
+# (bucket devdogs, production Supabase) is added at release (H6). Deploy: npx wrangler@4 deploy --env staging
+name = "devdogs-fotos"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+
+[env.staging]
+workers_dev = true
+
+[env.staging.vars]
+SUPABASE_URL = "https://ruutxrqocwphzufenzti.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NRvDO2c8jegK4xAKHpA7PQ_N_pBn-5a"
+ALLOWED_ORIGINS = ""
+ALLOW_LOCALHOST = "1"
+
+[[env.staging.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "devdogs-staging"
