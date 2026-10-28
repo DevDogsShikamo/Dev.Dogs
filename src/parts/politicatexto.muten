@@ -46,8 +46,8 @@ part PoliticaTexto(version: text) {
       List {
         Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
         Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
-        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), observaciones, número de microchip si se registra y enlace a la foto de perfil."
-        Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, notas del paseador, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
+        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), observaciones y enlace a la foto de perfil."
+        Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, hora de recogida y de entrega, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
         Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
@@ -63,9 +63,9 @@ part PoliticaTexto(version: text) {
       List {
         Text "Jefe del negocio (o paseador independiente en su propio negocio): todos los datos de su negocio, incluidos cobros, salarios, teléfonos del equipo y los dueños vinculados a cada perro."
         Text "Personal de gestión con permiso de finanzas (otorgado solo por el jefe): lo mismo que el personal de gestión, más cobros, tarifas y reportes financieros."
-        Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios, microchips ni teléfonos de clientes."
+        Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios ni teléfonos de clientes."
         Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
-        Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Un co-dueño puede ver y reservar, pero no comprar productos ni editar los datos del perro."
+        Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Ningún cliente edita los datos del perro: los administra el negocio. Un co-dueño puede ver y reservar, pero no comprar productos."
         Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
@@ -109,7 +109,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol y negocio."
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
-        Text "Solo en el paseador: la agenda del día (perros, horarios, zonas y notas) para trabajar sin conexión y los cambios que aún no se han enviado."
+        Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión y los cambios que aún no se han enviado."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
         Text "Las fotos de los paseos no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
       }
