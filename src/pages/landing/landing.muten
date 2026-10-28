@@ -24,7 +24,7 @@ Page class("lp2") {
           Span "Domina tus "
           Span "paseos." class("dc-acc")
         }
-        Text "Agenda tus salidas, llevá la ficha de cada perro y cerrá las cuentas del mes." class("dc-sub")
+        Text "Agenda tus salidas, lleva la ficha de cada perro y cierra las cuentas del mes." class("dc-sub")
         Stack class("dc-cta") {
           Link "Empezar gratis" -> "/signup" class("dc-ctabtn")
           Text "Sin tarjeta — tu cuenta queda lista en segundos." class("dc-ctanote")
@@ -49,7 +49,7 @@ Page class("lp2") {
         Stack class("dc-sticker dc-k2") {
           Stack class("dc-chip-ic") { Icon "lucide:map-pin" }
           Stack class("dc-chip-body") {
-            Span "3 perros en ruta" class("dc-chip-t")
+            Span "3 perros en paseo" class("dc-chip-t")
             Span "Grupo mañana" class("dc-chip-s")
           }
         }
@@ -58,7 +58,7 @@ Page class("lp2") {
           Stack class("dc-mini-box") { Span "LUNA & TOBY" }
           Stack class("dc-mini-cap") {
             Span "Salida de la tarde" class("dc-chip-t")
-            Span "Check-in 08:15" class("dc-chip-s")
+            Span "Recibido 08:15" class("dc-chip-s")
           }
         }
 
@@ -83,13 +83,13 @@ Page class("lp2") {
     Stack class("sv-wave-t") {}
     Stack class("sv-wave") {}
     Stack class("sv-head") {
-      Stack class("sv-eye") { Icon "lucide:plus"  Span "Nuestros servicios" }
+      Stack class("sv-eye") { Icon "lucide:plus"  Span "Para tu negocio" }
       Stack class("sv-h") {
-        Span "¿Qué necesita "
-        Span "tu perro" class("sv-acc")
+        Span "¿Qué ofrece "
+        Span "tu negocio" class("sv-acc")
         Span "?"
       }
-      Text "Elegí la salida según su energía y carácter. Todo queda registrado, con foto de entrega y su cobro." class("sv-sub")
+      Text "Organiza cada servicio según la energía y el carácter de cada perro. Todo queda registrado: la entrega, las fotos y el cobro." class("sv-sub")
     }
 
     Stack class("sv-grid") {
@@ -97,12 +97,12 @@ Page class("lp2") {
       Link "" -> "/signup" class("sv-card") {
         Stack class("sv-photo sv-hosp") {}
         Stack class("sv-scrim") {}
-        Span " · Hospedaje" class("sv-fototag")
+        Span " · Guardería" class("sv-fototag")
         Stack class("sv-cb") {
           Image "/Boarding.svg" alt("") class("sv-ic")
-          Span "Hospedaje" class("sv-ct")
-          Text "Se queda a dormir con nosotros. Cuidado día y noche, con fotos y reporte diario." class("sv-cd")
-          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+          Span "Guardería" class("sv-ct")
+          Text "Registra los días de guardería de cada perro y deja su cobro listo al finalizar." class("sv-cd")
+          Stack class("sv-more") { Span "Empezar"  Icon "lucide:arrow-up-right" }
         }
       }
 
@@ -113,8 +113,8 @@ Page class("lp2") {
         Stack class("sv-cb") {
           Image "/Walking.svg" alt("") class("sv-ic")
           Span "Paseos caninos" class("sv-ct")
-          Text "Salidas a la medida de cada perro. Check-in en vivo y foto de entrega, siempre." class("sv-cd")
-          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+          Text "Arma los grupos de cada día. El paseador marca la recogida y la entrega, y sube fotos para el dueño." class("sv-cd")
+          Stack class("sv-more") { Span "Empezar"  Icon "lucide:arrow-up-right" }
         }
       }
 
@@ -125,8 +125,8 @@ Page class("lp2") {
         Stack class("sv-cb") {
           Image "/Daycare.svg" alt("") class("sv-ic")
           Span "Adiestramiento" class("sv-ct")
-          Text "Educación con refuerzo positivo: órdenes, hábitos y buena conducta, paso a paso." class("sv-cd")
-          Stack class("sv-more") { Span "Ver más"  Icon "lucide:arrow-up-right" }
+          Text "Agenda las sesiones de cada perro y lleva su historial y su comportamiento en su ficha." class("sv-cd")
+          Stack class("sv-more") { Span "Empezar"  Icon "lucide:arrow-up-right" }
         }
       }
     }
@@ -134,15 +134,15 @@ Page class("lp2") {
     Stack class("sv-proof") {
       Stack class("sv-proof-eye") { Icon "lucide:plus"  Span "Todo en un solo lugar" }
       Stack class("sv-proof-h") {
-        Span "Hospedaje," class("sv-proof-l")
-        Span "paseos y adiestramiento." class("sv-proof-l")
+        Span "Paseos, guardería," class("sv-proof-l")
+        Span "baño y adiestramiento." class("sv-proof-l")
         Stack class("sv-proof-l") {
-          Span "cuidado "
-          Span "completo" class("sv-proof-acc")
+          Span "todo tu "
+          Span "negocio" class("sv-proof-acc")
         }
-        Span "de tu perro." class("sv-proof-l sv-proof-acc")
+        Span "en un solo lugar." class("sv-proof-l sv-proof-acc")
       }
-      Link "Agendar servicio" -> "/signup" class("sv-cta-btn sv-proof-btn")
+      Link "Crear cuenta gratis" -> "/signup" class("sv-cta-btn sv-proof-btn")
     }
   }
 
@@ -195,6 +195,7 @@ Page class("lp2") {
           Stack class("ag-stat") { Span "$48.000" class("ag-sn")  Span "Sin cobrar" class("ag-sk") }
           Stack class("ag-stat") { Span "Paseo grupal" class("ag-sn ag-sn-sm")  Span "Lo más pedido" class("ag-sk") }
         }
+        Text "Ejemplo ilustrativo con datos ficticios." class("ag-note")
       }
 
       # ---- derecha: copy ----
@@ -204,7 +205,7 @@ Page class("lp2") {
           Span "Tu día, sin tener que "
           Span "armarlo" class("ag-acc")
         }
-        Text "Abrís la app y ya está hecho: qué perro sale, a qué hora, cuánto y qué falta cobrar. Los números salen de los servicios que hiciste, no hay nada que cargar." class("ag-sub")
+        Text "Abres la app y ya está hecho: qué perro sale, a qué hora, cuánto cuesta y qué falta por cobrar. Los números salen de los servicios realizados; no hay nada que cargar a mano." class("ag-sub")
       }
     }
   }
@@ -227,29 +228,29 @@ Page class("lp2") {
             Span "DevDogs" class("pq-acc")
             Span "?"
           }
-          Text "Todo lo que necesitás para gestionar tus paseos, clientes y cobros — en un solo lugar." class("pq-sub")
+          Text "Todo lo que necesitas para gestionar tus paseos, clientes y cobros, en un solo lugar." class("pq-sub")
         }
 
         Stack class("pq-items") {
           Stack class("pq-item") {
             Stack class("pq-ic") { Icon "lucide:camera" }
             Stack class("pq-txt") {
-              Span "Control total" class("pq-it")
-              Text "Check-in en vivo, foto de entrega y reporte diario. El dueño sabe exactamente qué pasa con su perro." class("pq-id")
+              Span "Todo registrado" class("pq-it")
+              Text "El paseador marca la recogida y la entrega y sube fotos del paseo. El dueño ve el estado y las fotos de su perro." class("pq-id")
             }
           }
           Stack class("pq-item") {
             Stack class("pq-ic") { Icon "lucide:calendar-check" }
             Stack class("pq-txt") {
               Span "Agenda automática" class("pq-it")
-              Text "Abrís la app y ya está: quién viene, a qué hora, qué servicio. Sin armar nada a mano." class("pq-id")
+              Text "Abres la app y ya está: qué perros salen hoy, a qué hora y en qué grupo. Sin armar nada a mano." class("pq-id")
             }
           }
           Stack class("pq-item") {
             Stack class("pq-ic") { Icon "lucide:wallet" }
             Stack class("pq-txt") {
               Span "Cuentas claras" class("pq-it")
-              Text "Cobros por servicio, estado de cuenta por cliente y cierre de mes. Sin planillas ni WhatsApp." class("pq-id")
+              Text "Cobros por servicio, estado de cuenta por perro y cierre de mes. Sin planillas ni WhatsApp." class("pq-id")
             }
           }
         }
@@ -297,41 +298,41 @@ Page class("lp2") {
     }
   }
 
-  # ===== Buscador (CTA central · píldora de búsqueda tipo marketplace) =====
+  # ===== Cómo empezar (tres pasos reales; DevDogs no es un buscador de prestadores) =====
   Section class("bs") {
     Stack class("bs-head") {
-      Span "Buscá y reservá" class("bs-eye")
-      Title "Encontrá dónde agendar, cerca tuyo" h2 class("bs-h")
-      Text "Escribí un servicio o tocá una categoría: te llevamos al buscador de DevDogs." class("bs-sub")
+      Span "Así de simple" class("bs-eye")
+      Title "Empieza en tres pasos" h2 class("bs-h")
+      Text "Crea la cuenta de tu negocio, arma tu catálogo e invita a tus clientes con un código." class("bs-sub")
     }
 
     Stack class("bs-bar") {
-      Link "" -> "/signup" class("bs-field") {
-        Icon "lucide:search" class("bs-fic")
+      Stack class("bs-field") {
+        Icon "lucide:user-plus" class("bs-fic")
         Stack class("bs-ftx") {
-          Span "Servicio" class("bs-flabel")
-          Span "Elegí un servicio" class("bs-fval")
+          Span "Paso 1" class("bs-flabel")
+          Span "Crea tu cuenta" class("bs-fval")
         }
       }
       Stack class("bs-div") {}
-      Link "" -> "/signup" class("bs-field") {
-        Icon "lucide:map-pin" class("bs-fic")
+      Stack class("bs-field") {
+        Icon "lucide:list-checks" class("bs-fic")
         Stack class("bs-ftx") {
-          Span "Ubicación" class("bs-flabel")
-          Span "Elegí tu ciudad" class("bs-fval")
+          Span "Paso 2" class("bs-flabel")
+          Span "Arma tu catálogo" class("bs-fval")
         }
       }
       Stack class("bs-div") {}
-      Link "" -> "/signup" class("bs-field") {
-        Icon "lucide:calendar" class("bs-fic")
+      Stack class("bs-field") {
+        Icon "lucide:send" class("bs-fic")
         Stack class("bs-ftx") {
-          Span "Cuándo" class("bs-flabel")
-          Span "Cualquier día" class("bs-fval")
+          Span "Paso 3" class("bs-flabel")
+          Span "Invita a tus clientes" class("bs-fval")
         }
       }
       Link "" -> "/signup" class("bs-btn") {
-        Icon "lucide:search"
-        Span "Buscar"
+        Icon "lucide:arrow-right"
+        Span "Empezar"
       }
     }
 
@@ -348,7 +349,7 @@ Page class("lp2") {
           Span "¿Listo para "
           Span "empezar?" class("pf-acc")
         }
-        Text "Creá tu cuenta gratis y probá DevDogs con tus perros." class("pf-sub")
+        Text "Crea tu cuenta gratis y prueba DevDogs con tu negocio." class("pf-sub")
 
         Stack class("pf-form") {
           Link "Crear cuenta" -> "/signup" class("pf-btn")
@@ -393,7 +394,7 @@ Page class("lp2") {
       }
       Nav class("gf-col") aria(label: "DevDogs") {
         Span "DevDogs" class("gf-colh")
-        Link "Nosotros" -> "/signup" class("gf-link")
+        Link "Qué es DevDogs" -> "/politicas#terminos" class("gf-link")
         Link "Política de privacidad" -> "/privacidad" class("gf-link")
         Link "Términos y políticas" -> "/politicas" class("gf-link")
       }
