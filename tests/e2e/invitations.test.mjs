@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, credentials, ids, seed } from '../security/_actors.mjs'
-import { autoconfirmSignup, startApp } from './_app.mjs'
+import { autoconfirmSignup, startApp, acceptPolicy } from './_app.mjs'
 
 let app
 before(async () => { await seed(); app = await startApp() }, { timeout: 120_000 })
@@ -88,7 +88,7 @@ async function join(code, email) {
   await page.getByPlaceholder('Ana Rondón').fill('Cliente E2E')
   await page.getByPlaceholder('tu@correo.com').fill(email)
   await page.getByPlaceholder('••••••••').fill('Abcdefg1')
-  await page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ }).check()
+  await acceptPolicy(page)
   await page.getByRole('button', { name: 'Unirme' }).click()
   return page
 }

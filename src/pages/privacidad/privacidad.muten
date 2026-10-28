@@ -8,138 +8,15 @@ meta {
   lang        "es"
 }
 
-# BORRADOR para revisión de un abogado. No afirma adecuación legal. Todo dato desconocido es un
-# marcador [COMPLETAR: ...]. Al cambiar el texto, sube POLITICA_VERSION en src/lib/politica.js y
-# agrega la fila en `politicas` (ver supabase/migrations/*_s7_consent.sql).
+# BORRADOR para revisión de un abogado. El texto vive en src/parts/politicatexto.muten.
 
+get version = politicaVersion()
 effect { irAlAncla() }
 
 Page class("pv") {
   Stack class("pv-wrap") {
     Link "← Volver a DevDogs" -> "/" class("glink t-sm")
 
-    Stack class("pv-draft") {
-      Span "BORRADOR — pendiente de revisión legal" class("pv-draft-t")
-      Text "Este texto es un borrador preparado para que lo revise un abogado. Aún no ha sido aprobado y no debe entenderse como garantía de adecuación legal. Los datos que todavía no se conocen aparecen entre corchetes con la indicación COMPLETAR." class("pv-draft-d")
-    }
-
-    Title "Política de tratamiento de datos personales" h1 class("pv-h1")
-    Text "Versión de la política: {politicaVersion()}" class("pv-meta")
-    Text "Fecha de entrada en vigor: [COMPLETAR: fecha, una vez aprobada por el abogado]" class("pv-meta")
-
-    Section class("pv-sec") {
-      Title "1. Marco previsto" h2
-      Text "Este borrador toma como marco previsto la Ley 1581 de 2012 y el Decreto 1377 de 2013 de Colombia. Su redacción final y su adopción corresponden a un abogado."
-    }
-
-    Section class("pv-sec") {
-      Title "2. Responsable del tratamiento" h2
-      List {
-        Text "Nombre: DevDogs"
-        Text "Razón social: [COMPLETAR: razón social]"
-        Text "NIT: [COMPLETAR: NIT]"
-        Text "Domicilio: [COMPLETAR: dirección]"
-        Text "Correo para consultas y solicitudes: [COMPLETAR: correo de contacto]"
-      }
-      Text "[COMPLETAR: el abogado debe definir si DevDogs actúa como responsable o como encargado respecto de los datos que cada negocio (empresa o paseador independiente) registra de sus propios clientes y perros.]"
-    }
-
-    Section class("pv-sec") {
-      Title "3. Finalidad" h2
-      Text "Los datos se tratan únicamente para prestar el servicio de la plataforma:"
-      List {
-        Text "Crear y administrar la cuenta y sus accesos."
-        Text "Registrar perros, programar y ejecutar paseos y otros servicios, y coordinar a paseadores, personal de gestión y clientes."
-        Text "Calcular y registrar cobros y saldos entre el negocio y sus clientes."
-        Text "Mostrar avisos dentro de la aplicación relacionados con el servicio."
-      }
-      Text "Los datos no se usan para publicidad ni se venden a terceros."
-    }
-
-    Section class("pv-sec") {
-      Title "4. Datos que se recogen" h2
-      List {
-        Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
-        Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
-        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), observaciones, número de microchip si se registra y enlace a la foto de perfil."
-        Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, notas del paseador, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
-        Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
-        Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
-        Text "Fotos de los paseos tomadas por el paseador, con la etiqueta de cada perro que aparece en la foto. Antes de subirlas, la aplicación las reduce de tamaño y elimina los metadatos de la imagen, como la ubicación (EXIF)."
-        Text "Aceptación de esta política: identificador de usuario, versión aceptada y fecha y hora registradas por el servidor. No se guarda la dirección IP ni datos del navegador."
-      }
-      Text "No se solicita cédula, documento de identidad ni NIT personal, y no se recogen números de tarjeta ni datos bancarios: los cobros se registran, no se procesan en la plataforma."
-      Text "[COMPLETAR: el abogado debe indicar si alguna información, por ejemplo fotos en las que aparezcan personas o menores, requiere un tratamiento especial.]"
-    }
-
-    Section class("pv-sec") {
-      Title "5. Quién puede ver qué" h2
-      Text "El acceso se limita por rol dentro de cada negocio. Ningún negocio ve los datos de otro."
-      List {
-        Text "Jefe del negocio (o paseador independiente en su propio negocio): todos los datos de su negocio, incluidos cobros, salarios, teléfonos del equipo y los dueños vinculados a cada perro."
-        Text "Personal de gestión con permiso de finanzas (otorgado solo por el jefe): lo mismo que el personal de gestión, más cobros, tarifas y reportes financieros."
-        Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios, microchips ni teléfonos de clientes."
-        Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
-        Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Un co-dueño puede ver y reservar, pero no comprar productos ni editar los datos del perro."
-        Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
-        Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
-      }
-    }
-
-    Section class("pv-sec") {
-      Title "6. Conservación" h2
-      List {
-        Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
-        Text "Demás datos: mientras la cuenta del negocio o del usuario esté activa."
-        Text "Después del cierre de la cuenta y por obligaciones legales o contables: [COMPLETAR: plazos que fije el abogado]."
-      }
-    }
-
-    Section class("pv-sec") id("derechos") {
-      Title "7. Derechos de los titulares" h2
-      Text "Toda persona cuyos datos se tratan puede:"
-      List {
-        Text "Conocer, actualizar y rectificar sus datos."
-        Text "Solicitar la supresión de sus datos y revocar la autorización otorgada."
-        Text "Solicitar prueba de la autorización que dio al crear su cuenta."
-        Text "Presentar quejas ante la Superintendencia de Industria y Comercio."
-      }
-      Text "Dentro de la aplicación, en “Mis datos” (desde el perfil), cada usuario puede ver, corregir y descargar sus datos personales y presentar una consulta, una solicitud de rectificación, de supresión de su cuenta o de revocación de la autorización. La solicitud queda registrada con su fecha y se responde dentro del plazo legal; la supresión y la revocación no son inmediatas."
-      Text "Otro canal para ejercer estos derechos: [COMPLETAR: correo de contacto]. Plazos de respuesta: [COMPLETAR: plazos que fije el abogado]."
-    }
-
-    Section class("pv-sec") {
-      Title "8. Dónde se alojan los datos y transferencia internacional" h2
-      List {
-        Text "Los datos de la cuenta y del negocio se alojan con Supabase, proveedor de base de datos y autenticación, en la región us-west-2 de Estados Unidos. Esto implica enviar los datos fuera de Colombia."
-        Text "Las fotos de los paseos se alojan en Cloudflare R2 y se entregan a través de Cloudflare Workers (Cloudflare, Estados Unidos), en un almacenamiento privado sin enlaces públicos. Cada foto se entrega solo a quien tiene permiso, mediante una solicitud autenticada. Esto implica enviar las fotos fuera de Colombia."
-        Text "La aplicación carga tipografías desde Google Fonts, por lo que Google puede ver la dirección IP del navegador."
-        Text "Proveedor de alojamiento de la aplicación web: [COMPLETAR: proveedor y país]."
-      }
-      Text "Fundamento de la transferencia internacional: [COMPLETAR: fundamento que indique el abogado]."
-    }
-
-    Section class("pv-sec") {
-      Title "9. Qué se guarda en su dispositivo" h2
-      List {
-        Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol y negocio."
-        Text "Preferencias de la interfaz, como idioma y vista del calendario."
-        Text "Solo en el paseador: la agenda del día (perros, horarios, zonas y notas) para trabajar sin conexión y los cambios que aún no se han enviado."
-        Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
-        Text "Las fotos de los paseos no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
-      }
-      Text "Al cerrar sesión o al vencer la sesión, estos datos se borran del dispositivo. Los cambios sin enviar se descartan solo si el paseador lo confirma al salir."
-    }
-
-    Section class("pv-sec") {
-      Title "10. Menores de edad" h2
-      Text "El servicio no está dirigido a menores de edad y no pide fecha de nacimiento, por lo que no verifica la edad. Quien conozca una cuenta de un menor puede pedir su supresión por el canal indicado en la sección 7."
-    }
-
-    Section class("pv-sec") {
-      Title "11. Cambios en esta política" h2
-      Text "Cada cambio del texto se publica con una nueva versión y una nueva fecha de entrada en vigor. La versión que cada usuario aceptó queda registrada."
-      Text "Forma de comunicar los cambios y de volver a pedir la autorización: [COMPLETAR: mecanismo que defina el abogado]."
-    }
+    PoliticaTexto(version: version)
   }
 }

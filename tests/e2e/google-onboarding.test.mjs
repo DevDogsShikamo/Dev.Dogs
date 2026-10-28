@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, ids, seed, tempUser } from '../security/_actors.mjs'
 import { loadConfig } from '../security/_env.mjs'
-import { startApp } from './_app.mjs'
+import { startApp, acceptPolicy, isAccepted } from './_app.mjs'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
 let app
@@ -18,7 +18,6 @@ const path = (page) => new URL(page.url()).pathname
 const settle = async (page) => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500) }
 const profileOf = async (id) => (await admin().from('profiles').select('rol, negocio_id').eq('id', id).maybeSingle()).data
 const versionsOf = async (id) => (await admin().from('consentimientos').select('policy_version').eq('user_id', id)).data.map((r) => r.policy_version)
-const consentBox = (page) => page.getByRole('checkbox', { name: /He leído y acepto la Política de tratamiento de datos/ })
 const finish = (page) => page.getByRole('button', { name: 'Completar registro' })
 
 // OAuth buttons are commented out in the app until the providers are enabled.
@@ -61,9 +60,9 @@ async function googleReturn(u) {
 async function complete(page, option, fields) {
   await page.getByRole('button', { name: option }).click()
   for (const [placeholder, value] of Object.entries(fields)) await page.getByPlaceholder(placeholder).fill(value)
-  assert.equal(await consentBox(page).isChecked(), false, 'the consent box starts unticked')
+  assert.equal(await isAccepted(page), false, 'the policy starts unaccepted')
   assert.equal(await finish(page).isDisabled(), true, 'cannot finish without the consent')
-  await consentBox(page).check()
+  await acceptPolicy(page)
   assert.equal(await finish(page).isDisabled(), false)
   await finish(page).click()
 }

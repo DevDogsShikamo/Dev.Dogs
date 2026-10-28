@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { POLITICA_VERSION } from '../../src/lib/politica.js'
 
-const page = readFileSync(fileURLToPath(new URL('../../src/pages/privacidad/privacidad.muten', import.meta.url)), 'utf8')
+const page = readFileSync(fileURLToPath(new URL('../../src/parts/politicatexto.muten', import.meta.url)), 'utf8')
 const section = (n) => page.match(new RegExp(String.raw`Title "${n}\. [^"]*" h2([\s\S]*?)(?=\n    Section class|\n  }\n}\s*$)`))?.[1] ?? ''
 
 test('the version was bumped with the photo text and keeps the draft marker', () => {
