@@ -7,7 +7,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const read = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8')
-const page = read('../../src/pages/politicas/politicas.muten')
+// The page holds the header and the index; the documents are the part DocumentosLegales (also shown by
+// the consent modal), so the checks read both.
+const shell = read('../../src/pages/politicas/politicas.muten')
+const docs = read('../../src/parts/documentoslegales.muten')
+const page = shell + '\n' + docs
 const strings = [...page.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join('\n')
 const section = (id) => page.match(new RegExp(String.raw`Section id\("${id}"\)([\s\S]*?)(?=\n    Section id|\n  }\n}\s*$)`))?.[1] ?? ''
 
@@ -17,6 +21,8 @@ test('the page is public, routed, linked from the landing footer and keeps the d
   assert.match(read('../../src/app.muten'), /^\s*"\/politicas" -> politicas\s*(#.*)?$/m, 'a public route with no guard')
   assert.match(read('../../src/pages/landing/landing.muten'), /Link "Términos y políticas" -> "\/politicas"/)
   assert.match(page, /BORRADOR — pendiente de revisión legal/)
+  assert.match(shell, /DocumentosLegales\(version: version\)/)
+  assert.match(read('../../src/parts/consentimiento.muten'), /DocumentosLegales\(version: \$version\)/, 'the modal shows the same documents')
 })
 
 test('every document has a section and an index entry that points to it', () => {
@@ -29,6 +35,7 @@ test('every document has a section and an index entry that points to it', () => 
 test('the product facts match the app', () => {
   assert.match(section('terminos'), /DevDogs no presta servicios de paseo/)
   assert.match(section('terminos'), /solo por invitación/)
+  assert.match(section('terminos'), /artículo 48 de la Ley 1480/, 'acceptance is recorded')
   assert.match(section('servicios'), /DevDogs no recibe, retiene ni transfiere dinero/)
   assert.match(section('servicios'), /Este documento no es una factura electrónica/)
   assert.match(section('servicios'), /no tiene un botón para cancelar/, 'no in-app cancellation exists today')
