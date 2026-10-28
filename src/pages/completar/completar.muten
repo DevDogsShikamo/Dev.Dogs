@@ -63,6 +63,11 @@ Page class("glogin") {
         }
       }
 
+      # A dog owner joins only through an invitation of their business, never by creating one.
+      when opcion != "CODIGO" {
+        Text "¿Eres dueño de un perro? DevDogs es la herramienta que usa tu negocio de cuidado de perros: pídele que te invite con un código o un link de invitación." class("muted t-sm")
+      }
+
       when opcion != "" {
         Stack class("su-fields") {
           Stack class("gfield") {

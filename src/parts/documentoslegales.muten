@@ -7,7 +7,7 @@ part DocumentosLegales(version: text) {
     # ---- Summary ----------------------------------------------------------------------------------
     Section id("resumen") class("pv-sec pl-sum") {
       Title "Resumen en un minuto" h2
-      Text "Este resumen no reemplaza los documentos completos que siguen; en caso de diferencia, prevalece el texto completo."
+      Text "Este resumen no reemplaza los documentos completos que siguen; si hubiera diferencia, se aplica la interpretación más favorable para el consumidor (artículo 34 de la Ley 1480 de 2011)."
       List {
         Text "DevDogs es un software: una plataforma para que negocios de cuidado de perros (empresas y paseadores independientes) organicen sus perros, paseos, servicios y cobros, y para que los dueños sigan el servicio de sus perros. DevDogs no pasea perros ni presta los servicios de cuidado: los presta cada negocio."
         Text "Usar DevDogs no tiene costo hoy. Si eso cambia, se avisará antes y nadie quedará obligado a pagar sin haberlo aceptado de forma expresa."
@@ -192,13 +192,13 @@ part DocumentosLegales(version: text) {
           Text "Hacer una valoración comportamental de cada perro y fijar el servicio y las rutas según su edad, peso, tamaño, comportamiento y salud, condiciones que el dueño debe aprobar (artículo 9)."
           Text "Pedir al dueño un certificado de salud del perro emitido por médico veterinario, con vigencia máxima de seis (6) meses (artículo 9)."
           Text "No llevar más de ocho (8) perros por paseador (artículo 9)."
-          Text "No pasear hembras en celo (artículo 9)."
+          Text "No pasear hembras en celo (artículo 9) y no prestar servicios de guardería, hotel ni adiestramiento a hembras en celo ni a animales con una enfermedad infectocontagiosa (artículo 7)."
           Text "Mantener a los perros con traílla en zonas públicas y comunes, con bozal cuando la ley lo exige o el perro lo requiere, y soltarlos solo en espacios seguros y cercados (artículo 9 de la Ley 2480 de 2025 y artículo 126 de la Ley 1801 de 2016)."
           Text "Identificar a cada perro mientras está bajo su custodia, preferiblemente con collar y placa con el contacto del dueño o con microchip (artículo 9)."
           Text "No usar collares de pincho, eléctricos ni otros que atenten contra la integridad del animal (artículo 10)."
           Text "Tener un plan de búsqueda urgente en caso de escape o pérdida, avisar de inmediato al dueño y mantenerlo informado (artículo 16)."
           Text "En caso de fallecimiento de un perro bajo su custodia, avisar de inmediato al dueño y no disponer del cuerpo sin su consentimiento (artículo 15)."
-          Text "Registrarse en la plataforma que habilite el Ministerio de Ambiente y, si es una empresa, en la cámara de comercio; los paseadores que trabajan como persona natural están exceptuados de la cámara de comercio (artículos 4 y 5)."
+          Text "Registrarse en la plataforma que habilite el Ministerio de Ambiente y en la cámara de comercio; solo los paseadores que trabajan como persona natural están exceptuados del registro en la cámara de comercio (artículo 4, parágrafo 3, y artículo 5)."
           Text "Informar a las autoridades cualquier maltrato animal del que tenga conocimiento (artículo 22)."
         }
         Text "Para guardería, adiestramiento, baño, corte y transporte, la ley fija requisitos adicionales (artículos 6, 7 y 8) que el negocio debe atender según el servicio que preste."
@@ -225,7 +225,7 @@ part DocumentosLegales(version: text) {
           Text "Avisa al paseador cuando dos perros incompatibles quedan en la misma salida del día."
           Text "Registra cuándo se recoge y se entrega cada perro y el motivo cuando no sale."
           Text "Limita a ocho perros por paseador en cada salida: no deja agregar un noveno perro a la misma salida."
-          Text "Permite marcar a un perro como en celo y, mientras esté marcado, no lo deja salir a paseo ni a guardería: al iniciar la salida ese perro queda fuera."
+          Text "Permite marcar a un perro como en celo o con una enfermedad contagiosa y, mientras esté marcado, no deja iniciar con él un paseo, una guardería ni un adiestramiento: al iniciar la salida ese perro queda fuera."
           Text "Registra la fecha de expedición del certificado de salud de cada perro y avisa cuando falta o ya pasaron más de seis (6) meses desde esa fecha."
           Text "No rastrea la ubicación del paseo y no guarda copias del certificado de salud ni de los carnés de vacunación: revisar esos documentos le corresponde al negocio. [COMPLETAR: si se agregará a la plataforma guardar esos documentos.]"
         }

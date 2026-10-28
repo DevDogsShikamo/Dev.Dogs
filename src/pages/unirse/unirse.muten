@@ -28,7 +28,7 @@ action cerrarPol mutates verPol { verPol.set(false) }
 action leerPol mutates leido { if alFinal("dd-politica-doc") { leido.set(true) } }
 action aceptarPol mutates acepta, verPol { acepta.set(true) verPol.set(false) }
 
-# Precarga el código si venís por un link /unirse?codigo=XXX (al montar).
+# Precarga el código si llegas por un link /unirse?codigo=XXX (al montar).
 effect { codigo.set(codigoDeURL()) }
 
 Page class("glogin") {
@@ -40,14 +40,14 @@ Page class("glogin") {
     }
     Stack class("glogin-photo-in") {
       Title "Te invitaron a un negocio." h1 class("glogin-h")
-      Text "Ingresá el código con el mismo correo al que te invitaron y quedás dentro del equipo." class("glogin-sub")
+      Text "Ingresa el código con el mismo correo al que te invitaron y quedarás dentro del equipo." class("glogin-sub")
     }
   }
 
   Stack class("glogin-form") {
     Stack class("gform-body") {
 
-      Stack class("gdiv") { Span "Unite con tu código" }
+      Stack class("gdiv") { Span "Únete con tu código" }
 
       Stack class("gfield") {
         Stack class("gfield-ic") { Icon "lucide:user" }
@@ -82,7 +82,7 @@ Page class("glogin") {
       }
 
       when codigo.length < 13 {
-        Text "Necesitás una invitación para unirte: pedile al negocio su código o el link de invitación." class("muted t-sm")
+        Text "DevDogs es la herramienta que usa tu negocio de cuidado de perros. Para entrar, pídele a tu negocio que te invite: te enviará un código o un link de invitación." class("muted t-sm")
       }
 
       Consentimiento(aceptado: acepta, abierto: verPol, leido: leido, version: version, onAbrir: abrirPol, onCerrar: cerrarPol, onLeer: leerPol, onAceptar: aceptarPol)
@@ -90,8 +90,8 @@ Page class("glogin") {
       when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
 
       Stack class("gsignup") {
-        Text "¿No tenés código?" class("muted t-sm")
-        Link "Creá tu negocio" -> "/signup" class("glink t-sm")
+        Text "¿Tienes un negocio de cuidado de perros?" class("muted t-sm")
+        Link "Regístralo" -> "/signup" class("glink t-sm")
       }
     }
 

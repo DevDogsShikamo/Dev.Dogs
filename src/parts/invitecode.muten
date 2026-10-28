@@ -4,7 +4,7 @@ part InviteCode(code: text, email: text, onCopyCode: action, onCopyLink: action,
   Stack class("dd-inv-new") {
     Text "Código para {$email}" class("dd-rel-hint")
     Span "{$code}" class("dd-inv-newcode")
-    Text "Se muestra una sola vez. Compartilo ahora; si lo perdés, revocá la invitación y creá otra." class("dd-rel-hint")
+    Text "Se muestra una sola vez. Compártelo ahora; si lo pierdes, revoca la invitación y crea otra." class("dd-rel-hint")
     Stack class("dd-inv-acts") {
       Button "Copiar código" -> $onCopyCode($code) class("dd-cat-add")
       Button "Copiar link" -> $onCopyLink($code) class("dd-cat-add")

@@ -223,7 +223,7 @@ Stack class("dd-app") {
           }
 
           Span "Próximos paseos" class("dd-emp-lbl")
-          when cliente.proximos == 0 { Text "No tenés paseos próximos. Reservá uno." class("dd-cli-empty") }
+          when cliente.proximos == 0 { Text "No tienes paseos próximos. Reserva uno." class("dd-cli-empty") }
           Stack class("dd-cat-list") {
             each cliente.misPaseos as p where p.futuro {
               Stack class("dd-cat-item") {
@@ -246,7 +246,7 @@ Stack class("dd-app") {
             Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "Registrar perro" }
           }
           when cliente.nPerros == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registrá tu perro para reservar sus salidas y servicios." }
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:dog" }  Title "Sin perros" h2  Text "Registra tu perro para reservar sus salidas y servicios." }
           }
           Stack class("dd-cat-list") {
             each cliente.misPerros as p {
@@ -256,7 +256,7 @@ Stack class("dd-app") {
                   when p.foto == "" { Span "🐕" }
                 }
                 Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") } }
+                  Stack class("nmline") { Span "{p.nombre}" class("nm")  when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") }  when p.contagio { Span "Enfermedad contagiosa" class("dd-soc dd-soc-cuidado") } }
                   when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
                   Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                 }
@@ -285,7 +285,7 @@ Stack class("dd-app") {
       when section == "reservar" {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reservar" h2 }
-          Text "Elegí una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
+          Text "Elige una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
           Span "Prestado por {prestador}" class("dd-prov-by")
           when cliente.salidas.length == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar-plus" }  Title "Sin salidas" h2  Text "El negocio todavía no publicó salidas." }
@@ -307,7 +307,7 @@ Stack class("dd-app") {
 
           # Otros servicios (baño, guardería, corte, vet…) — pedir un turno directo.
           Span "Otros servicios" class("dd-emp-lbl")
-          Text "Baño, guardería, corte de garras y más — pedí un turno." class("dd-cli-hint")
+          Text "Baño, guardería, corte de garras y más — pide un turno." class("dd-cli-hint")
           when cliente.nOtrosServicios == 0 { Text "El negocio aún no publicó otros servicios." class("dd-cli-empty") }
           Stack class("dd-cat-list") {
             each cliente.servicios as sv where sv.tipo != "paseo" {
@@ -489,7 +489,7 @@ Stack class("dd-app") {
                 each cliente.misPerros as p {
                   Button "{p.nombre}" -> resPickPerro(p.id) class("dd-gchip") class("on" when resPerro == p.id)
                 }
-                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+                when cliente.nPerros == 0 { Span "No tienes perros asociados" class("dd-zn-empty") }
               }
               Span "Fecha" class("dd-hor-lbl")
               Date bind(resFecha)
@@ -515,7 +515,7 @@ Stack class("dd-app") {
                 each cliente.misPerros as p {
                   Button "{p.nombre}" -> svcPickPerro(p.id) class("dd-gchip") class("on" when svcPerro == p.id)
                 }
-                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+                when cliente.nPerros == 0 { Span "No tienes perros asociados" class("dd-zn-empty") }
               }
               Span "Fecha" class("dd-hor-lbl")
               Date bind(svcFecha)
@@ -541,7 +541,7 @@ Stack class("dd-app") {
                 each cliente.misPerros as p {
                   Button "{p.nombre}" -> prodPickPerro(p.id) class("dd-gchip") class("on" when prodPerro == p.id)
                 }
-                when cliente.nPerros == 0 { Span "No tenés perros asociados" class("dd-zn-empty") }
+                when cliente.nPerros == 0 { Span "No tienes perros asociados" class("dd-zn-empty") }
               }
               Span "Cantidad" class("dd-hor-lbl")
               Number bind(prodCantidad) min(1) max(20)

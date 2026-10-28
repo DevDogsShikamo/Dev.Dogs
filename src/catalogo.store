@@ -11,8 +11,10 @@ entity PerroCat {
   foto     text
   # Disposición GENERAL con otros perros: excelente | bueno | cuidado | selectivo (o "").
   sociabilidad text
-  # Ley 2480 de 2025: in heat (no walk or daycare) + health certificate issue date (YYYY-MM-DD or "").
+  # Ley 2480 de 2025: in heat or with a contagious disease (no walk, daycare or training) + health certificate
+  # issue date (YYYY-MM-DD or "").
   celo        bool
+  contagio    bool
   certificado text
   # Relaciones específicas (unión simétrica): cantidad + peor nivel (para el badge).
   relN     number
@@ -51,8 +53,8 @@ action setRelaciones(rows: list<Relacion>) mutates relaciones { relaciones.set(r
 # falla, dispara supa:refresh para revertir a la verdad + un toast. Editar campos
 # básicos NO toca relN/relWorst (patch solo setea lo listado). Params con prefijo
 # n* para no chocar con los campos (item-implícito en `with`).
-action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconducta: text, nsoc: text, ntips: text, nfoto: text, ncelo: bool, ncert: text) mutates perros {
-  perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, foto: nfoto, celo: ncelo, certificado: ncert }
+action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconducta: text, nsoc: text, ntips: text, nfoto: text, ncelo: bool, ncontagio: bool, ncert: text) mutates perros {
+  perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, foto: nfoto, celo: ncelo, contagio: ncontagio, certificado: ncert }
 }
 action perroQuitar(pid: text) mutates perros { perros.remove where id == pid }
 action setLoaded mutates loaded { loaded.set(true) }

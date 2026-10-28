@@ -17,7 +17,8 @@ function refresh(): void {
 function errMsg(err: unknown, msg: string): string {
   const m = String((err as { message?: unknown }).message || "");
   if (m.indexOf("paseador_lleno") >= 0) return "Ese paseador ya tiene 8 perros en esa salida. La Ley 2480 de 2025 permite máximo 8 por paseador.";
-  if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede salir a paseo ni a guardería.";
+  if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede recibir servicios de paseo, guardería ni adiestramiento.";
+  if (m.indexOf("perro_enfermo") >= 0) return "El perro está marcado con una enfermedad contagiosa: no puede recibir servicios de paseo, guardería ni adiestramiento.";
   if (m.indexOf("datos_invalidos") >= 0) return "Revisa los datos legales: algún campo no tiene un formato válido.";
   if (m.indexOf("politica_negocio_pendiente") >= 0) return "Antes de reservar o comprar, acepta las políticas de tu negocio: cierra sesión y vuelve a entrar para leerlas.";
   if (m.indexOf("politica_invalida") >= 0) return "Revisa las políticas: Requisitos y Responsabilidad son obligatorias y cada sección admite hasta 4000 caracteres.";
@@ -39,7 +40,7 @@ function done(msg: string, onOk?: () => void) {
 // ---- Catálogo de perros (schema v3) --------------------------------------
 // Alta: resuelve el negocio del usuario (por su profile) y luego inserta el perro.
 // tamano debe ser pequeno|mediano|grande o null (check constraint).
-type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; foto?: string; sociabilidad?: string; celo?: boolean; certificado?: string };
+type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; foto?: string; sociabilidad?: string; celo?: boolean; contagio?: boolean; certificado?: string };
 
 function perroFields(p: PerroInput): Record<string, unknown> {
   return {
@@ -51,6 +52,7 @@ function perroFields(p: PerroInput): Record<string, unknown> {
     foto_url: p.foto || null,
     sociabilidad: p.sociabilidad ? p.sociabilidad : null,
     en_celo: !!p.celo,
+    enfermedad_contagiosa: !!p.contagio,
     certificado_salud: p.certificado || null,
   };
 }
@@ -369,7 +371,7 @@ export function crearMiPerro(p: PerroInput): void {
 // El browser NUNCA manda precio ni tipo: el RPC reservar (valida que el perro sea del
 // cliente y el servicio de su negocio) saca tipo, cuidador, hora y precio del catálogo/salida.
 function reservar(perroId: string, servicioId: string, grupoId: string, fecha: string, errMsg: string): void {
-  if (!perroId || !fecha) { toast("Elegí perro y fecha"); return; }
+  if (!perroId || !fecha) { toast("Elige perro y fecha"); return; }
   supa.rpc("reservar", { p_perro: perroId, p_servicio: servicioId || null, p_grupo: grupoId || null, p_fecha: fecha }).then(done(errMsg, refresh));
 }
 
@@ -404,7 +406,7 @@ export function resenaModerar(id: string, estado: string): void {
 // RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
 // como prestación finalizada de hoy, así entra directo al estado de cuenta/reportes/cobros.
 export function venderProducto(perroId: string, servicioId: string, cantidad: number): void {
-  if (!perroId || !servicioId) { toast("Elegí producto y perro"); return; }
+  if (!perroId || !servicioId) { toast("Elige producto y perro"); return; }
   const qty = Math.min(20, Math.max(1, Math.floor(cantidad) || 1));
   supa.rpc("comprar_producto", { p_perro: perroId, p_servicio: servicioId, p_cantidad: qty }).then(done("No se pudo registrar la compra", refresh));
 }
