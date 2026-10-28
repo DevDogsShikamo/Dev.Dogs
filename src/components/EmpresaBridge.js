@@ -69,6 +69,14 @@ function mount(el, inputs, on) {
         });
       }
 
+      // Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row; only the owner edits it.
+      if (on.identidad) {
+        supa.from("negocio_identidad").select("razon_social,doc_tipo,doc_numero,direccion,telefono,correo").eq("negocio_id", neg).maybeSingle().then(function (ir) {
+          if (ir && ir.error) return;
+          on.identidad(ir.data ? [ir.data] : []);
+        });
+      }
+
       // Empleados de gestión (rol empresa) del negocio — la "oficina". Excluye al
       // propio jefe. Solo el jefe puede leer estos profiles (RLS is_owner). `permisos` solo lo lee el jefe.
       if (on.gestion) {

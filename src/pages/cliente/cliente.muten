@@ -84,7 +84,7 @@ action facXLS { descargarEstadoCuentaExcel(cliente.facturaPerro, cliente.factura
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, loaded: cliente.setLoaded)
+  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
@@ -393,6 +393,28 @@ Stack class("dd-app") {
               }
               when cliente.miResena.length == 0 { Button -> rsNueva class("dd-cat-add") { Icon "lucide:star"  Span "Dejar una reseña" } }
             }
+          }
+          # Ley 1480 art. 50 and 53: who provides the service, as the business recorded it.
+          Stack class("dd-rs") {
+            Span "Quién te presta el servicio" class("dd-emp-lbl")
+            each cliente.identidad as n {
+              Stack class("dd-perro-facts") {
+                Stack class("dd-perro-fact") { Span "Nombre o razón social" class("k")  Span "{n.razon_social}" class("v") }
+                Stack class("dd-perro-fact") {
+                  match n.doc_tipo {
+                    NIT -> Span "NIT" class("k")
+                    CC  -> Span "Cédula de ciudadanía" class("k")
+                    CE  -> Span "Cédula de extranjería" class("k")
+                    PAS -> Span "Pasaporte" class("k")
+                  }
+                  Span "{n.doc_numero}" class("v")
+                }
+                Stack class("dd-perro-fact") { Span "Dirección de notificaciones" class("k")  Span "{n.direccion}" class("v") }
+                Stack class("dd-perro-fact") { Span "Teléfono" class("k")  Span "{n.telefono}" class("v") }
+                Stack class("dd-perro-fact") { Span "Correo" class("k")  Span "{n.correo}" class("v") }
+              }
+            }
+            when cliente.identidad.length == 0 { Text "Tu negocio aún no registró sus datos legales." class("dd-rel-hint") }
           }
           Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }

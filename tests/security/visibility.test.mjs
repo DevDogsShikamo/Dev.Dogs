@@ -30,13 +30,16 @@ test('RV-6b: every sensitive value lives only in its side table and no address-l
   const cols = sql(`select table_name t, column_name c from information_schema.columns where table_schema = 'public'`)
   const where = (c) => sorted(cols.filter((x) => x.c === c).map((x) => x.t))
   const homes = {
-    telefono: ['contactos'], salario_fijo: ['nomina'], microchip: ['perro_identidad'], zona: ['grupos'],
+    telefono: ['contactos', 'negocio_identidad'], salario_fijo: ['nomina'], microchip: ['perro_identidad'], zona: ['grupos'],
     precio: ['tarifas'], precio_mensual: ['suscripciones', 'tarifas'],
     precio_aplicado: ['cobros'], cobrable: ['cobros'], cobrado: ['cobros'], confirmado_por: ['cobros'], confirmado_at: ['cobros'],
   }
   for (const [c, tables] of Object.entries(homes)) assert.deepEqual(where(c), tables, `column ${c}`)
   // invitaciones.email is the invitee binding of a code (owner-only table), not a stored contact of a person.
-  assert.deepEqual(cols.filter((x) => x.t !== 'invitaciones' && /direcc|address|calle|barrio|ciudad|email|correo/i.test(x.c)), [])
+  // negocio_identidad is the provider's legal identity that Ley 1480 arts. 50 and 53 require it to publish to
+  // its clients (address, phone, email): one side table, written only by its owner (negocio-identidad.test).
+  const exempt = { invitaciones: ['email'], negocio_identidad: ['direccion', 'correo'] }
+  assert.deepEqual(cols.filter((x) => !(exempt[x.t] ?? []).includes(x.c) && /direcc|address|calle|barrio|ciudad|email|correo/i.test(x.c)), [])
   assert.deepEqual(sorted(cols.filter((x) => x.t === 'profiles').map((x) => x.c)),
     ['created_at', 'horario', 'id', 'negocio_id', 'nombre', 'rol', 'vacaciones', 'verificado', 'verificado_at'])
 })

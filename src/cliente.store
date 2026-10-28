@@ -12,6 +12,8 @@ entity Foto { paseoId text  url text }
 entity Novedad { kind text  perro text  servicio text  hora text  fecha text  fotos bool }
 # Mi reseña del negocio (0 o 1 fila): estado pendiente | aprobada | rechazada.
 entity MiResena { rating number  texto text  publicar bool  estado text }
+# Legal identity of the business that serves the client (0 or 1 row, read-only): Ley 1480 art. 50 and 53.
+entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direccion text  telefono text  correo text }
 
 state {
   misPerros = [] : list<PerroMio>
@@ -21,6 +23,7 @@ state {
   salidas   = [] : list<SalidaDisp>
   servicios = [] : list<ServicioCat>
   miResena  = [] : list<MiResena>
+  identidad = [] : list<NegocioLegal>
   # Estado de cuenta del perro seleccionado (el registro/cuenta que se ve, y se baja CSV/Excel).
   facturaPerro  = "" : text
   facturaNombre = "" : text
@@ -53,8 +56,9 @@ action setNovedades(rows: list<Novedad>) mutates novedades { novedades.set(rows)
 action setSalidas(rows: list<SalidaDisp>) mutates salidas { salidas.set(rows) }
 action setServicios(rows: list<ServicioCat>) mutates servicios { servicios.set(rows) }
 action setMiResena(rows: list<MiResena>) mutates miResena { miResena.set(rows) }
+action setIdentidad(rows: list<NegocioLegal>) mutates identidad { identidad.set(rows) }
 action facturaAbrir(pid: text, nombre: text) mutates facturaPerro, facturaNombre { facturaPerro.set(pid)  facturaNombre.set(nombre) }
 action facturaCerrar mutates facturaPerro { facturaPerro.set("") }
 action setLoaded mutates loaded { loaded.set(true) }
 # Limpia los datos del cliente al hacer logout (dispositivo compartido).
-action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, miResena, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  miResena.reset()  loaded.set(false) }
+action limpiar mutates misPerros, misPaseos, misFotos, novedades, salidas, servicios, miResena, identidad, loaded { misPerros.reset()  misPaseos.reset()  misFotos.reset()  novedades.reset()  salidas.reset()  servicios.reset()  miResena.reset()  identidad.reset()  loaded.set(false) }
