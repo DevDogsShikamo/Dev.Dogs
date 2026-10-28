@@ -1,0 +1,27 @@
+# Incident report form (Ley 2480 de 2025 arts. 15 and 16): the six types as chips, the caller's own fields in the
+# slot (the description Textarea bound to its page state, and the dog chips when no walk names the dog), and
+# "Reportar", locked while `error` is not empty (the server validates again: incidente_invalido).
+part IncidenteForm(tipo: text, error: text, onTipo: action, onEnviar: action, onCancelar: action) {
+  Stack class("dd-gform") aria(role: "group", label: "Reportar incidente") {
+    Span "Tipo de incidente" class("dd-hor-lbl")
+    Stack class("dd-gsvc") {
+      Button "Pérdida" -> $onTipo("perdida") class("dd-gchip") class("on" when $tipo == "perdida")
+      Button "Lesión" -> $onTipo("lesion") class("dd-gchip") class("on" when $tipo == "lesion")
+      Button "Problema de salud" -> $onTipo("salud") class("dd-gchip") class("on" when $tipo == "salud")
+      Button "Pelea" -> $onTipo("pelea") class("dd-gchip") class("on" when $tipo == "pelea")
+      Button "Fallecimiento" -> $onTipo("fallecimiento") class("dd-gchip") class("on" when $tipo == "fallecimiento")
+      Button "Otro" -> $onTipo("otro") class("dd-gchip") class("on" when $tipo == "otro")
+    }
+    slot
+    Text "Lo ven el negocio y los dueños del perro. Las fotos de ese paseo en las que sale el perro se guardan como evidencia." class("dd-rel-hint")
+    # `disabled when` does not take part params, so the locked and unlocked buttons are two branches.
+    when $error != "" {
+      Stack class("dd-gform") {
+        Text "{$error}" class("dd-rel-hint")
+        Button "Reportar" class("dd-cat-add dd-hor-save") disabled
+      }
+    }
+    when $error == "" { Button "Reportar" -> $onEnviar class("dd-cat-add dd-hor-save") }
+    Button "Cancelar" -> $onCancelar class("dd-gchip")
+  }
+}

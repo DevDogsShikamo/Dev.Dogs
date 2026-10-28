@@ -186,7 +186,7 @@ function mount(el, inputs, on) {
             if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
             g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
-            perrosPaseo.push({ id: r.id, gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "", celo: celo, contagio: contagio, cert: pobj.certificado_salud || "" });
+            perrosPaseo.push({ id: r.id, perroId: pobj.id || "", gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "", celo: celo, contagio: contagio, cert: pobj.certificado_salud || "" });
             if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre }); }
           });
           // A group whose dogs are all held back (in heat or contagious) never starts: it stays programado and each dog is marked "No salió".

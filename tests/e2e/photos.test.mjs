@@ -192,8 +192,11 @@ test('R7-1: no service-worker cache holds a photo, and signing out deletes photo
   await page.getByRole('button', { name: 'Perfil', exact: true }).click()
   await page.getByRole('button', { name: /Cerrar sesión/ }).click()
   await page.waitForURL('**/login')
-  const left = () => page.evaluate(() => caches.keys().then((ks) => ks.filter((k) => k.startsWith('fotos'))))
-  assert.deepEqual(await until(async () => ((await left()).length === 0 ? ['gone'] : null)), ['gone'], `photo caches left: ${await left()}`)
+  // The sign-out navigates to /login: an evaluate that lands mid-navigation throws ("Execution context was
+  // destroyed"), which is a retry, not an answer.
+  const left = () => page.evaluate(() => caches.keys().then((ks) => ks.filter((k) => k.startsWith('fotos')))).catch(() => null)
+  const gone = await until(async () => { const ks = await left(); return ks && ks.length === 0 ? ['gone'] : null })
+  assert.deepEqual(gone, ['gone'], `photo caches left: ${await left()}`)
   await page.close()
 })
 

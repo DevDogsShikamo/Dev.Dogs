@@ -13,7 +13,7 @@ const MB2 = 2 * 1024 * 1024
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
 // Supabase stub keyed by the bearer token: good = uploader/owner, stranger = row not visible, expired = rejected JWT.
-function supabase({ confirm = 204 } = {}) {
+function supabase({ confirm = 204, keys = [KEY] } = {}) {
   const calls = []
   const fetchImpl = async (url, init) => {
     const u = new URL(url)
@@ -23,6 +23,7 @@ function supabase({ confirm = 204 } = {}) {
     if (token === 'expired') return json(401, { code: 'PGRST301', message: 'JWT expired' })
     if (u.pathname.endsWith('/foto_subida_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, KEY)
     if (u.pathname.endsWith('/foto_confirmar')) return confirm === 204 ? new Response(null, { status: 204 }) : json(confirm, { code: '42501' })
+    if (u.pathname.endsWith('/foto_retencion_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, keys)
     if (u.pathname === '/rest/v1/paseo_fotos') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG }])
     return json(404, {})
   }
@@ -34,7 +35,12 @@ function bucket(initial = {}) {
     store,
     put: async (key, body, opts) => void store.set(key, { bytes: new Uint8Array(body), opts }),
     delete: async (key) => void store.delete(key),
-    get: async (key) => (store.has(key) ? { body: new Blob([store.get(key)]).stream(), size: store.get(key).length } : null),
+    get: async (key) => {
+      if (!store.has(key)) return null
+      const v = store.get(key)
+      const bytes = v.bytes ?? v
+      return { body: new Blob([bytes]).stream(), size: bytes.length, arrayBuffer: async () => bytes.slice().buffer }
+    },
   }
 }
 const CLEAN = jpeg({ parts: [APP0, COMMENT] })
@@ -175,4 +181,36 @@ test('preflight: allowed origins get the method and header list, others 403', as
   assert.match(ok.res.headers.get('access-control-allow-headers'), /authorization/i)
   assert.match(ok.res.headers.get('access-control-allow-methods'), /PUT/)
   assert.equal((await call('OPTIONS', `/f/${ID}`, { token: null, origin: 'https://evil.example' })).res.status, 403)
+})
+
+// ---- incident evidence: POST /retener/{incidente_id} and the r/ fallback ----------------------------
+const INC = '0d0d0d0d-0000-4000-8000-000000000003'
+const RKEY = `r/${NEG}/${ID}.jpg`
+test('retener: the keys Supabase returns are copied from f/ to r/; an expired one is skipped', async () => {
+  const GONE = `f/${NEG}/0f0f0f0f-0000-4000-8000-000000000009.jpg`
+  const { res, sb, r2 } = await call('POST', `/retener/${INC}`, { sb: supabase({ keys: [KEY, GONE] }), r2: bucket({ [KEY]: CLEAN }) })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { copiadas: 1 })
+  assert.deepEqual([...r2.store.keys()].sort(), [KEY, RKEY])
+  assert.deepEqual(new Uint8Array(r2.store.get(RKEY).bytes), CLEAN)
+  assert.equal(r2.store.get(RKEY).opts.httpMetadata.contentType, 'image/jpeg')
+  assert.deepEqual(sb.calls.map((c) => [c.path, c.token, c.body]), [['/rest/v1/rpc/foto_retencion_autorizar', 'good', JSON.stringify({ p_incidente: INC })]])
+})
+test('retener: a refusal, a bad token or a key outside f/ copies nothing', async () => {
+  for (const [label, opts, status] of [
+    ['stranger', { token: 'stranger' }, 403], ['expired', { token: 'expired' }, 401], ['no token', { token: null }, 401],
+    ['key outside f/', { sb: supabase({ keys: [`r/${NEG}/${ID}.jpg`] }) }, 502], ['not a list', { sb: supabase({ keys: KEY }) }, 502],
+  ]) {
+    const { res, r2 } = await call('POST', `/retener/${INC}`, { r2: bucket({ [KEY]: CLEAN }), ...opts })
+    assert.equal(res.status, status, label)
+    assert.deepEqual([...r2.store.keys()], [KEY], label)
+  }
+  for (const method of ['GET', 'PUT']) assert.equal((await call(method, `/retener/${INC}`, { body: method === 'PUT' ? CLEAN : undefined })).res.status, 405, method)
+  assert.equal((await call('POST', '/retener/not-a-uuid')).res.status, 404)
+})
+test('GET serves the r/ copy once the lifecycle rule removed f/, and still 404s a hidden row', async () => {
+  const { res } = await call('GET', `/f/${ID}`, { r2: bucket({ [RKEY]: CLEAN }) })
+  assert.equal(res.status, 200)
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), CLEAN)
+  assert.equal((await call('GET', `/f/${ID}`, { token: 'stranger', r2: bucket({ [RKEY]: CLEAN }) })).res.status, 404)
 })

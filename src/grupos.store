@@ -22,6 +22,8 @@ entity Grupo {
 # Un perro dentro de un paseo de hoy (una prestación). Para el modo paseo.
 entity PerroPaseo {
   id     text
+  # The dog itself (id is the prestación): for an incident report.
+  perroId text
   gkey   text
   nombre text
   estado text

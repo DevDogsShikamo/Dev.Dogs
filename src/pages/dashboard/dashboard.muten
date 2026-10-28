@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -46,6 +46,13 @@ entity ServicioDraft {
 }
 
 state {
+  # Incident report (Ley 2480 arts. 15-16): incPres = the walk (prestación) of the open form in modo paseo, or ""
+  # with incForm for the owner's form on any dog of his business (Incidentes section).
+  incPres  = "" : text
+  incPerro = "" : text
+  incTipo  = "" : text
+  incTexto = "" : text
+  incForm  = false : bool
   # Cerrar sesión con cambios sin enviar: pide confirmación antes de descartarlos (la salida purga la cola).
   salirConfirma = false : bool
   section = "dashboard" : text
@@ -113,7 +120,7 @@ action copLink(c: text) { copiarLink(c) }
 # para no filtrar datos del usuario anterior en dispositivos compartidos.
 action salir mutates salirConfirma {
   if net.pending > 0 and not salirConfirma { salirConfirma.set(true) }
-  else { salirConfirma.set(false)  empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  auth.logout() }
+  else { salirConfirma.set(false)  empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  incidentes.limpiar()  auth.logout() }
 }
 action salirCancelar mutates salirConfirma { salirConfirma.set(false) }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
@@ -136,6 +143,13 @@ action pNoSalio(motivo: text) { perroNoSalio(grupos.noSalId, motivo)  grupos.noS
 # FotoUpload los registra como etiquetas de la foto (un perro por prestación).
 get fotoTags = grupos.perrosPaseo where gkey == grupos.modoKey and estado != "no_asistio" and not celo and not contagio and not (fotoSin contains id)
 action fotoMarca(pid: text) mutates fotoSin { fotoSin.toggle(pid) }
+# ---- Incidents: from a dog of the open walk (modo paseo) or, for the owner, from the Incidentes section ----
+get incError = incPerro == "" ? "Elige el perro." : (incTipo == "" ? "Elige el tipo de incidente." : (incTexto.length < 10 ? "Describe lo que pasó con al menos 10 caracteres." : (incTexto.length > 2000 ? "Máximo 2000 caracteres." : "")))
+action incAbrir(pres: text, perro: text) mutates incPres, incPerro, incTipo, incTexto, incForm { incPres.set(pres)  incPerro.set(perro)  incTipo.set("")  incTexto.set("")  incForm.set(pres == "") }
+action incTipoSet(t: text) mutates incTipo { incTipo.set(t) }
+action incPerroSet(id: text) mutates incPerro { incPerro.set(id) }
+action incCerrar mutates incPres, incForm { incPres.set("")  incForm.set(false) }
+action incEnviar mutates incPres, incForm { incidenteReportar(incPerro, incPres, incTipo, incTexto)  incPres.set("")  incForm.set(false) }
 # Foto subida (por FotoUpload): se ve al instante en la galería de la sesión (vista previa local).
 action fotoSubir(url: text) mutates fotosPaseo { fotosPaseo.push(url) }
 
@@ -256,6 +270,7 @@ Stack class("dd-app") {
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
   Custom HorarioBridge on(dias: hsetDias, franjas: hsetFranjas)
+  Custom IncidentesBridge on(items: incidentes.setItems)
   # Toast de avisos (errores de escritura optimista).
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
@@ -323,6 +338,14 @@ Stack class("dd-app") {
                     }
                     when grupos.noSalId != d.id {
                       Button "No salió" -> grupos.noSalAbrir(d.id) class("dd-paseo-nosal")
+                    }
+                  }
+                  when grupos.modoEstado != "programado" and incPres != d.id {
+                    Button "Incidente" -> incAbrir(d.id, d.perroId) class("dd-paseo-nosal")
+                  }
+                  when incPres == d.id {
+                    IncidenteForm(tipo: incTipo, error: incError, onTipo: incTipoSet, onEnviar: incEnviar, onCancelar: incCerrar) {
+                      Textarea bind(incTexto) "Qué pasó, dónde y qué hiciste" aria(label: "Descripción del incidente")
                     }
                   }
                 }
@@ -814,6 +837,7 @@ Stack class("dd-app") {
               Button -> go("invitar") class("dd-pf-opt") { Icon "lucide:user-plus"  Span "Invitar clientes"  Icon "lucide:chevron-right" class("chev") }
               Button -> go("legales") class("dd-pf-opt") { Icon "lucide:building-2"  Span "Datos legales del negocio"  Icon "lucide:chevron-right" class("chev") }
               Button -> go("politicas") class("dd-pf-opt") { Icon "lucide:scroll-text"  Span "Políticas de tu negocio"  Icon "lucide:chevron-right" class("chev") }
+              Button -> go("incidentes") class("dd-pf-opt") { Icon "lucide:triangle-alert"  Span "Incidentes"  Icon "lucide:chevron-right" class("chev") }
             }
             Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
@@ -904,6 +928,33 @@ Stack class("dd-app") {
                 Textarea bind(s.texto) "{s.titulo}" aria(label: s.titulo) class("dd-pol-txt")
               }
             }
+          }
+        }
+      }
+
+      # ==== INCIDENTES (Ley 2480 arts. 15-16; the independent walker owns his business) ====
+      when section == "incidentes" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+            Title "Incidentes" h2
+          }
+          Text "Pérdidas, lesiones, problemas de salud, peleas o fallecimientos de los perros a tu cargo. Los dueños del perro los ven en su portal." class("dd-rel-hint")
+          when not incForm { Button "Reportar un incidente" -> incAbrir("", "") class("dd-cat-add dd-hor-save") }
+          when incForm {
+            IncidenteForm(tipo: incTipo, error: incError, onTipo: incTipoSet, onEnviar: incEnviar, onCancelar: incCerrar) {
+              Span "Perro" class("dd-hor-lbl")
+              Stack class("dd-gsvc") {
+                each catalogo.perros as p { Button "{p.nombre}" -> incPerroSet(p.id) class("dd-gchip") class("on" when incPerro == p.id) }
+              }
+              Textarea bind(incTexto) "Qué pasó, dónde y qué hiciste" aria(label: "Descripción del incidente")
+            }
+          }
+          when incidentes.total == 0 {
+            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:triangle-alert" }  Text "Sin incidentes reportados." }
+          }
+          Stack class("dd-cat-list") {
+            each incidentes.items as i { IncidenteItem(i: i) }
           }
         }
       }

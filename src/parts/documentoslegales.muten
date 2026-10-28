@@ -13,7 +13,7 @@ part DocumentosLegales(version: text) {
         Text "Usar DevDogs no tiene costo hoy. Si eso cambia, se avisará antes y nadie quedará obligado a pagar sin haberlo aceptado de forma expresa."
         Text "DevDogs no procesa pagos. Los precios los fija cada negocio y los cobros se registran en la aplicación; el pago se hace directamente entre el dueño y el negocio. El estado de cuenta no es una factura electrónica."
         Text "Cada negocio responde por el servicio que presta y por las obligaciones de la Ley 2480 de 2025 (Ley Kiara): valoración de comportamiento, certificado de salud del perro, máximo ocho perros por paseador, traílla en espacio público, bozal cuando la ley lo exige, entre otras."
-        Text "Las fotos de los paseos se guardan sin ubicación, las ven solo quien las subió y los dueños de los perros etiquetados, y se eliminan a los 30 días."
+        Text "Las fotos de los paseos se guardan sin ubicación, las ven solo quien las subió y los dueños de los perros etiquetados, y se eliminan a los 30 días, salvo las que quedan como evidencia de un incidente. Cada dueño puede reportar una foto en la que aparezca una persona o un menor de edad."
         Text "No hay cookies, publicidad, analítica ni rastreo de ubicación (GPS). En el dispositivo se guarda lo mínimo para que la aplicación funcione, y se borra al cerrar sesión."
         Text "Puede consultar, corregir y descargar sus datos, y presentar solicitudes, desde la página Mis datos de su cuenta."
       }
@@ -228,6 +228,7 @@ part DocumentosLegales(version: text) {
           Text "Limita a ocho perros por paseador en cada salida: no deja agregar un noveno perro a la misma salida."
           Text "Permite marcar a un perro como en celo o con una enfermedad contagiosa y, mientras esté marcado, no deja iniciar con él un paseo, una guardería ni un adiestramiento: al iniciar la salida ese perro queda fuera."
           Text "Registra la fecha de expedición del certificado de salud de cada perro y avisa cuando falta o ya pasaron más de seis (6) meses desde esa fecha."
+          Text "Registra los incidentes que reporta el negocio y guarda como evidencia las fotos del paseo en que ocurrieron."
           Text "No rastrea la ubicación del paseo y no guarda copias del certificado de salud ni de los carnés de vacunación: revisar esos documentos le corresponde al negocio. [COMPLETAR: si se agregará a la plataforma guardar esos documentos.]"
         }
       }
@@ -235,6 +236,8 @@ part DocumentosLegales(version: text) {
       Stack class("pl-sub") {
         Title "3.4 Emergencias e incidentes" h3
         Text "Ante una emergencia, el negocio debe atender primero al perro y avisar al dueño de inmediato por el medio de contacto acordado. [COMPLETAR: protocolo de emergencias, autorización veterinaria y póliza de responsabilidad que el negocio deba acreditar; la Ley 2480 de 2025 permite, en su artículo 18, adquirir una póliza que cubra muerte, lesiones, enfermedades o pérdida de los animales.]"
+        Text "El paseador asignado reporta en la aplicación, el mismo día o al día siguiente del paseo, cualquier pérdida, lesión, problema de salud, pelea o fallecimiento del perro; el jefe del negocio y el personal de gestión pueden reportarlo en cualquier momento. El reporte lo ven el negocio, quien lo hizo y los dueños del perro, que lo reciben en sus novedades. Reportar en la aplicación no reemplaza el aviso inmediato al dueño."
+        Text "Cuando el incidente ocurre en un paseo, las fotos de ese paseo en las que sale el perro se guardan como evidencia más allá de los treinta (30) días, para las mismas personas que ya podían verlas. [COMPLETAR: plazo de conservación de la evidencia de un incidente (artículos 15 y 16 de la Ley 2480 de 2025).]"
       }
     }
 
@@ -246,8 +249,9 @@ part DocumentosLegales(version: text) {
         Text "Antes de enviarse, la aplicación recomprime la foto en el dispositivo, lo que elimina los metadatos de ubicación y del equipo; el servidor rechaza cualquier foto que aún los conserve."
         Text "Se guardan en un almacenamiento privado de Cloudflare R2. Solo las ven quien las subió y los dueños de los perros etiquetados, y cada dueño ve solo las fotos donde aparece su perro. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros."
         Text "Se muestran desde la memoria del navegador y no quedan guardadas en el dispositivo."
-        Text "Se eliminan a los treinta (30) días de subidas."
+        Text "Se eliminan a los treinta (30) días de subidas, salvo las que se guardan como evidencia de un incidente (sección 3.4)."
         Text "Las fotos deben mostrar a los perros. Se debe evitar fotografiar a personas, y en especial a niños, niñas y adolescentes; si alguien aparece por accidente, la foto no debe subirse. [COMPLETAR: regla definitiva sobre fotos en las que aparezcan personas o menores.]"
+        Text "Cada dueño de un perro etiquetado puede reportar una foto desde su Agenda porque aparece una persona, un menor de edad u otro motivo. La foto deja de mostrarse de inmediato: si no es evidencia de un incidente se borra de la aplicación, y si lo es, solo la ven el jefe del negocio y el personal de gestión. El reporte queda registrado y lo ven quien lo hizo, el jefe y el personal de gestión."
       }
     }
 

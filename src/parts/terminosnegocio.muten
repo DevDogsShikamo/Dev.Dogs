@@ -25,6 +25,8 @@ part TerminosNegocio(version: text) {
         Text "El negocio es el único prestador del servicio frente a sus clientes: contrata con cada dueño, recibe a los perros y responde por ellos mientras están bajo su custodia."
         Text "Responde por su personal (selección, capacitación, pago y seguridad social), por los precios que fija, por los productos que vende, por los cobros que registra y por la información que da a sus clientes."
         Text "Responde por las obligaciones que la Ley 2480 de 2025 (Ley Kiara) impone a quienes prestan servicios de cuidado para animales de compañía, y por las demás normas que apliquen a su actividad."
+        Text "Reporta en la plataforma los incidentes de los perros bajo su custodia (pérdida, lesión, problema de salud, pelea o fallecimiento) y avisa de inmediato al dueño por el medio acordado: el reporte en la plataforma no reemplaza ese aviso. Su paseador asignado puede reportarlo el mismo día o al día siguiente del paseo; el jefe y el personal de gestión, en cualquier momento."
+        Text "Las fotos del paseo en que ocurrió un incidente, en las que sale el perro, se guardan como evidencia más allá de los treinta (30) días. Si un cliente reporta una de ellas, deja de mostrarse a los clientes y al paseador y solo la ven el jefe y el personal de gestión, que responden por su uso."
         Text "Informa a sus clientes el precio total y las condiciones del servicio antes de que reserven o compren."
       }
       Text "DevDogs muestra a cada cliente, antes de que use su portal, un aviso de que el negocio es quien presta el servicio y responde por su perro, y registra que el cliente lo aceptó."

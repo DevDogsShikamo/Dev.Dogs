@@ -1,0 +1,10 @@
+# One incident in a list (empresa and the independent walker's dashboard).
+part IncidenteItem(i: Incidente) {
+  Stack class("dd-cat-item") {
+    Stack class("dd-sv-ic") { Icon "lucide:triangle-alert" }
+    Stack class("dd-cat-info") {
+      Stack class("nmline") { Span "{$i.perro} · {$i.tipo}" class("nm")  Span "{$i.fecha}" class("cd") }
+      Span "{$i.descripcion}" class("dd-rs-txt")
+    }
+  }
+}

@@ -7,7 +7,8 @@ entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId tex
 # Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
 # Foto de un paseo (plano: paseoId + url) — para mostrarla en la Agenda por paseo.
-entity Foto { paseoId text  url text }
+# id = the photo (paseo_fotos), for "Reportar foto".
+entity Foto { id text  paseoId text  url text }
 # Novedad (notificación in-app): paseo de hoy o paseo finalizado con fotos nuevas.
 entity Novedad { kind text  perro text  servicio text  hora text  fecha text  fotos bool }
 # Mi reseña del negocio (0 o 1 fila): estado pendiente | aprobada | rechazada; motivo = the readable cause of a rejection.
