@@ -1,5 +1,6 @@
 screen login
-use entrarConGoogle from "~/lib/authActions.ts"
+# OAuth sign-in (Google/Apple/Microsoft) is commented out until the providers are enabled.
+# use entrarCon from "~/lib/authActions.ts"
 
 state {
   email = "" : text
@@ -10,7 +11,7 @@ state {
 action clearEmail mutates email { email.set("") }
 action clearPw    mutates pw    { pw.set("") }
 action submit     mutates nonce { nonce.set(nonce + 1) }
-action google { entrarConGoogle() }
+# action social(p: text) { entrarCon(p) }
 
 Page class("glogin") {
 
@@ -27,12 +28,22 @@ Page class("glogin") {
   Stack class("glogin-form") {
     Stack class("gform-body") {
 
-      Button -> google class("gbtn-google") {
-        Image "/google.svg" alt("") class("g-ico")
-        Span "Continuar con Google"
-      }
+#       Stack class("gsocial") {
+#         Button -> social("google") class("gbtn-google") {
+#           Image "/google.svg" alt("") class("g-ico")
+#           Span "Continuar con Google"
+#         }
+#         Button -> social("apple") class("gbtn-google") {
+#           Image "/apple.svg" alt("") class("g-ico")
+#           Span "Continuar con Apple"
+#         }
+#         Button -> social("azure") class("gbtn-google") {
+#           Image "/microsoft.svg" alt("") class("g-ico")
+#           Span "Continuar con Microsoft"
+#         }
+#       }
 
-      Stack class("gdiv") { Span "o con tu correo" }
+#       Stack class("gdiv") { Span "o con tu correo" }
 
       Stack class("gfield") {
         Stack class("gfield-ic") { Icon "lucide:mail" }

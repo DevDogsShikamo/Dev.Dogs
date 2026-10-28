@@ -3,7 +3,8 @@ screen signup
 use okPhone from "../../components/validate.js"
 use okPw from "../../components/validate.js"
 use politicaVersion, abrirPolitica from "~/lib/politica.js"
-use entrarConGoogle from "~/lib/authActions.ts"
+# OAuth sign-in (Google/Apple/Microsoft) is commented out until the providers are enabled.
+# use entrarCon from "~/lib/authActions.ts"
 
 state {
   step      = 0 : number
@@ -20,8 +21,8 @@ state {
 
 action toggleMenu mutates menuOpen { menuOpen.set(not menuOpen) }
 action leerPolitica { abrirPolitica() }
-# Google: the account is created there; the role, name and consent are asked in /completar-registro.
-action google { entrarConGoogle() }
+# # Google/Apple/Microsoft: the account is created there; the role, name and consent are asked in /completar-registro.
+# action social(p: text) { entrarCon(p) }
 
 get phoneOk  = okPhone(telefono)
 get pwOk     = okPw(pw)
@@ -81,10 +82,20 @@ Page class("su") {
               Span "Dueño" class("su-role-name")
             }
           }
-          Button -> google class("gbtn-google") {
-            Image "/google.svg" alt("") class("g-ico")
-            Span "Continuar con Google"
-          }
+#           Stack class("gsocial") {
+#             Button -> social("google") class("gbtn-google") {
+#               Image "/google.svg" alt("") class("g-ico")
+#               Span "Continuar con Google"
+#             }
+#             Button -> social("apple") class("gbtn-google") {
+#               Image "/apple.svg" alt("") class("g-ico")
+#               Span "Continuar con Apple"
+#             }
+#             Button -> social("azure") class("gbtn-google") {
+#               Image "/microsoft.svg" alt("") class("g-ico")
+#               Span "Continuar con Microsoft"
+#             }
+#           }
           Stack class("su-step-foot") {
             Stack class("gsignup") {
               Text "¿Ya tienes cuenta?" class("muted t-sm")
