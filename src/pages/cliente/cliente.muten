@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -53,7 +53,13 @@ state {
   polVer       = "" : text
   polFecha     = "" : text
   polForm      = false : bool
+  # The scheduled service the client is about to cancel (in-page confirmation step).
+  cancelId     = "" : text
 }
+# Cancel a scheduled service of my dog: ask first, then the RPC (any fee is the business's own policy).
+action cancelPedir(id: text) mutates cancelId { cancelId.set(id) }
+action cancelNo mutates cancelId { cancelId.set("") }
+action cancelConfirmar mutates cancelId { reservaCancelar(cancelId)  cancelId.set("") }
 # Reseña del negocio: nueva (vacía, casilla del nombre sin marcar) o editar la mía.
 action rsNueva mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(0)  rsTexto.set("")  rsPublicar.set(false)  rsForm.set(true) }
 action rsEditar(rating: number, texto: text, publicar: bool) mutates rsRating, rsTexto, rsPublicar, rsForm { rsRating.set(rating)  rsTexto.set(texto)  rsPublicar.set(publicar)  rsForm.set(true) }
@@ -226,11 +232,23 @@ Stack class("dd-app") {
           when cliente.proximos == 0 { Text "No tienes paseos próximos. Reserva uno." class("dd-cli-empty") }
           Stack class("dd-cat-list") {
             each cliente.misPaseos as p where p.futuro {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:calendar" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
-                  Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-sv-ic") { Icon "lucide:calendar" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                    Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+                  }
+                  when p.cancelable { Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add") }
+                }
+                when cancelId == p.id {
+                  Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la cancelación") {
+                    Text "¿Cancelar esta reserva? Las condiciones de cancelación las fija tu negocio." class("dd-cli-hint")
+                    Stack class("acts") {
+                      Button "Sí, cancelar" -> cancelConfirmar class("dd-cat-add dd-danger")
+                      Button "No" -> cancelNo class("dd-cat-add")
+                    }
+                  }
                 }
               }
             }
@@ -369,6 +387,16 @@ Stack class("dd-app") {
                     Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
                     Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
                   }
+                  when p.cancelable { Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add") }
+                }
+                when cancelId == p.id {
+                  Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la cancelación") {
+                    Text "¿Cancelar esta reserva? Las condiciones de cancelación las fija tu negocio." class("dd-cli-hint")
+                    Stack class("acts") {
+                      Button "Sí, cancelar" -> cancelConfirmar class("dd-cat-add dd-danger")
+                      Button "No" -> cancelNo class("dd-cat-add")
+                    }
+                  }
                 }
                 # Fotos del paseo (si el paseador subió alguna).
                 Stack class("dd-paseo-fotos-grid") {
@@ -406,7 +434,7 @@ Stack class("dd-app") {
                       match r.estado {
                         pendiente -> Span "Pendiente de aprobación" class("cd")
                         aprobada -> Span "Aprobada" class("cd")
-                        rechazada -> Span "No aprobada" class("cd")
+                        rechazada -> Span "{r.motivo}" class("cd")
                       }
                     }
                     Span "{r.texto}" class("dd-rs-txt")

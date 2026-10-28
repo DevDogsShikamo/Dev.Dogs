@@ -1,0 +1,1 @@
+-- Structural inverse of 20261026110001_reserva_cancelar_hora.sql: re-run 20261026100002_reserva_cancelar.sql (create or replace of the same function without the hour rule).

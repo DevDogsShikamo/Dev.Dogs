@@ -6,6 +6,8 @@ function mount(el, inputs, on) {
   // Date/session helpers: single source of truth on globalThis.__ddUtils / __ddSesion.
   var U = globalThis.__ddUtils;
   var iso = U.iso, addDaysD = U.addDays, today = U.today;
+  // The four causes a business may reject a review for (resenas.motivo_rechazo), as the author reads them.
+  var MOTIVOS = { ofensiva: "Ofensiva o discriminatoria", datos_personales: "Contiene datos personales", no_relacionada: "No es sobre el servicio", falsa_o_spam: "Falsa o spam" };
 
   // ---- Fotos del paseo (Worker de fotos, S5b) ---------------------------------------------------
   // Cada foto se pide con mi token y se muestra como blob: (solo en memoria; no se guarda ni hay
@@ -46,7 +48,7 @@ function mount(el, inputs, on) {
     var cut = iso(addDaysD(new Date(), -3));
     var nov = [];
     paseos.forEach(function (p) {
-      if (p.fecha === today() && p.estado !== "finalizado" && p.estado !== "no_asistio") {
+      if (p.fecha === today() && p.estado !== "finalizado" && p.estado !== "no_asistio" && p.estado !== "cancelado") {
         nov.push({ kind: "hoy", perro: p.perro, servicio: p.servicio, hora: p.hora, fecha: p.fecha, fotos: false });
       }
     });
@@ -84,18 +86,26 @@ function mount(el, inputs, on) {
           supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,cobros(precio_aplicado,cobrable,cobrado),perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
             if (pr && pr.error) return;
             var t = today();
+            // Device clock, like today(): the server re-checks with the Bogotá clock.
+            var nd = new Date(), ahora = String(nd.getHours()).padStart(2, "0") + ":" + String(nd.getMinutes()).padStart(2, "0");
             var paseos = (pr.data || []).map(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
               var cb = r.cobros || {};
               var cobrable = cb.cobrable !== false;
               var estado = r.estado || "programado";
               var precio = cobrable ? (cb.precio_aplicado || 0) : 0;
+              var producto = r.tipo === "comida" || r.tipo === "accesorio";
+              // A cancelled booking is no longer upcoming; only a scheduled service from today on can be cancelled,
+              // and a same-day one only before its hour (the rule of reserva_cancelar).
+              var futuro = (r.fecha || "") >= t && estado !== "cancelado";
+              var hora = /^\d\d:\d\d$/.test(det.hora || "") ? det.hora : "";
+              var aTiempo = r.fecha !== t || !hora || hora > ahora;
               return {
                 id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
-                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: (r.fecha || "") >= t,
-                producto: r.tipo === "comida" || r.tipo === "accesorio"
+                cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: futuro,
+                producto: producto, cancelable: futuro && aTiempo && estado === "programado" && !producto
               };
             });
             on.misPaseos(paseos);
@@ -121,19 +131,20 @@ function mount(el, inputs, on) {
         });
       }
 
-      // Mi reseña del negocio (RLS: solo la mía).
+      // Mi reseña del negocio (RLS: solo la mía). A rejection carries one of the four fixed causes, shown to me.
       if (on.miResena && s.negocioId) {
-        supa.from("resenas").select("rating,texto,publicar_nombre,estado").eq("autor_id", s.uid).eq("negocio_id", s.negocioId).then(function (rr) {
+        supa.from("resenas").select("rating,texto,publicar_nombre,estado,motivo_rechazo").eq("autor_id", s.uid).eq("negocio_id", s.negocioId).then(function (rr) {
           if (rr && rr.error) return;
-          on.miResena((rr.data || []).map(function (r) { return { rating: r.rating, texto: r.texto || "", publicar: !!r.publicar_nombre, estado: r.estado || "" }; }));
+          on.miResena((rr.data || []).map(function (r) { return { rating: r.rating, texto: r.texto || "", publicar: !!r.publicar_nombre, estado: r.estado || "", motivo: MOTIVOS[r.motivo_rechazo] ? "No publicada: " + MOTIVOS[r.motivo_rechazo] : "No publicada" }; }));
         });
       }
 
-      // Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row, read-only for the client.
+      // Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row, read-only for the client. The RPC
+      // masks a personal ID (CC/CE/PAS) to its last 4 digits; the table itself is for the owner and the office.
       if (on.identidad && s.negocioId) {
-        supa.from("negocio_identidad").select("razon_social,doc_tipo,doc_numero,direccion,telefono,correo").eq("negocio_id", s.negocioId).maybeSingle().then(function (ir) {
+        supa.rpc("negocio_identidad_publica").then(function (ir) {
           if (ir && ir.error) return;
-          on.identidad(ir.data ? [ir.data] : []);
+          on.identidad(ir.data || []);
         });
       }
 

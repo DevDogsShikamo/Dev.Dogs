@@ -40,8 +40,8 @@ part DocumentosLegales(version: text) {
         Text "DevDogs es una plataforma de software que se usa en el navegador y como aplicación instalable. Sirve para que un negocio de cuidado de perros registre a sus clientes y perros, arme grupos y agendas de paseo, publique su catálogo de servicios y productos, registre lo que se presta y lo que se cobra, y para que los dueños consulten y reserven los servicios de su negocio."
         Text "DevDogs no presta servicios de paseo, guardería, baño, corte, adiestramiento, veterinaria ni venta de productos. Esos servicios los ofrece y los presta cada negocio que usa la plataforma (en adelante, el negocio), que es quien contrata con el dueño del perro y responde por la prestación."
         Text "DevDogs no es un buscador ni un mercado abierto de prestadores: cada dueño entra a la plataforma solo por invitación del negocio con el que ya tiene relación."
-        Text "Cada negocio registra en la plataforma su nombre o razón social, su documento de identificación (NIT, cédula o pasaporte), su dirección de notificaciones, su teléfono y su correo, y sus clientes pueden consultarlos en su portal (artículos 50 y 53 de la Ley 1480 de 2011)."
-        Text "[COMPLETAR: si registrar estos datos debe ser obligatorio para operar en la plataforma.]"
+        Text "Cada negocio debe registrar en la plataforma su nombre o razón social, su documento de identificación (NIT, cédula o pasaporte), su dirección de notificaciones, su teléfono y su correo antes de recibir reservas o compras, y sus clientes pueden consultarlos en su portal (artículos 50 y 53 de la Ley 1480 de 2011). Mientras falten, la plataforma no deja reservar ni comprar a sus clientes."
+        Text "Si el documento es la cédula o el pasaporte de una persona natural, los clientes lo ven oculto, salvo sus últimos cuatro dígitos."
       }
 
       Stack class("pl-sub") {
@@ -164,7 +164,8 @@ part DocumentosLegales(version: text) {
       Stack class("pl-sub") {
         Title "2.5 Cancelaciones e inasistencias" h3
         List {
-          Text "Hoy la aplicación no tiene un botón para cancelar una reserva: la cancelación se pide directamente al negocio, que es quien define sus condiciones de cancelación en el contrato de servicio. [COMPLETAR: si se agregará la cancelación dentro de la aplicación y con qué antelación.]"
+          Text "El dueño puede cancelar desde la aplicación un servicio programado de su perro mientras no haya empezado, hasta el mismo día del servicio. El servicio queda registrado como cancelado, el negocio lo ve así y no se suma al saldo pendiente."
+          Text "Los cargos o el aviso previo que se exijan por cancelar los fija la política de cada negocio en su contrato de servicio. Las compras de productos y los servicios ya empezados no se cancelan desde la aplicación: se tratan con el negocio."
           Text "Si el perro no sale al paseo, el paseador registra el motivo (enfermo, ausente o cancelación). Ese paseo no se cobra en la plataforma."
           Text "Si el negocio cambia a un perro de grupo o lo da de baja, sus paseos futuros programados y no cobrados se reemplazan o se eliminan."
         }
@@ -256,10 +257,11 @@ part DocumentosLegales(version: text) {
       List {
         Text "Solo puede reseñar a un negocio el dueño de un perro que haya recibido al menos un servicio finalizado de ese negocio. Comprar un producto no habilita para reseñar."
         Text "Cada dueño tiene una reseña por negocio, con una calificación de 1 a 5 y un texto de 10 a 600 caracteres. Al editarla, vuelve a quedar pendiente."
-        Text "El jefe del negocio aprueba o rechaza cada reseña antes de que se publique."
+        Text "El jefe del negocio aprueba o rechaza cada reseña antes de que se publique. Solo puede rechazarla por una de estas causas: que sea ofensiva o discriminatoria, que contenga datos personales, que no sea sobre el servicio, o que sea falsa o spam. Una opinión negativa no es causa de rechazo."
+        Text "Si una reseña no se publica, su autor ve en su perfil la causa que eligió el negocio. Puede editarla, y al editarla vuelve a quedar pendiente."
         Text "En la página pública solo aparecen las reseñas aprobadas cuyo autor aceptó publicarlas, con su nombre y la inicial de su apellido. La sección se muestra solo cuando hay al menos tres; el promedio y la cantidad son los reales."
         Text "Las reseñas deben reflejar experiencias reales. No se permiten reseñas pagadas, falsas o escritas por el propio negocio."
-        Text "[COMPLETAR: cómo pedir el retiro de una reseña propia y si el negocio debe explicar el rechazo de una reseña.]"
+        Text "[COMPLETAR: cómo pedir el retiro de una reseña propia.]"
       }
     }
 

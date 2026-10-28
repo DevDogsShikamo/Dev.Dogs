@@ -15,7 +15,7 @@ const ok = ({ error }, what) => assert.equal(error, null, `${what}: ${error?.mes
 const clean = () => admin().from('resenas').delete().in('negocio_id', Object.values(ids.negocios))
 const save = async (actor, args = {}) =>
   (typeof actor === 'string' ? await as(actor) : actor).rpc('resena_guardar', { p_negocio: A, p_rating: 5, p_texto: TEXT, p_publicar_nombre: true, ...args })
-const moderate = async (actor, p_id, p_estado = 'aprobada') => (typeof actor === 'string' ? await as(actor) : actor).rpc('resena_moderar', { p_id, p_estado })
+const moderate = async (actor, p_id, p_estado = 'aprobada', p_motivo) => (typeof actor === 'string' ? await as(actor) : actor).rpc('resena_moderar', { p_id, p_estado, p_motivo })
 const stored = async () => (await admin().from('resenas').select('*').in('negocio_id', [A, B]).order('created_at')).data
 const mine = async (autor) => (await admin().from('resenas').select('*').eq('autor_id', autor).eq('negocio_id', A).single()).data
 const publicas = async (actor = 'ANON') => {
@@ -156,11 +156,36 @@ test('resena_moderar: only the tenant owner; the server stamps who and when; onl
     for (const estado of ['pendiente', 'publicada', '', null]) assert.match((await moderate('OWNER', id, estado)).error?.message ?? 'no error', /estado_invalido/, `estado ${estado}`)
     assert.deepEqual([(await mine(u.CLIENT)).estado, (await mine(u.CLIENT)).moderated_by], ['pendiente', null])
     const t0 = Date.now()
-    ok(await moderate('OWNER', id, 'rechazada'), 'reject')
+    ok(await moderate('OWNER', id, 'rechazada', 'ofensiva'), 'reject')
     ok(await moderate('OWNER', id, 'aprobada'), 'approve after reject')
     const r = await mine(u.CLIENT)
-    assert.deepEqual([r.estado, r.moderated_by], ['aprobada', u.OWNER])
+    assert.deepEqual([r.estado, r.moderated_by, r.motivo_rechazo], ['aprobada', u.OWNER, null])
     assert.ok(Math.abs(new Date(r.moderated_at) - t0) < 5 * 60_000, `moderated_at ${r.moderated_at} is not now()`)
+  } finally { await clean() }
+})
+
+// Ley 1480 arts. 29-30 and Ley 256 de 1996: the business cannot hide a review just because it is negative.
+test('resena_moderar: a rejection needs one of the four fixed causes, which the author can read; approving clears it; editing sends it back to pending', async () => {
+  try {
+    ok(await save('CLIENT', { p_rating: 1, p_texto: 'Llegaron tarde y no avisaron nada.' }), 'fixture review')
+    const { id } = await mine(u.CLIENT)
+    for (const motivo of [undefined, null, '', 'negativa', 'OFENSIVA', 'mala calificación']) {
+      assert.match((await moderate('OWNER', id, 'rechazada', motivo)).error?.message ?? 'no error', /motivo_invalido/, `motivo ${motivo}`)
+    }
+    assert.deepEqual([(await mine(u.CLIENT)).estado, (await mine(u.CLIENT)).motivo_rechazo], ['pendiente', null], 'nothing stored')
+    for (const motivo of ['ofensiva', 'datos_personales', 'no_relacionada', 'falsa_o_spam']) {
+      ok(await moderate('OWNER', id, 'rechazada', motivo), motivo)
+      const own = (await (await as('CLIENT')).from('resenas').select('estado, motivo_rechazo').eq('id', id).single()).data
+      assert.deepEqual(own, { estado: 'rechazada', motivo_rechazo: motivo }, `the author reads ${motivo}`)
+    }
+    ok(await moderate('OWNER', id, 'aprobada', 'ofensiva'), 'approve (a motivo is ignored)')
+    assert.deepEqual([(await mine(u.CLIENT)).estado, (await mine(u.CLIENT)).motivo_rechazo], ['aprobada', null])
+    ok(await moderate('OWNER', id, 'rechazada', 'falsa_o_spam'), 'reject again')
+    ok(await save('CLIENT', { p_rating: 2, p_texto: 'Llegaron tarde, pero avisaron esta vez.' }), 'the author edits it')
+    assert.deepEqual([(await mine(u.CLIENT)).estado, (await mine(u.CLIENT)).motivo_rechazo], ['pendiente', null])
+    const [col] = sql(`select pg_get_constraintdef(c.oid) as def from pg_constraint c
+      where c.conrelid = 'public.resenas'::regclass and pg_get_constraintdef(c.oid) like '%motivo_rechazo%'`)
+    assert.match(col?.def ?? '', /ofensiva[\s\S]*datos_personales[\s\S]*no_relacionada[\s\S]*falsa_o_spam/, 'the table only accepts the four causes')
   } finally { await clean() }
 })
 

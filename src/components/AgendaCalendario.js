@@ -242,6 +242,7 @@ function mount(el, inputs, on) {
       supa.from("prestaciones")
         .select("id,estado,tipo,fecha,grupo_id,detalle,perros(nombre,conducta,tips,raza,tamano,foto_url),servicios(nombre,duracion_min)")
         .eq("cuidador_id", uid)
+        .neq("estado", "cancelado")   // a booking the client cancelled is not on the walker's calendar
         .gte("fecha", iso(start))
         .lte("fecha", iso(end))
         .then(function (res) {

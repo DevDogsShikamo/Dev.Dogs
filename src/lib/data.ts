@@ -23,6 +23,9 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("politica_negocio_pendiente") >= 0) return "Antes de reservar o comprar, acepta las políticas de tu negocio: cierra sesión y vuelve a entrar para leerlas.";
   if (m.indexOf("politica_invalida") >= 0) return "Revisa las políticas: Requisitos y Responsabilidad son obligatorias y cada sección admite hasta 4000 caracteres.";
   if (m.indexOf("aviso_rol_pendiente") >= 0) return "Antes de reservar o comprar, acepta el aviso sobre quién presta el servicio: cierra sesión y vuelve a entrar.";
+  if (m.indexOf("negocio_sin_identidad") >= 0) return "Tu negocio todavía no completó sus datos legales. Cuando lo haga podrás reservar y comprar.";
+  if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
+  if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
   return msg;
 }
 
@@ -397,9 +400,18 @@ export function resenaGuardar(rating: number, texto: string, publicar: boolean):
     });
   });
 }
-// El dueño aprueba o rechaza (optimista: la página ya cambió el estado; si falla, toast + refresh).
-export function resenaModerar(id: string, estado: string): void {
-  supa.rpc("resena_moderar", { p_id: id, p_estado: estado }).then(done("No se pudo moderar la reseña"));
+// El dueño aprueba o rechaza (optimista: la página ya cambió el estado; si falla, toast + refresh). Rechazar exige
+// una de las cuatro causas fijas (ofensiva | datos_personales | no_relacionada | falsa_o_spam), que el autor ve.
+export function resenaModerar(id: string, estado: string, motivo: string): void {
+  supa.rpc("resena_moderar", { p_id: id, p_estado: estado, p_motivo: motivo || null }).then(done("No se pudo moderar la reseña"));
+}
+
+// El cliente cancela un servicio programado de su perro antes de que empiece (RPC reserva_cancelar). Los cargos o
+// avisos por cancelar los fija la política del negocio: la app no cobra nada por cancelar.
+export function reservaCancelar(id: string): void {
+  if (!id) return;
+  supa.rpc("reserva_cancelar", { p_id: id })
+    .then(done("No se pudo cancelar la reserva", function () { toast("Reserva cancelada. Las condiciones de cancelación las fija tu negocio."); refresh(); }));
 }
 
 // ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----

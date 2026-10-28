@@ -37,12 +37,14 @@ part TerminosNegocio(version: text) {
         Text "El negocio puede publicarlas en la plataforma, en Políticas de tu negocio. Cada vez que publica una versión nueva, sus clientes deben leerla y aceptarla antes de volver a reservar o comprar."
         Text "DevDogs no revisa ni avala esas condiciones, y que aparezcan en la plataforma no significa que DevDogs las apruebe."
         Text "DevDogs puede retirar contenido manifiestamente ilegal, por ejemplo condiciones que permitan el maltrato animal, e informará al negocio el motivo."
+        Text "Sus clientes pueden cancelar desde la aplicación un servicio programado mientras no haya empezado. Los cargos o el aviso previo por cancelar son los que fije el negocio en sus políticas."
+        Text "El negocio solo puede rechazar una reseña de sus clientes por una de estas causas: que sea ofensiva o discriminatoria, que contenga datos personales, que no sea sobre el servicio, o que sea falsa o spam. Una opinión negativa no es causa de rechazo, y el autor ve la causa elegida."
       }
     }
 
     Section class("pv-sec") {
       Title "4. Herramientas de apoyo" h2
-      Text "La plataforma ofrece herramientas que ayudan a organizar el servicio: alertas cuando dos perros incompatibles quedan en la misma salida, el tope de ocho (8) perros por paseador en cada salida, la marca de perro en celo y el aviso sobre la fecha del certificado de salud."
+      Text "La plataforma ofrece herramientas que ayudan a organizar el servicio: alertas cuando dos perros incompatibles quedan en la misma salida, el tope de ocho (8) perros por paseador en cada salida, la marca de perro en celo o con una enfermedad contagiosa y el aviso sobre la fecha del certificado de salud."
       Text "Estas herramientas dependen de los datos que carga el negocio y no sustituyen su criterio ni su deber de cuidado: si un dato falta o está desactualizado, la herramienta no puede advertirlo. Revisar a los perros, sus documentos y sus condiciones le corresponde al negocio."
     }
 
@@ -82,6 +84,7 @@ part TerminosNegocio(version: text) {
     Section class("pv-sec") {
       Title "9. Identificación del negocio" h2
       Text "El negocio registra en la plataforma su nombre o razón social, su documento de identificación (NIT, cédula de ciudadanía, cédula de extranjería o pasaporte), su dirección de notificaciones, su teléfono y su correo, y los mantiene actualizados. Sus clientes los consultan en Quién te presta el servicio, dentro de su portal (artículos 50 y 53 de la Ley 1480 de 2011)."
+      Text "Registrar estos datos es obligatorio: mientras falten, la plataforma no deja que sus clientes reserven ni compren. Si el documento es la cédula o el pasaporte del titular, sus clientes y sus paseadores ven solo sus últimos cuatro dígitos; el jefe y el personal de gestión lo ven completo."
     }
 
     Section class("pv-sec") {
