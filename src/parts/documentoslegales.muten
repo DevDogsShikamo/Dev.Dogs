@@ -274,7 +274,7 @@ part DocumentosLegales(version: text) {
         Text "Los archivos de la aplicación y las tipografías, para que cargue más rápido y sin conexión. No contienen datos personales."
       }
       Text "Al cerrar sesión o al vencer la sesión, la aplicación borra de ese navegador la sesión, las preferencias, la agenda y la cola de cambios pendientes. Las fotos de los paseos nunca se guardan en el dispositivo."
-      Text "Algunas tipografías se cargan desde Google Fonts, por lo que Google puede ver la dirección IP del navegador. [COMPLETAR: si se alojarán todas las tipografías en el propio servidor para evitarlo.]"
+      Text "Las tipografías se cargan desde el mismo sitio de la aplicación; el navegador no las pide a ningún servicio externo."
     }
 
     # ---- 7. Attention and rights ------------------------------------------------------------------
