@@ -66,7 +66,7 @@ function mount(el, inputs, on) {
       if (!s.uid) return;
 
       // Mis perros (perro_duenos activos → perros).
-      supa.from("perro_duenos").select("perro_id,perros(id,nombre,raza,tamano,foto_url,activo)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
+      supa.from("perro_duenos").select("perro_id,perros(id,nombre,raza,tamano,foto_url,activo,en_celo,certificado_salud)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
         if (res && res.error) return;
         var rows = res.data || [];
         var perros = [], ids = [];
@@ -74,7 +74,7 @@ function mount(el, inputs, on) {
           var d = r.perros || {};
           if (!d.id || d.activo === false) return;   // un perro dado de baja por el negocio ya no se lista
           ids.push(d.id);
-          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "" });
+          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "", celo: !!d.en_celo, certificado: d.certificado_salud || "" });
         });
         if (on.misPerros) on.misPerros(perros);
         if (on.loaded) on.loaded(true);

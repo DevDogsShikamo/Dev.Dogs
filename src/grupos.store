@@ -26,6 +26,10 @@ entity PerroPaseo {
   nombre text
   estado text
   motivo text
+  # In heat on a walk/daycare not started yet: it does not go out (Ley 2480 art. 9.7).
+  celo   bool
+  # Health certificate issue date (YYYY-MM-DD or "").
+  cert   text
 }
 
 # Perro que sale hoy (para la fila de avatares del Inicio). Único por nombre.

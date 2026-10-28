@@ -11,12 +11,21 @@ function refresh(): void {
   }
 }
 
+// Ley 2480 de 2025 rejections (trg_prestacion_ley_kiara) replace the generic message: they say what to change.
+function errMsg(err: unknown, msg: string): string {
+  const m = String((err as { message?: unknown }).message || "");
+  if (m.indexOf("paseador_lleno") >= 0) return "Ese paseador ya tiene 8 perros en esa salida. La Ley 2480 de 2025 permite máximo 8 por paseador.";
+  if (m.indexOf("perro_en_celo") >= 0) return "El perro está marcado en celo: no puede salir a paseo ni a guardería.";
+  return msg;
+}
+
 // Handler de .then para escrituras: en ERROR avisa (toast) + revierte (refresh);
 // en ÉXITO corre onOk (por defecto nada — el patch optimista ya refleja el cambio;
 // pasar `refresh` cuando la escritura NO es optimista y hay que traer la verdad).
 function done(msg: string, onOk?: () => void) {
   return function (res?: unknown): void {
-    if (res && (res as { error?: unknown }).error) { toast(msg); refresh(); return; }
+    const err = res && (res as { error?: unknown }).error;
+    if (err) { toast(errMsg(err, msg)); refresh(); return; }
     if (onOk) onOk();
   };
 }
@@ -24,7 +33,7 @@ function done(msg: string, onOk?: () => void) {
 // ---- Catálogo de perros (schema v3) --------------------------------------
 // Alta: resuelve el negocio del usuario (por su profile) y luego inserta el perro.
 // tamano debe ser pequeno|mediano|grande o null (check constraint).
-type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; foto?: string; sociabilidad?: string };
+type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; foto?: string; sociabilidad?: string; celo?: boolean; certificado?: string };
 
 function perroFields(p: PerroInput): Record<string, unknown> {
   return {
@@ -35,6 +44,8 @@ function perroFields(p: PerroInput): Record<string, unknown> {
     tips: p.tips || null,
     foto_url: p.foto || null,
     sociabilidad: p.sociabilidad ? p.sociabilidad : null,
+    en_celo: !!p.celo,
+    certificado_salud: p.certificado || null,
   };
 }
 

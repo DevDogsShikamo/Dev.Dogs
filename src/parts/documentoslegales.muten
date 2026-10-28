@@ -215,7 +215,10 @@ part DocumentosLegales(version: text) {
           Text "Permite registrar el comportamiento, la sociabilidad y las observaciones de cada perro, y la compatibilidad entre perros con su nivel y motivo."
           Text "Avisa al paseador cuando dos perros incompatibles quedan en la misma salida del día."
           Text "Registra cuándo se recoge y se entrega cada perro y el motivo cuando no sale."
-          Text "No rastrea la ubicación del paseo, no guarda certificados de salud ni carnés de vacunación y no limita por sí sola el número de perros por paseador: esas verificaciones las hace el negocio. [COMPLETAR: si se agregarán a la plataforma.]"
+          Text "Limita a ocho perros por paseador en cada salida: no deja agregar un noveno perro a la misma salida."
+          Text "Permite marcar a un perro como en celo y, mientras esté marcado, no lo deja salir a paseo ni a guardería: al iniciar la salida ese perro queda fuera."
+          Text "Registra la fecha de expedición del certificado de salud de cada perro y avisa cuando falta o ya pasaron más de seis (6) meses desde esa fecha."
+          Text "No rastrea la ubicación del paseo y no guarda copias del certificado de salud ni de los carnés de vacunación: revisar esos documentos le corresponde al negocio. [COMPLETAR: si se agregará a la plataforma guardar esos documentos.]"
         }
       }
 

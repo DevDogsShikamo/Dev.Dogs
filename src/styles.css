@@ -1842,3 +1842,5 @@ body.dd-org-grabbing{cursor:grabbing}
 .md-sol{ display:flex; flex-direction:column; gap:2px; padding:10px 12px; border:1.5px solid var(--color-border); border-radius:12px; }
 .md-sol-h{ display:flex; flex-direction:row; justify-content:space-between; gap:8px; font-weight:700; }
 .ag-note{ margin:10px 0 0; font-size:11.5px; color:#8a8494; font-style:italic; }
+/* Ley 2480: the certificate status is a sentence, not a title (some list rows capitalize their meta line). */
+.dd-app .dd-cat-item .meta.dd-cert, .dd-app .dd-cal-fperro .meta.dd-cert, .dd-cert{ text-transform:none; }
