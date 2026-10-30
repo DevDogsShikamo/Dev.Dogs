@@ -1,0 +1,12 @@
+# Monthly plans of the business (owner and finance office; empresa and the independent walker). Data in:
+# PlanesBridge. Not persisted (data-protection P8). fin = "" while active; a cancelled plan runs until fin.
+entity PlanMensual { id text  perroId text  perro text  servicioId text  servicio text  precio number  desde text  fin text  activo bool }
+
+state {
+  planes = [] : list<PlanMensual>
+}
+
+get nPlanes = planes.length
+
+action setPlanes(rows: list<PlanMensual>) mutates planes { planes.set(rows) }
+action limpiar mutates planes { planes.reset() }

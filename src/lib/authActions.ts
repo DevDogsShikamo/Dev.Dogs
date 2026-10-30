@@ -168,6 +168,13 @@ function addDays(d: Date, n: number): Date {
   return x;
 }
 
+// "2026-10" -> "Octubre 2026": the month of a monthly charge (detalle.mensualidad) and of the reports.
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+export function mesLabel(ym: string): string {
+  const m = /^(\d{4})-(\d{2})/.exec(ym || "");
+  return m ? MESES[Number(m[2]) - 1] + " " + m[1] : "";
+}
+
 // Color por tipo de servicio (calendario/agenda).
 function colorFor(tipo: string): string {
   if (tipo === "paseo") return "purple";
@@ -247,4 +254,4 @@ function miembros(grupoId: string, rows: Membresia[]): Record<string, unknown>[]
   });
 }
 
-g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode, miembros };
+g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode, miembros, mesLabel };

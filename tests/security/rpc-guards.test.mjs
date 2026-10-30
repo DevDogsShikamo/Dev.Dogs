@@ -1,13 +1,23 @@
 // S2a RPC guards: mover_perro, grupo_set_hora, bloque_reprogramar and the F1 agenda RPCs are callable
-// only by the owner or office of the group's tenant, reject unresolvable callers
+// only by the owner or office of the group's tenant (the F4 plan RPCs: owner or office with the finance
+// permission, each entry's `allowed`), reject unresolvable callers
 // (NULL is a denial) and validate their inputs. Every denial must be a 42501.
-import { before, test } from 'node:test'
+import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, as, day, ids, seed } from './_actors.mjs'
-import { GUARDED_RPCS, attack } from './_attacks.mjs'
+import { GUARDED_RPCS, attack, dropPlanFixtures, planFixtures } from './_attacks.mjs'
 import { sql } from './_sql.mjs'
 
-before(() => seed())
+before(async () => {
+  await seed()
+  await planFixtures()
+  const { error } = await admin().from('permisos').upsert({ user_id: ids.users.OFFICE_FIN, negocio_id: ids.negocios.A, finanzas: true })
+  if (error) throw new Error(`grant OFFICE_FIN: ${error.message}`)
+})
+after(async () => {
+  await dropPlanFixtures()
+  await admin().from('permisos').delete().eq('user_id', ids.users.OFFICE_FIN)
+})
 
 const [MOVER, SET_HORA, BLOQUE] = GUARDED_RPCS
 const withArgs = (rpc, args) => ({ ...rpc, args: { ...rpc.args, ...args } })
@@ -57,13 +67,17 @@ for (const [label, dog] of [['tenant B', ids.perros.dB], ['tenant I', ids.perros
   }
 }
 
-for (const actor of ['OWNER', 'OFFICE']) {
-  for (const rpc of GUARDED_RPCS) {
+for (const rpc of GUARDED_RPCS) {
+  for (const actor of rpc.allowed ?? ['OWNER', 'OFFICE']) {
     test(`AH-2e: ${actor} can execute ${rpc.name} (allowed path)`, async () => {
       const res = await attack(await as(actor), rpc)
       assert.equal(res.error, null, `${actor} ${rpc.name} failed: ${res.error?.message}`)
       assert.notEqual(res.damage, null, `${actor} ${rpc.name} ran but changed nothing`)
     })
+  }
+  // Money RPCs: office staff without the finance permission is denied like a stranger.
+  if (rpc.allowed && !rpc.allowed.includes('OFFICE')) {
+    test(`AH-2f: OFFICE without the finance permission cannot execute ${rpc.name}`, () => assertDenied('OFFICE', rpc))
   }
 }
 
@@ -93,7 +107,8 @@ test('bloque_reprogramar rejects a source or target date in the past', async () 
 
 // ---- AH-1a for the new functions ----------------------------------------------
 const FUNCTIONS = ['assert_gestor', 'mover_perro', 'grupo_set_hora', 'bloque_reprogramar', 'grupo_asignar',
-  'grupo_agregar_perro', 'grupo_quitar_perro', 'grupo_actualizar', 'grupo_eliminar', 'prestacion_asignar']
+  'grupo_agregar_perro', 'grupo_quitar_perro', 'grupo_actualizar', 'grupo_eliminar', 'prestacion_asignar',
+  'plan_mensual_activar', 'plan_mensual_cancelar']
 
 test('AH-1a: the S2a functions pin an empty search_path and are not executable by anon', () => {
   const rows = sql(`select proname, coalesce(proconfig @> array['search_path=""'], false) as pinned,

@@ -1,7 +1,8 @@
-// Bridge de reportes/cobros del portal EMPRESA. Agrega las prestaciones de los
-// últimos 30 días del negocio: facturado / cobrado / pendiente, ingresos por día
-// (últimos 7), top servicios, e ingresos por paseador. Monta 1 vez en el root del
-// panel empresa; recarga en "supa:refresh". Lee __supa en cada llamada.
+// Bridge de reportes/cobros del portal EMPRESA. The month picked in the page (inputs.mes "YYYY-MM", the current
+// month when empty): realizado / cobrado / pendiente per service, monthly charges included (on.meses lists the
+// current and the 11 previous months). Plus the last 30 days: ingresos por día (últimos 7), top servicios, e
+// ingresos por paseador. Monta 1 vez en el root del panel empresa; recarga en "supa:refresh". Lee __supa en cada
+// llamada. Returns an updater: picking another month reloads only that month.
 function mount(el, inputs, on) {
   el.style.display = "none";
 
@@ -16,19 +17,59 @@ function mount(el, inputs, on) {
   function shiftDays(n) { return U.addDays(new Date(), n); }
 
   // Los importes viven en `cobros` (RLS: dueño u oficina con el permiso de finanzas). Sin permiso no se
-  // pide nada: has_finanzas() decide, y `on.permiso` le avisa a la página para mostrar u ocultar la sección.
+  // pide nada: is_owner() / has_finanzas() deciden, y `on.permiso` le avisa a la página (el permiso de la oficina).
+  var mesSel = inputs.mes || U.today().slice(0, 7);
+  var listo = null;   // {supa, neg} once allowed
   function load() {
     var supa = globalThis.__supa;
     if (!supa) return;
     negocio().then(function (neg) {
       if (!neg) return;
-      supa.rpc("has_finanzas").then(function (pm) {
+      Promise.all([supa.rpc("has_finanzas"), supa.rpc("is_owner")]).then(function (r) {
+        var pm = r[0];
         if (!pm || pm.error) return;
-        var ok = pm.data === true;
-        if (on.permiso) on.permiso(ok);
-        if (ok) cargar(supa, neg);
+        if (on.permiso) on.permiso(pm.data === true);
+        if (pm.data !== true && r[1].data !== true) return;
+        listo = { supa: supa, neg: neg };
+        if (on.meses) on.meses(meses());
+        cargarMes();
+        cargar(supa, neg);
       });
     });
+  }
+
+  // The current month and the 11 before it, newest first.
+  function meses() {
+    var d = new Date(), out = [];
+    for (var i = 0; i < 12; i++) {
+      var x = new Date(d.getFullYear(), d.getMonth() - i, 1), ym = x.getFullYear() + "-" + p(x.getMonth() + 1);
+      out.push({ id: ym, mes: ym, label: U.mesLabel(ym) });
+    }
+    return out;
+  }
+
+  // Realizado = finished chargeable services of the month (a monthly charge is one); cobrado = marked paid.
+  // ponytail: one PostgREST page (1000 rows a month); aggregate in SQL if a business outgrows it.
+  function cargarMes() {
+    if (!listo || !on.mesServicios) return;
+    var mes = mesSel, y = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7));
+    var hasta = mes + "-" + p(new Date(y, m, 0).getDate());
+    listo.supa.from("cobros")
+      .select("precio_aplicado,cobrado,prestaciones!inner(fecha,estado,tipo,detalle,servicios(nombre))")
+      .eq("negocio_id", listo.neg).eq("cobrable", true).eq("prestaciones.estado", "finalizado")
+      .gte("prestaciones.fecha", mes + "-01").lte("prestaciones.fecha", hasta)
+      .then(function (res) {
+        if ((res && res.error) || mes !== mesSel) return;
+        var por = {};
+        (res.data || []).forEach(function (c) {
+          var q = c.prestaciones || {}, det = q.detalle || {}, svc = (q.servicios && q.servicios.nombre) || q.tipo || "Otro";
+          var k = det.mensualidad ? "Mensualidad " + svc : svc, monto = c.precio_aplicado || 0;
+          if (!por[k]) por[k] = { servicio: k, realizado: 0, cobrado: 0, pendiente: 0 };
+          por[k].realizado += monto;
+          if (c.cobrado) por[k].cobrado += monto; else por[k].pendiente += monto;
+        });
+        on.mesServicios(Object.keys(por).map(function (k) { return por[k]; }).sort(function (a, b) { return b.realizado - a.realizado; }));
+      });
   }
 
   function cargar(supa, neg) {
@@ -43,14 +84,16 @@ function mount(el, inputs, on) {
       // Pendientes de cobro: paseos realizados (finalizados), cobrables y aún no cobrados.
       if (on.pendientes) {
         supa.from("cobros")
-          .select("prestacion_id,precio_aplicado,prestaciones!inner(fecha,estado,perro_id,perros(nombre),servicios(nombre))")
+          .select("prestacion_id,precio_aplicado,prestaciones!inner(fecha,estado,perro_id,detalle,perros(nombre),servicios(nombre))")
           .eq("negocio_id", neg).eq("cobrable", true).eq("cobrado", false).eq("prestaciones.estado", "finalizado")
           .then(function (pr) {
             if (pr && pr.error) return;
             duenosP.then(function () {
               var rows = (pr.data || []).map(function (r) {
                 var q = r.prestaciones || {}, pe = (q.perros && q.perros.nombre) || "", du = duenos[q.perro_id];
-                return { id: r.prestacion_id, fecha: q.fecha || "", perro: du ? pe + " · " + du : pe, servicio: (q.servicios && q.servicios.nombre) || "", monto: r.precio_aplicado || 0 };
+                var svc = (q.servicios && q.servicios.nombre) || "";
+                if (q.detalle && q.detalle.mensualidad) svc = "Mensualidad " + svc + " · " + U.mesLabel(q.detalle.mensualidad);
+                return { id: r.prestacion_id, fecha: q.fecha || "", perro: du ? pe + " · " + du : pe, servicio: svc, monto: r.precio_aplicado || 0 };
               }).sort(function (x, y) { return x.fecha < y.fecha ? -1 : x.fecha > y.fecha ? 1 : 0; });
               on.pendientes(rows);
             });
@@ -68,13 +111,10 @@ function mount(el, inputs, on) {
           .then(function (res) {
             if (res && res.error) return;
             var rows = res.data || [];
-            var facturado = 0, cobrado = 0;
             var porSvc = {}, porCuid = {}, porDia = {};
             rows.forEach(function (c) {
               var r = c.prestaciones || {};
               var monto = (c.cobrable === false) ? 0 : (c.precio_aplicado || 0);
-              facturado += monto;
-              if (c.cobrado) cobrado += monto;
               var svc = (r.servicios && r.servicios.nombre) || "Otro";
               porSvc[svc] = (porSvc[svc] || 0) + monto;
               if (r.cuidador_id) {
@@ -84,8 +124,6 @@ function mount(el, inputs, on) {
               }
               porDia[r.fecha] = (porDia[r.fecha] || 0) + monto;
             });
-
-            if (on.finanzas) on.finanzas(facturado, cobrado, facturado - cobrado);
 
             // Ingresos por día (últimos 7), etiqueta DD/MM.
             if (on.ingresosDia) {
@@ -116,4 +154,8 @@ function mount(el, inputs, on) {
 
   load();
   window.addEventListener("supa:refresh", load);
+  return function (next) {
+    var m = (next && next.mes) || U.today().slice(0, 7);
+    if (m !== mesSel) { mesSel = m; cargarMes(); }
+  };
 }

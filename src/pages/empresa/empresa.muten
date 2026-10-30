@@ -1,6 +1,7 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar from "~/lib/data.ts"
+use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -36,6 +37,9 @@ entity NegocioLegal { razon_social text  doc_tipo text  doc_numero text  direcci
 entity PolSec { clave text  titulo text  texto text }
 entity PolMeta { version text  fecha text }
 entity PolEdit { clave text  titulo text  texto text  req bool }
+# Reportes by month (ReportesBridge): the months to pick and the summary of the picked one per service.
+entity MesOpcion { id text  mes text  label text }
+entity MesServicio { servicio text  realizado number  cobrado number  pendiente number }
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -101,10 +105,19 @@ state {
   pol      = [] : list<PolEdit>
   polVer   = "" : text
   polFecha = "" : text
+  # Reportes: picked month ("YYYY-MM"; empty until ReportesBridge lists the months = the current one).
+  meses   = [] : list<MesOpcion>
+  repMes  = "" : text
+  mesServ = [] : list<MesServicio>
+  # Monthly plans (owner or finance office): the activation form and the plan whose cancellation is being asked.
+  planForm   = false : bool
+  planPerro  = "" : text
+  planSvc    = "" : text
+  planCancel = "" : text
 }
 action go(s: text) mutates section { section.set(s) }
 # Logout: limpia el cache del negocio (dispositivo compartido) y cierra sesión.
-action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  incidentes.limpiar()  auth.logout() }
+action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  incidentes.limpiar()  planes.limpiar()  auth.logout() }
 # ---- Incidents: the owner and office report on any dog of the business, without a walk ----
 get incError = incPerro == "" ? "Elige el perro." : (incTipo == "" ? "Elige el tipo de incidente." : (incTexto.length < 10 ? "Describe lo que pasó con al menos 10 caracteres." : (incTexto.length > 2000 ? "Máximo 2000 caracteres." : "")))
 action incAbrir mutates incForm, incPerro, incTipo, incTexto { incPerro.set("")  incTipo.set("")  incTexto.set("")  incForm.set(true) }
@@ -222,6 +235,29 @@ action presElegir(cid: text) mutates presAsig { empresa.sinAsignarDel(presAsig) 
 # ---- Cobrar un paseo pendiente (optimista + persiste) ----
 action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 
+# ---- Reportes by month + export of its charges (CSV / Excel) ----
+action mesesCargar(rows: list<MesOpcion>) mutates meses, repMes {
+  meses.set(rows)
+  if repMes == "" and rows.length > 0 { repMes.set(rows.at(0).mes) }
+}
+action mesSet(m: text) mutates repMes { repMes.set(m) }
+action mesServSet(rows: list<MesServicio>) mutates mesServ { mesServ.set(rows) }
+get mesRealizado = mesServ.sum by realizado
+get mesCobrado   = mesServ.sum by cobrado
+get mesPendiente = mesServ.sum by pendiente
+action mesCSV { exportarMesCSV(repMes) }
+action mesXLS { exportarMesExcel(repMes) }
+
+# ---- Monthly plans: activate (dog + monthly service) and cancel with an in-page confirmation ----
+action planAbrir mutates planForm, planPerro, planSvc { planPerro.set("")  planSvc.set("")  planForm.set(true) }
+action planCerrar mutates planForm { planForm.set(false) }
+action planPickPerro(id: text) mutates planPerro { planPerro.set(id) }
+action planPickSvc(id: text) mutates planSvc { planSvc.set(id) }
+action planGuardar mutates planForm { planMensualActivar(planPerro, planSvc)  planForm.set(false) }
+action planCancelPedir(id: text) mutates planCancel { planCancel.set(id) }
+action planCancelNo mutates planCancel { planCancel.set("") }
+action planCancelSi mutates planCancel { planMensualCancelar(planCancel)  planCancel.set("") }
+
 # ---- Permiso de finanzas de la oficina (solo el dueño; optimista + RPC) ----
 action finanzasToggle(id: text, on: bool) { empresa.finanzasSet(id, on)  permisoFinanzas(id, on) }
 
@@ -238,7 +274,8 @@ Stack class("dd-app") {
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
   Custom Toast
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
-  Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
+  Custom ReportesBridge inputs(mes: @repMes) on(meses: mesesCargar, mesServicios: mesServSet, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
+  Custom PlanesBridge on(planes: planes.setPlanes)
   Custom SalidasBridge on(salidas: empresa.setSalidas, miembros: empresa.setMiembros)
   Custom IncidentesBridge on(items: incidentes.setItems)
   # Agenda semanal multi-paseador (#5).
@@ -602,10 +639,36 @@ Stack class("dd-app") {
       when section == "reportes" {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Reportes" h2 }
+          # The picked month: finished chargeable services, monthly charges included.
+          Stack class("dd-gsvc") aria(role: "group", label: "Mes del reporte") {
+            each meses as m { Button "{m.label}" -> mesSet(m.mes) class("dd-gchip") class("on" when repMes == m.mes) }
+          }
           Stack class("dd-emp-kpis") {
-            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(empresa.facturado)}" class("v")  Span "Total del periodo (30d)" class("l") }
-            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:circle-check"  Span "{cop(empresa.cobrado)}" class("v")    Span "Cobrado" class("l") }
-            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:clock"         Span "{cop(empresa.pendiente)}" class("v")  Span "Pendiente" class("l") }
+            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:wallet"        Span "{cop(mesRealizado)}" class("v")  Span "Realizado en el mes" class("l") }
+            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:circle-check"  Span "{cop(mesCobrado)}" class("v")    Span "Cobrado" class("l") }
+            Stack class("dd-emp-kpi dd-rep-kpi") { Icon "lucide:clock"         Span "{cop(mesPendiente)}" class("v")  Span "Pendiente" class("l") }
+          }
+          Span "Por servicio" class("dd-emp-lbl")
+          when mesServ.length == 0 { Text "Sin servicios realizados en este mes." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each mesServ as ms {
+              Stack class("dd-cat-item") {
+                Stack class("dd-sv-ic") { Icon "lucide:tag" }
+                Stack class("dd-cat-info") {
+                  Stack class("nmline") { Span "{ms.servicio}" class("nm") }
+                  Span "Cobrado {cop(ms.cobrado)} · pendiente {cop(ms.pendiente)}" class("meta")
+                }
+                Span "{cop(ms.realizado)}" class("dd-rep-monto")
+              }
+            }
+          }
+          Stack class("dd-rep-export") aria(role: "group", label: "Exportar mes") {
+            Span "Exportar mes" class("dd-emp-lbl")
+            Stack class("dd-fac-actions") {
+              Button -> mesCSV class("dd-fac-exp") { Icon "lucide:download"  Span "CSV" }
+              Button -> mesXLS class("dd-fac-exp") { Icon "lucide:download"  Span "Excel" }
+            }
+            Text "Este documento no es una factura electrónica." class("dd-fac-legal")
           }
           # Pendientes de cobro (paseos realizados sin cobrar) — el jefe marca cobrado.
           Span "Pendientes de cobro · {cop(empresa.pendienteTotal)}" class("dd-emp-lbl")
@@ -620,6 +683,45 @@ Stack class("dd-app") {
                 }
                 Stack class("acts") {
                   Button "Cobrado" -> cobrar(pe.id) class("dd-cat-add dd-cobrar-btn")
+                }
+              }
+            }
+          }
+
+          # Monthly plans: a fixed monthly charge per dog (mensualidades_generar, on the 1st of each month).
+          Stack class("dd-cat-head") {
+            Span "Planes mensuales" class("dd-emp-lbl")
+            Button -> planAbrir class("dd-cat-add") { Icon "lucide:plus"  Span "Activar plan mensual" }
+          }
+          Text "Cobro fijo mensual por perro: se genera el día 1 de cada mes, aunque el perro falte a algún paseo. Al activarlo se cobra el mes en curso completo; al cancelarlo termina al final del mes." class("dd-cli-hint")
+          when planes.nPlanes == 0 { Text "Ningún perro tiene un plan mensual." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each planes.planes as pl {
+              PlanItem(pl: pl, cancelId: planCancel, onPedir: planCancelPedir, onSi: planCancelSi, onNo: planCancelNo)
+            }
+          }
+          when planForm {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: planCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Activar plan mensual" h3
+                  Button -> planCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  Span "Perro" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    each catalogo.perros as p { Button "{p.nombre}" -> planPickPerro(p.id) class("dd-gchip") class("on" when planPerro == p.id) }
+                  }
+                  Span "Servicio mensual" class("dd-hor-lbl")
+                  when (servicios.servicios.count where modelo == "mensual") == 0 { Text "Primero crea en Servicios un servicio con cobro mensual." class("dd-cli-hint") }
+                  Stack class("dd-gsvc") {
+                    each servicios.servicios as sv where sv.modelo == "mensual" {
+                      Button "{sv.nombre} · {cop(sv.precio)}" -> planPickSvc(sv.id) class("dd-gchip") class("on" when planSvc == sv.id)
+                    }
+                  }
+                  Text "Se cobra ahora el mes en curso completo." class("dd-cli-hint")
+                  Button "Activar plan" -> planGuardar class("dd-cat-add dd-hor-save") disabled when planPerro == "" or planSvc == ""
                 }
               }
             }
