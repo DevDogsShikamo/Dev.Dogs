@@ -1,7 +1,7 @@
 // Data write side-effects (fire-and-forget) callable from Muten actions.
 // Each persists to Supabase, then dispatches "supa:refresh" so the read bridges
 // (DataBootstrap, etc.) re-read and update the stores reactively.
-import { supa, toast, resolveSesion } from "./authActions";
+import { supa, toast, resolveSesion, signOut } from "./authActions";
 import { rpcOrQueue } from "./outbox";
 import { copiarCodigo } from "./share";
 import { politicaPayload } from "./politicaNegocio.js";
@@ -28,6 +28,8 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
   if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
   if (m.indexOf("plan_existente") >= 0) return "Ese perro ya tiene un plan mensual activo de ese servicio.";
+  if (m.indexOf("dueno_no_puede_salir") >= 0) return "Eres el dueño del negocio: no puedes salir de él.";
+  if (m.indexOf("dueno_invalido") >= 0) return "Esa persona no es cliente de tu negocio.";
   if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
   return msg;
 }
@@ -100,6 +102,28 @@ export function coduenioAgregar(perroId: string, duenoId: string): void {
 export function coduenioQuitar(perroId: string, duenoId: string): void {
   if (!perroId || !duenoId) return;
   supa.rpc("coduenio_quitar", { p_perro: perroId, p_dueno: duenoId }).then(done("No se pudo quitar el co-dueño", refresh));
+}
+
+// ---- People (F2): principal owner, removing people, leaving the business ----------------------
+// The owner or office picks the one principal owner of a dog among the clients of the business; the previous one
+// stays as co-owner. Only the principal buys in the Tienda (comprar_producto).
+export function perroPrincipal(perroId: string, clienteId: string): void {
+  if (!perroId || !clienteId) return;
+  supa.rpc("perro_dueno_principal", { p_perro: perroId, p_cliente: clienteId }).then(done("No se pudo cambiar el dueño principal", refresh));
+}
+// The owner removes a walker, office employee or client: it loses the access, its history stays.
+export function miembroBaja(userId: string): void {
+  if (!userId) return;
+  supa.rpc("miembro_dar_de_baja", { p_usuario: userId })
+    .then(done("No se pudo dar de baja", function () { toast("Listo: ya no tiene acceso a tu negocio. Su historial se conserva."); refresh(); }));
+}
+// The signed-in walker, office employee or client leaves its business; then the session ends (device purged).
+export function miembroSalir(): void {
+  supa.rpc("miembro_salir").then(function (res) {
+    if (res.error) { toast(errMsg(res.error, "No se pudo salir del negocio")); return; }
+    toast("Saliste del negocio.");
+    signOut();
+  });
 }
 
 // ---- Relaciones entre perros (perros.incompatibles jsonb) -----------------

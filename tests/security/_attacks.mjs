@@ -1,6 +1,7 @@
 // Shared exploit helpers for the baseline (RED) tests. Each attack records the
 // damage it caused and can undo it, so a successful exploit never poisons the
 // next test. Import-safe (no side effects on load).
+import { randomUUID } from 'node:crypto'
 import { admin, day, ids, writePrestaciones } from './_actors.mjs'
 
 export const FAR_DAY = '2099-01-01'
@@ -28,6 +29,18 @@ export async function dropPlanFixtures() {
   await db.from('tarifas').delete().eq('servicio_id', PLAN.servicio)
   await db.from('servicios').delete().eq('id', PLAN.servicio)
 }
+
+// F2: a client of tenant A that the removal guard targets (fixed id; dropBajaFixture removes it with its profile).
+const BAJA = '0d0d0d01-0000-4000-8000-000000000090'
+export async function bajaFixture() {
+  await dropBajaFixture()
+  const db = admin()
+  const created = await db.auth.admin.createUser({ id: BAJA, email: 'dd-baja-guard@example.com', password: randomUUID(), email_confirm: true })
+  if (created.error) throw new Error(`bajaFixture user: ${created.error.message}`)
+  const { error } = await db.from('profiles').insert({ id: BAJA, negocio_id: ids.negocios.A, rol: 'cliente', nombre: 'Baja guard' })
+  if (error) throw new Error(`bajaFixture profile: ${error.message}`)
+}
+export const dropBajaFixture = () => admin().auth.admin.deleteUser(BAJA)
 
 // The three group RPCs of C3/N2. `damage()` returns a description of the
 // unauthorised change (or null); `undo()` reverts it.
@@ -117,6 +130,30 @@ export const GUARDED_RPCS = [
     args: { p_plan: PLAN.id },
     damage: async () => ((await admin().from('suscripciones').select('estado').eq('id', PLAN.id).maybeSingle()).data?.estado === 'cancelada' ? 'the plan of d4 was cancelled' : null),
     undo: () => admin().from('suscripciones').update({ estado: 'activa', fin: null }).eq('id', PLAN.id),
+  },
+  // F2 people: the principal owner of d2 is CLIENT; owner or office may hand it to CLIENT3.
+  {
+    name: 'perro_dueno_principal',
+    args: { p_perro: ids.perros.d2, p_cliente: ids.users.CLIENT3 },
+    damage: async () => {
+      const { data } = await admin().from('perro_duenos').select('dueno_id').eq('perro_id', ids.perros.d2).eq('rol', 'principal').eq('estado', 'activo')
+      return data.some((l) => l.dueno_id === ids.users.CLIENT3) ? 'CLIENT3 became the principal of d2' : null
+    },
+    undo: async () => {
+      await admin().from('perro_duenos').delete().match({ perro_id: ids.perros.d2, dueno_id: ids.users.CLIENT3 })
+      await admin().from('perro_duenos').update({ rol: 'principal', estado: 'activo' }).match({ perro_id: ids.perros.d2, dueno_id: ids.users.CLIENT })
+    },
+  },
+  // Removing someone is the owner's only. bajaFixture() must run first (without it nothing can be removed).
+  {
+    name: 'miembro_dar_de_baja',
+    allowed: ['OWNER'],
+    args: { p_usuario: BAJA },
+    damage: async () => {
+      const p = (await admin().from('profiles').select('negocio_id').eq('id', BAJA).maybeSingle()).data
+      return p && !p.negocio_id ? 'the client was removed from tenant A' : null
+    },
+    undo: () => admin().from('profiles').update({ negocio_id: ids.negocios.A, baja_at: null }).eq('id', BAJA),
   },
 ]
 
