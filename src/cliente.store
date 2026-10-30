@@ -2,7 +2,7 @@
 # Sus perros (perro_duenos → perros), sus paseos (prestaciones), y las salidas
 # disponibles del negocio para reservar (grupos).
 entity PerroMio  { id text  nombre text  raza text  tamano text  foto text  celo bool  contagio bool  certificado text  plan text }
-entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool  producto bool  mensual bool  cancelable bool }
+entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool  producto bool  mensual bool  cancelable bool  recibido text  entrega text }
 entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  tipo text }
 # Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
@@ -40,8 +40,11 @@ get puedeResenar = (misPaseos.count where estado == "finalizado" and not product
 # 0 en los no-finalizados/no-cobrables), monthly charges of a plan (mensual) included. Estado de cuenta del cliente.
 get paseosImpagos  = misPaseos where not cobrado
 get saldoPendiente = paseosImpagos.sum by facturable
-# Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.
-get nOtrosServicios = servicios.count where tipo != "paseo"
+# Reservar: the outings that have a service (an outing without one has nothing to book) and the services that are
+# neither a walk nor a product (bath, daycare, grooming…); products are bought in the Tienda.
+get salidasReservables = salidas where servicioId != ""
+get otrosServicios = servicios where tipo != "paseo" and tipo != "comida" and tipo != "accesorio"
+get nOtrosServicios = otrosServicios.length
 # Productos (comida/snacks) — para la Tienda.
 get nProductos = servicios.count where tipo == "comida" or tipo == "accesorio"
 # Registro del perro elegido: filas del perro, total a cobrar y cantidad de paseos.

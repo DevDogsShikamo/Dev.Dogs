@@ -1,14 +1,27 @@
 # Item de una invitación pendiente: correo, vencimiento y revocar. Nunca muestra el código
 # (el servidor solo guarda su hash). Reutilizado en el portal empresa y en el del paseador independiente.
-part InviteItem(iv: Invitacion, onDelete: action) {
-  Stack class("dd-inv-item") {
-    Icon "lucide:mail" class("ic")
-    Stack class("dd-inv-info") {
-      Span "{$iv.email}" class("em")
-      Span "Vence {$iv.vence}" class("code")
+# "Revocar" asks first in the page (confId = the invitation being asked); same markup as the Confirmar part,
+# inlined because a part called inside a part's `when` does not compile.
+part InviteItem(iv: Invitacion, confId: text, onPedir: action, onSi: action, onNo: action) {
+  Stack class("dd-cli-paseo") {
+    Stack class("dd-inv-item") {
+      Icon "lucide:mail" class("ic")
+      Stack class("dd-inv-info") {
+        Span "{$iv.email}" class("em")
+        Span "Vence {$iv.vence}" class("code")
+      }
+      Stack class("dd-inv-acts") {
+        Button -> $onPedir($iv.id) class("dd-cat-icon dd-danger") aria(label: "Revocar invitación") { Icon "lucide:x" }
+      }
     }
-    Stack class("dd-inv-acts") {
-      Button -> $onDelete($iv.id) class("dd-cat-icon dd-danger") aria(label: "Revocar invitación") { Icon "lucide:x" }
+    when $confId == $iv.id {
+      Stack class("dd-cat-item") aria(role: "group", label: "Confirmar") {
+        Text "¿Revocar la invitación de {$iv.email}? El código deja de servir." class("dd-cli-hint")
+        Stack class("acts") {
+          Button "Sí, revocar" -> $onSi class("dd-cat-add dd-danger")
+          Button "Cancelar" -> $onNo class("dd-cat-add")
+        }
+      }
     }
   }
 }

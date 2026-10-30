@@ -47,7 +47,7 @@ entity Salida { id text  nombre text  zona text  hora text  horaNum number  dura
 entity Pendiente { id text  fecha text  perro text  servicio text  monto number }
 # Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
 entity AgendaDia  { fecha text  label text  count number }
-entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  cancelados number  estado text  color text }
+entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  cancelados number  estado text  color text  recibido text  entrega text }
 # A dog of an outing (active membership) and its weekdays: d1..d7 = Monday..Sunday, dias = their label. Same shape
 # as grupos.Miembro; kept here because grupos.store persists state and this portal keeps nothing on the device (P8).
 entity SalidaPerro { id text  grupoId text  perroId text  nombre text  dias text  d1 bool  d2 bool  d3 bool  d4 bool  d5 bool  d6 bool  d7 bool }
