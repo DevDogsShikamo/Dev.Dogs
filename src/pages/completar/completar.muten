@@ -47,6 +47,9 @@ Page class("glogin") {
   Stack class("glogin-form") {
     Stack class("gform-body") {
       Title "Completar registro" h2 class("pv-h1")
+      when auth.baja {
+        Text "Ya no perteneces a ningún negocio. Para volver, pide una nueva invitación con tu correo o crea tu propio negocio." class("gerror")
+      }
 
       Stack class("su-roles") {
         Button -> pick("EMPRESA") class("su-role") class("su-role-on" when opcion == "EMPRESA") {

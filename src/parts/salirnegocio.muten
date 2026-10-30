@@ -1,0 +1,19 @@
+# "Salir del negocio" in the Perfil of every portal but the owner's (company walker, office employee, client), with an
+# in-page confirmation. miembro_salir keeps the history; the session ends after it.
+# `when` renders its first child only, so each branch wraps its siblings in one Stack.
+part SalirNegocio(abierto: bool, onPedir: action, onSi: action, onNo: action) {
+  Stack class("dd-pf-list") {
+    when not $abierto {
+      Button -> $onPedir class("dd-pf-opt") { Icon "lucide:door-open"  Span "Salir del negocio"  Icon "lucide:chevron-right" class("chev") }
+    }
+    when $abierto {
+      Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la salida del negocio") {
+        Text "¿Salir del negocio? Pierdes el acceso a sus datos y se cierra tu sesión. Tu historial se conserva. Para volver necesitas una nueva invitación." class("dd-cli-hint")
+        Stack class("acts") {
+          Button "Sí, salir del negocio" -> $onSi class("dd-cat-add dd-danger")
+          Button "Cancelar" -> $onNo class("dd-cat-add")
+        }
+      }
+    }
+  }
+}

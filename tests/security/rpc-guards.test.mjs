@@ -1,21 +1,23 @@
 // S2a RPC guards: mover_perro, grupo_set_hora, bloque_reprogramar and the F1 agenda RPCs are callable
 // only by the owner or office of the group's tenant (the F4 plan RPCs: owner or office with the finance
-// permission, each entry's `allowed`), reject unresolvable callers
+// permission, each entry's `allowed`; the F2 removal: the owner only), reject unresolvable callers
 // (NULL is a denial) and validate their inputs. Every denial must be a 42501.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, as, day, ids, seed } from './_actors.mjs'
-import { GUARDED_RPCS, attack, dropPlanFixtures, planFixtures } from './_attacks.mjs'
+import { GUARDED_RPCS, attack, bajaFixture, dropBajaFixture, dropPlanFixtures, planFixtures } from './_attacks.mjs'
 import { sql } from './_sql.mjs'
 
 before(async () => {
   await seed()
   await planFixtures()
+  await bajaFixture()
   const { error } = await admin().from('permisos').upsert({ user_id: ids.users.OFFICE_FIN, negocio_id: ids.negocios.A, finanzas: true })
   if (error) throw new Error(`grant OFFICE_FIN: ${error.message}`)
 })
 after(async () => {
   await dropPlanFixtures()
+  await dropBajaFixture()
   await admin().from('permisos').delete().eq('user_id', ids.users.OFFICE_FIN)
 })
 
@@ -108,7 +110,7 @@ test('bloque_reprogramar rejects a source or target date in the past', async () 
 // ---- AH-1a for the new functions ----------------------------------------------
 const FUNCTIONS = ['assert_gestor', 'mover_perro', 'grupo_set_hora', 'bloque_reprogramar', 'grupo_asignar',
   'grupo_agregar_perro', 'grupo_quitar_perro', 'grupo_actualizar', 'grupo_eliminar', 'prestacion_asignar',
-  'plan_mensual_activar', 'plan_mensual_cancelar']
+  'plan_mensual_activar', 'plan_mensual_cancelar', 'perro_dueno_principal', 'miembro_dar_de_baja', 'miembro_salir']
 
 test('AH-1a: the S2a functions pin an empty search_path and are not executable by anon', () => {
   const rows = sql(`select proname, coalesce(proconfig @> array['search_path=""'], false) as pinned,
