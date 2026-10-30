@@ -77,6 +77,19 @@ function mount(el, inputs, on) {
             if (on.agendaDias) on.agendaDias(dias);
             if (on.agenda) on.agenda(rows);
           });
+
+        // Bookings nobody is assigned to (a service without a group): the owner or office assigns them.
+        if (on.sinAsignar) {
+          supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
+            .eq("negocio_id", neg).is("cuidador_id", null).eq("estado", "programado")
+            .gte("fecha", start).not("tipo", "in", "(comida,accesorio)").order("fecha").limit(50)
+            .then(function (res) {
+              if (res && res.error) return;
+              on.sinAsignar((res.data || []).map(function (r) {
+                return { id: r.id, fecha: r.fecha || "", hora: (r.detalle && r.detalle.hora) || "", servicio: (r.servicios && r.servicios.nombre) || r.tipo || "", perro: (r.perros && r.perros.nombre) || "Perro" };
+              }));
+            });
+        }
       });
     });
   }

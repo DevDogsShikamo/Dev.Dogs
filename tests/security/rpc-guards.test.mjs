@@ -1,4 +1,4 @@
-// S2a RPC guards: mover_perro, grupo_set_hora and bloque_reprogramar are callable
+// S2a RPC guards: mover_perro, grupo_set_hora, bloque_reprogramar and the F1 agenda RPCs are callable
 // only by the owner or office of the group's tenant, reject unresolvable callers
 // (NULL is a denial) and validate their inputs. Every denial must be a 42501.
 import { before, test } from 'node:test'
@@ -92,7 +92,8 @@ test('bloque_reprogramar rejects a source or target date in the past', async () 
 })
 
 // ---- AH-1a for the new functions ----------------------------------------------
-const FUNCTIONS = ['assert_gestor', 'mover_perro', 'grupo_set_hora', 'bloque_reprogramar', 'grupo_asignar']
+const FUNCTIONS = ['assert_gestor', 'mover_perro', 'grupo_set_hora', 'bloque_reprogramar', 'grupo_asignar',
+  'grupo_agregar_perro', 'grupo_quitar_perro', 'grupo_actualizar', 'grupo_eliminar', 'prestacion_asignar']
 
 test('AH-1a: the S2a functions pin an empty search_path and are not executable by anon', () => {
   const rows = sql(`select proname, coalesce(proconfig @> array['search_path=""'], false) as pinned,
