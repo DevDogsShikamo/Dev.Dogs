@@ -1,0 +1,1 @@
+-- Structural inverse of 20261029120001_resenas_sin_mensualidad.sql: re-apply resena_guardar from 20261026100003_resenas_motivo.sql.

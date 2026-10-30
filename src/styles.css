@@ -1799,6 +1799,9 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-fac-exp{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.4rem;padding:0.7rem;border-radius:0.9rem;background:var(--purple);color:#fff;font-weight:700;border:0;cursor:pointer;font-size:0.9rem}
 .dd-app .dd-fac-exp:hover{filter:brightness(1.05)}
 .dd-app .dd-fac-exp svg{width:1.1rem;height:1.1rem}
+/* Reportes: "Exportar mes" (the month's charges) */
+.dd-app .dd-rep-export{display:flex;flex-direction:column;gap:0.5rem;margin:0.5rem 0 1rem}
+.dd-app .dd-rep-export .dd-fac-legal{margin:0}
 .dd-app .dd-cli-past{opacity:0.62}
 
 /* S7: consent block (signup data step, /unirse) and the policy page */

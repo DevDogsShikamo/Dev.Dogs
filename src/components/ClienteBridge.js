@@ -76,10 +76,24 @@ function mount(el, inputs, on) {
           var d = r.perros || {};
           if (!d.id || d.activo === false) return;   // un perro dado de baja por el negocio ya no se lista
           ids.push(d.id);
-          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "" });
+          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "", plan: "" });
         });
         if (on.misPerros) on.misPerros(perros);
         if (on.loaded) on.loaded(true);
+
+        // Monthly plans of my dogs (RLS: the dog's owners read them): "Plan mensual: Paseo", plus its end once cancelled.
+        if (on.misPerros && ids.length) {
+          supa.from("suscripciones").select("perro_id,estado,fin,servicios(nombre)").in("perro_id", ids).in("estado", ["activa", "cancelada"])
+            .or("fin.is.null,fin.gte." + today()).then(function (sr) {
+              if (sr && sr.error) return;
+              var planes = {};
+              (sr.data || []).forEach(function (p) {
+                var t = "Plan mensual: " + ((p.servicios && p.servicios.nombre) || "") + (p.estado === "cancelada" ? " · termina el " + p.fin : "");
+                planes[p.perro_id] = planes[p.perro_id] ? planes[p.perro_id] + " · " + t : t;
+              });
+              on.misPerros(perros.map(function (d) { return Object.assign({}, d, { plan: planes[d.id] || "" }); }));
+            });
+        }
 
         // Mis paseos (prestaciones de esos perros).
         if (on.misPaseos && ids.length) {
@@ -90,6 +104,8 @@ function mount(el, inputs, on) {
             var nd = new Date(), ahora = String(nd.getHours()).padStart(2, "0") + ":" + String(nd.getMinutes()).padStart(2, "0");
             var paseos = (pr.data || []).map(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
+              // A monthly charge of a plan (mensualidades_generar): in the balance and the statement, not in the agenda.
+              var mensual = !!det.mensualidad;
               var cb = r.cobros || {};
               var cobrable = cb.cobrable !== false;
               var estado = r.estado || "programado";
@@ -97,15 +113,16 @@ function mount(el, inputs, on) {
               var producto = r.tipo === "comida" || r.tipo === "accesorio";
               // A cancelled booking is no longer upcoming; only a scheduled service from today on can be cancelled,
               // and a same-day one only before its hour (the rule of reserva_cancelar).
-              var futuro = (r.fecha || "") >= t && estado !== "cancelado";
+              var futuro = !mensual && (r.fecha || "") >= t && estado !== "cancelado";
               var hora = /^\d\d:\d\d$/.test(det.hora || "") ? det.hora : "";
               var aTiempo = r.fecha !== t || !hora || hora > ahora;
               return {
-                id: r.id, fecha: r.fecha || "", hora: det.hora || "", servicio: svc.nombre || r.tipo || "",
+                id: r.id, fecha: r.fecha || "", hora: det.hora || "",
+                servicio: mensual ? "Mensualidad " + (svc.nombre || r.tipo || "") + " · " + U.mesLabel(det.mensualidad) : (svc.nombre || r.tipo || ""),
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
                 cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: futuro,
-                producto: producto, cancelable: futuro && aTiempo && estado === "programado" && !producto
+                producto: producto, mensual: mensual, cancelable: futuro && aTiempo && estado === "programado" && !producto
               };
             });
             on.misPaseos(paseos);

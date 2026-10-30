@@ -75,7 +75,7 @@ test('RV-7a: office without the permission has no finance UI and never fetches m
     else assert.ok(!seen(page, '"precio_aplicado"'), `${actor}: charges never fetched`)
     if (finance) {
       await go(page, 'Reportes')
-      assert.ok(await shown(page.getByText('Total del periodo (30d)')))
+      assert.ok(await shown(page.getByText('Realizado en el mes')))
     }
     await page.close()
   }
@@ -122,7 +122,7 @@ test('the owner still sees everything: salaries, client phones, prices and repor
   await go(page, 'Servicios')
   assert.ok(await shown(page.getByText('20.000')), 'service price')
   await go(page, 'Reportes')
-  assert.ok(await shown(page.getByText('Total del periodo (30d)')))
+  assert.ok(await shown(page.getByText('Realizado en el mes')))
   await page.close()
 })
 
