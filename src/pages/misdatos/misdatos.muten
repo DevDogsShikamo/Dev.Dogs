@@ -1,7 +1,7 @@
 screen misdatos
 use miNombreGuardar, miTelefonoGuardar, solicitudDatosCrear from "~/lib/data.ts"
 use misDatosDescargar from "~/lib/export.ts"
-use okPhone from "../../components/validate.js"
+use okPhone, okPw from "../../components/validate.js"
 
 meta {
   title "Mis datos | DevDogs"
@@ -22,11 +22,23 @@ state {
   telefono    = "" : text
   tipo        = "consulta" : text
   detalle     = "" : text
+  # Seguridad de la cuenta (SupaAuthForm "cuenta"): accion = "clave" | "correo" says which form answered.
+  actual      = "" : text
+  pwNueva     = "" : text
+  pwNueva2    = "" : text
+  correoNuevo = "" : text
+  accion      = "" : text
+  cuentaAviso = "" : text
+  cuentaError = "" : text
+  cuentaNonce = 0  : number
 }
 
 get rolTxt  = datos.rol == "cliente" ? "Cliente" : (datos.rol == "paseador" ? "Paseador" : "Empresa")
 get nombreOk = nombre.length > 0 and nombre.length <= 100
 get telOk   = telefono == "" or okPhone(telefono)
+get pwOk    = okPw(pwNueva)
+get claveOk = actual.length > 0 and pwOk and pwNueva == pwNueva2
+get correoOk = correoNuevo.length > 4 and correoNuevo != datos.email
 
 action cargar(d: MisDatos) mutates datos, nombre, telefono {
   datos.set(d)
@@ -43,6 +55,16 @@ action enviar mutates detalle {
   solicitudDatosCrear(tipo, detalle)
   detalle.reset()
 }
+action cambiarClave mutates accion, cuentaAviso, cuentaError, cuentaNonce {
+  accion.set("clave") cuentaAviso.set("") cuentaError.set("") cuentaNonce.set(cuentaNonce + 1)
+}
+action cambiarCorreo mutates accion, cuentaAviso, cuentaError, cuentaNonce {
+  accion.set("correo") cuentaAviso.set("") cuentaError.set("") cuentaNonce.set(cuentaNonce + 1)
+}
+action cuentaOk(m: text) mutates cuentaAviso, actual, pwNueva, pwNueva2 {
+  cuentaAviso.set(m) actual.reset() pwNueva.reset() pwNueva2.reset()
+}
+action cuentaFallo(m: text) mutates cuentaError { cuentaError.set(m) }
 
 Page class("pv") {
   Stack class("pv-wrap") {
@@ -79,6 +101,49 @@ Page class("pv") {
         when not telOk { Text "Nº inválido" class("gfield-hint") }
       }
       Button "Guardar teléfono" -> guardarTelefono class("md-btn") disabled when not telOk
+    }
+
+    Section class("pv-sec") {
+      Title "Seguridad de la cuenta" h2
+      Text "Para cambiar tu contraseña, confirma primero la actual." class("pv-meta")
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:lock" }
+        Stack class("gfield-body") {
+          Text "Contraseña actual" class("gfield-label")
+          Password bind(actual) "Contraseña actual" class("gfield-input")
+        }
+      }
+      Stack class("gfield") class("gfield-err" when pwNueva.length > 0 and not pwOk) {
+        Stack class("gfield-ic") { Icon "lucide:lock" }
+        Stack class("gfield-body") {
+          Text "Nueva contraseña" class("gfield-label")
+          Password bind(pwNueva) "Nueva contraseña" class("gfield-input")
+        }
+        when pwNueva.length > 0 and not pwOk { Text "Usa mayúscula y número" class("gfield-hint") }
+      }
+      Stack class("gfield") class("gfield-err" when pwNueva2.length > 0 and pwNueva != pwNueva2) {
+        Stack class("gfield-ic") { Icon "lucide:lock" }
+        Stack class("gfield-body") {
+          Text "Confirmar contraseña" class("gfield-label")
+          Password bind(pwNueva2) "Repite la nueva contraseña" class("gfield-input")
+        }
+        when pwNueva2.length > 0 and pwNueva != pwNueva2 { Text "No coincide" class("gfield-hint") }
+      }
+      Button "Cambiar contraseña" -> cambiarClave class("md-btn") disabled when not claveOk
+      when accion == "clave" and cuentaError != "" { Text "{cuentaError}" class("gerror") }
+      when accion == "clave" and cuentaAviso != "" { Text "{cuentaAviso}" class("gok") }
+
+      Text "Para cambiar el correo con el que entras, te enviaremos un enlace de confirmación. Hasta que lo confirmes sigues entrando con el actual." class("pv-meta")
+      Stack class("gfield") {
+        Stack class("gfield-ic") { Icon "lucide:mail" }
+        Stack class("gfield-body") {
+          Text "Nuevo correo" class("gfield-label")
+          SearchField bind(correoNuevo) "nuevo@correo.com" class("gfield-input")
+        }
+      }
+      Button "Cambiar correo" -> cambiarCorreo class("md-btn") disabled when not correoOk
+      when accion == "correo" and cuentaError != "" { Text "{cuentaError}" class("gerror") }
+      when accion == "correo" and cuentaAviso != "" { Text "{cuentaAviso}" class("gok") }
     }
 
     Section class("pv-sec") {
@@ -121,5 +186,7 @@ Page class("pv") {
     }
   }
   Custom MisDatosBridge on(perfil: cargar, solicitudes: setSolicitudes)
+  Custom SupaAuthForm inputs(mode: "cuenta", accion: @accion, actual: @actual, pw: @pwNueva, email: @correoNuevo, nonce: @cuentaNonce) on(failed: cuentaFallo, aviso: cuentaOk)
+  Custom SupaAuthForm inputs(mode: "watch") on(politica: auth.setPolitica)
   Custom Toast
 }
