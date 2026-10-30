@@ -52,6 +52,7 @@ test('IV-1g: the independent walker invites a client; the code is shown once, wi
   await page.getByText(email).first().waitFor({ timeout: 15_000 }) // the pending list shows the email, still no code
 
   await page.getByRole('button', { name: 'Revocar invitación' }).first().click()
+  await page.getByRole('group', { name: 'Confirmar' }).getByRole('button', { name: 'Sí, revocar' }).click() // asks first
   let estado
   for (let i = 0; i < 20 && estado !== 'revocada'; i++) {
     await new Promise((r) => setTimeout(r, 500))

@@ -24,8 +24,10 @@ function mount(el, inputs, on) {
   function reportSession(user) {
     var meta = user.user_metadata || {};
     var name = meta.nombre || meta.full_name || meta.name || (user.email || "").split("@")[0] || "";
-    supa.from("profiles").select("rol,negocio_id").eq("id", user.id).maybeSingle().then(function (pr) {
+    supa.from("profiles").select("rol,negocio_id,nombre").eq("id", user.id).maybeSingle().then(function (pr) {
       if (pr && pr.error) return on.failed("No pudimos cargar tu perfil. Intenta de nuevo.");
+      // The name the user keeps in its profile (Mis datos) wins over the sign-up metadata or the e-mail.
+      if (pr && pr.data && pr.data.nombre) name = pr.data.nombre;
       var rol = (pr && pr.data && pr.data.rol) || "";
       var nid = (pr && pr.data && pr.data.negocio_id) || "";
       // A session without a profile (first Google login, failed provisioning) opens only /completar-registro:

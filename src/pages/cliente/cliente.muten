@@ -25,6 +25,8 @@ entity PolMeta { version text  fecha text }
 
 state {
   section = "dashboard" : text
+  # Reservar: the outings of the business (salidas) or its other services (bath, daycare...).
+  resTab  = "salidas" : text
   salirNeg = false : bool
   resSalidaId = "" : text
   resSvcId    = "" : text
@@ -78,6 +80,7 @@ action rsEnviar mutates rsForm { resenaGuardar(rsRating, rsTexto, rsPublicar)  r
 # the name was reported shows a generic label until the next login.
 get prestador = auth.negocioNombre != "" ? auth.negocioNombre : "tu negocio"
 action go(s: text) mutates section { section.set(s) }
+action resTabSet(t: text) mutates resTab { resTab.set(t) }
 action polSecs(rows: list<PolSec>) mutates secs { secs.set(rows) }
 action polMeta(rows: list<PolMeta>) mutates polVer, polFecha {
   if rows.length > 0 { polVer.set(rows.at(0).version)  polFecha.set(rows.at(0).fecha) }
@@ -337,41 +340,54 @@ Stack class("dd-app") {
       # ==== RESERVAR (acoplarse a las salidas) ====
       when section == "reservar" {
         Stack class("dd-sec") {
-          Stack class("dd-cat-head") { Title "Reservar" h2 }
-          Text "Elige una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
-          Span "Prestado por {prestador}" class("dd-prov-by")
-          when cliente.salidas.length == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar-plus" }  Title "Sin salidas" h2  Text "El negocio todavía no publicó salidas." }
+          Stack class("dd-cat-head") {
+            Title "Reservar" h2
+            Stack class("dd-org-toggle") aria(role: "group", label: "Qué reservar") {
+              Button "Salidas" -> resTabSet("salidas") class("on" when resTab == "salidas")
+              Button "Servicios" -> resTabSet("servicios") class("on" when resTab == "servicios")
+            }
           }
-          Stack class("dd-cat-list") {
-            each cliente.salidas as s {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{s.servicio}" class("nm")  when s.zona { Span "{s.zona}" class("cd") } }
-                  Span "Sale {s.hora}" class("meta")
-                }
-                Stack class("acts") {
-                  Button "Reservar" -> resAbrir(s.id, s.servicioId, s.hora, s.zona) class("dd-cat-add dd-cli-resbtn")
+          Span "Prestado por {prestador}" class("dd-prov-by")
+          when resTab == "salidas" {
+            Stack {
+              Text "Elige una salida del negocio; tu perro se acopla a ese horario y zona." class("dd-cli-hint")
+              when cliente.salidasReservables.length == 0 {
+                Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar-plus" }  Title "Sin salidas" h2  Text "El negocio todavía no publicó salidas." }
+              }
+              Stack class("dd-cat-list") {
+                each cliente.salidasReservables as s {
+                  Stack class("dd-cat-item") {
+                    Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
+                    Stack class("dd-cat-info") {
+                      Stack class("nmline") { Span "{s.servicio}" class("nm")  when s.zona { Span "{s.zona}" class("cd") } }
+                      Span "Sale {s.hora}" class("meta")
+                    }
+                    Stack class("acts") {
+                      Button "Reservar" -> resAbrir(s.id, s.servicioId, s.hora, s.zona) class("dd-cat-add dd-cli-resbtn")
+                    }
+                  }
                 }
               }
             }
           }
 
-          # Otros servicios (baño, guardería, corte, vet…) — pedir un turno directo.
-          Span "Otros servicios" class("dd-emp-lbl")
-          Text "Baño, guardería, corte de garras y más — pide un turno." class("dd-cli-hint")
-          when cliente.nOtrosServicios == 0 { Text "El negocio aún no publicó otros servicios." class("dd-cli-empty") }
-          Stack class("dd-cat-list") {
-            each cliente.servicios as sv where sv.tipo != "paseo" {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:sparkles" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
-                  when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
-                }
-                Stack class("acts") {
-                  Button "Pedir" -> svcAbrir(sv.id, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+          # Otros servicios (baño, guardería, corte, vet…) — pedir un turno directo. Comida y snacks: la Tienda.
+          when resTab == "servicios" {
+            Stack {
+              Text "Baño, guardería, corte de garras y más — pide un turno." class("dd-cli-hint")
+              when cliente.nOtrosServicios == 0 { Text "El negocio aún no publicó otros servicios." class("dd-cli-empty") }
+              Stack class("dd-cat-list") {
+                each cliente.otrosServicios as sv {
+                  Stack class("dd-cat-item") {
+                    Stack class("dd-sv-ic") { Icon "lucide:sparkles" }
+                    Stack class("dd-cat-info") {
+                      Stack class("nmline") { Span "{sv.nombre}" class("nm")  Span "{tipoLabel(sv.tipo)}" class("cd") }
+                      when sv.precio > 0 { Span "{cop(sv.precio)}" class("meta") }
+                    }
+                    Stack class("acts") {
+                      Button "Pedir" -> svcAbrir(sv.id, sv.nombre) class("dd-cat-add dd-cli-resbtn")
+                    }
+                  }
                 }
               }
             }
@@ -421,6 +437,9 @@ Stack class("dd-app") {
                   Stack class("dd-cat-info") {
                     Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
                     Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
+                    # Pickup and drop-off times the walker marked.
+                    when p.recibido { Span "Recibido {p.recibido}" class("meta") }
+                    when p.entrega { Span "Entregado {p.entrega}" class("meta") }
                   }
                   when p.cancelable { Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add") }
                 }
