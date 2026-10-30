@@ -1,0 +1,107 @@
+screen nuevaclave
+use okPw from "../../components/validate.js"
+
+meta {
+  title "Nueva contraseña | DevDogs"
+  lang  "es"
+}
+
+# /nueva-clave: the recovery link of "¿Olvidaste tu contraseña?" lands here with a recovery session.
+# SupaAuthForm ("nueva") says whether that session came from a valid link; saving the password reports the
+# session like a login, so the guard of this route turns false and the chain applies as after any login.
+# A used or expired link offers a new one (the same neutral answer as /login).
+
+state {
+  estado = "cargando" : text   # cargando | listo | invalido
+  pw     = "" : text
+  pw2    = "" : text
+  email  = "" : text
+  aviso  = "" : text
+  nonce  = 0  : number
+}
+
+get pwOk     = okPw(pw)
+get iguales  = pw == pw2
+get valido   = pwOk and iguales
+get invalido = estado == "invalido"
+
+action setEstado(e: text) mutates estado { estado.set(e) }
+action setAviso(m: text) mutates aviso { aviso.set(m) auth.setError("") }
+action enviar mutates nonce, aviso { aviso.set("") nonce.set(nonce + 1) }
+
+Page class("glogin") {
+
+  Stack class("glogin-photo") {
+    Stack class("glogin-back") {
+      Image "/devdogs-wordmark.png" alt("DevDogs") class("gback-wm")
+    }
+    Stack class("glogin-photo-in") {
+      Title "Crea una nueva contraseña" h1 class("glogin-h")
+      Text "Elige una contraseña que no uses en otros sitios." class("glogin-sub")
+    }
+  }
+
+  Stack class("glogin-form") {
+    Stack class("gform-body") {
+      when estado == "cargando" { Text "Verificando el enlace…" class("muted t-sm") }
+
+      when estado == "listo" {
+        Stack class("gform-intro") {
+          Title "Nueva contraseña" h2 class("pv-h1")
+          Stack class("gfield") class("gfield-err" when pw.length > 0 and not pwOk) {
+            Stack class("gfield-ic") { Icon "lucide:lock" }
+            Stack class("gfield-body") {
+              Text "Nueva contraseña" class("gfield-label")
+              Password bind(pw) "Nueva contraseña" class("gfield-input")
+            }
+            when pw.length > 0 and not pwOk { Text "Usa mayúscula y número" class("gfield-hint") }
+          }
+          Stack class("gfield") class("gfield-err" when pw2.length > 0 and not iguales) {
+            Stack class("gfield-ic") { Icon "lucide:lock" }
+            Stack class("gfield-body") {
+              Text "Confirmar contraseña" class("gfield-label")
+              Password bind(pw2) "Repite la nueva contraseña" class("gfield-input")
+            }
+            when pw2.length > 0 and not iguales { Text "No coincide" class("gfield-hint") }
+          }
+        }
+      }
+
+      when invalido {
+        Stack class("gform-intro") {
+          Title "El enlace no es válido o ya venció." h2 class("pv-h1")
+          Text "Cada enlace sirve una sola vez y vence pronto. Escribe el correo de tu cuenta y te enviaremos uno nuevo." class("muted t-sm")
+          Stack class("gfield") {
+            Stack class("gfield-ic") { Icon "lucide:mail" }
+            Stack class("gfield-body") {
+              Text "Correo" class("gfield-label")
+              SearchField bind(email) "tu@correo.com" class("gfield-input")
+            }
+          }
+        }
+      }
+
+      when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+      when aviso.length > 0 { Text "{aviso}" class("gok") }
+
+      Stack class("gsignup") { Link "Volver a iniciar sesión" -> "/login" class("glink t-sm") }
+    }
+
+    Stack class("gbar") {
+      when estado == "listo" {
+        Button -> enviar class("gbar-cta") disabled when not valido {
+          Span "Guardar contraseña"
+          Icon "lucide:arrow-right"
+        }
+      }
+      when invalido {
+        Button -> enviar class("gbar-cta") disabled when email.length < 3 {
+          Span "Enviar un nuevo enlace"
+          Icon "lucide:send"
+        }
+      }
+    }
+
+    Custom SupaAuthForm inputs(mode: "nueva", pw: @pw, email: @email, olvido: @invalido, nonce: @nonce) on(estado: setEstado, failed: auth.setError, session: auth.setSession, aviso: setAviso)
+  }
+}

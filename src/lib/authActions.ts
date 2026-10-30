@@ -16,10 +16,15 @@ const cfg: Cfg = {
   fotos: (override && override.fotos) || "https://devdogs-fotos.devdogsco.workers.dev", // walk-photo Worker (S5b)
 };
 
+// The URL hash an auth link lands with (#access_token=…&type=recovery, or #error_code=otp_expired), read
+// before supabase-js consumes and clears it: /nueva-clave (SupaAuthForm "nueva") checks its session came from it.
+const authHash = typeof location !== "undefined" ? location.hash : "";
+
 export const supa: SupabaseClient = createClient(cfg.url, cfg.key);
 
 // Bridge to the Custom (.js) files, which run inlined and cannot import.
 const g = globalThis as Record<string, unknown>;
+g.__ddAuthHash = authHash;
 g.__supa = supa;
 g.__ddCfg = cfg; // Custom files read the effective url/key here instead of duplicating them
 g.__ddFotos = cfg.fotos; // FotoUpload.js / ClienteBridge.js talk to the photo Worker at this origin
