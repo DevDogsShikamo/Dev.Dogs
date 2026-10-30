@@ -67,6 +67,11 @@ entity GrupoAdmin {
   color    text
 }
 
+# A dog of a group (active membership) and its weekdays: d1..d7 = Monday..Sunday, dias = their label.
+entity Miembro { id text  grupoId text  perroId text  nombre text  dias text  d1 bool  d2 bool  d3 bool  d4 bool  d5 bool  d6 bool  d7 bool }
+# A booking nobody is assigned to yet (a service without a group: bath, daycare...).
+entity SinAsignar { id text  fecha text  hora text  servicio text  perro text }
+
 state {
   grupos      = [] : list<Grupo> persist
   fecha       = "" : text persist
@@ -74,6 +79,9 @@ state {
   perrosHoy   = [] : list<PerroHoy> persist
   perrosPaseo = [] : list<PerroPaseo> persist
   conflictos  = [] : list<Conflicto>
+  # Not persisted: the walker re-reads them online (the business portal keeps its own in empresa.store).
+  miembros    = [] : list<Miembro>
+  sinAsignar  = [] : list<SinAsignar>
   # Modo paseo: sheet del grupo seleccionado (el paseador ejecuta el paseo).
   modoOpen    = false : bool
   modoId      = "" : text
@@ -94,6 +102,11 @@ action setTodos(rows: list<GrupoAdmin>) mutates todos { todos.set(rows) }
 action setPerrosHoy(rows: list<PerroHoy>) mutates perrosHoy { perrosHoy.set(rows) }
 action setPerrosPaseo(rows: list<PerroPaseo>) mutates perrosPaseo { perrosPaseo.set(rows) }
 action setConflictos(rows: list<Conflicto>) mutates conflictos { conflictos.set(rows) }
+action setMiembros(rows: list<Miembro>) mutates miembros { miembros.set(rows) }
+action setSinAsignar(rows: list<SinAsignar>) mutates sinAsignar { sinAsignar.set(rows) }
+# Optimistic: a removed dog and an assigned booking leave their lists at once (the RPC's refresh reconciles).
+action miembroDel(key: text) mutates miembros { miembros.remove where id == key }
+action sinAsignarDel(sid: text) mutates sinAsignar { sinAsignar.remove where id == sid }
 
 # ---- Modo paseo (optimista; el page action también persiste vía data.ts) ----
 action modoAbrir(id: text, gkey: text, titulo: text, estado: text, presIds: text) mutates modoOpen, modoId, modoKey, modoTitulo, modoEstado, modoPresIds, noSalId {
@@ -112,4 +125,4 @@ action noSalLocal(motivoArg: text) mutates perrosPaseo, noSalId { perrosPaseo.pa
 # Optimista: borrar una salida del ABM desaparece al instante.
 action grupoDel(pid: text) mutates todos { todos.remove where id == pid }
 # Limpia el cache al hacer logout (in-memory + persist).
-action limpiar mutates todos, grupos, perrosHoy, perrosPaseo, conflictos { todos.reset()  grupos.reset()  perrosHoy.reset()  perrosPaseo.reset()  conflictos.reset() }
+action limpiar mutates todos, grupos, perrosHoy, perrosPaseo, conflictos, miembros, sinAsignar { todos.reset()  grupos.reset()  perrosHoy.reset()  perrosPaseo.reset()  conflictos.reset()  miembros.reset()  sinAsignar.reset() }

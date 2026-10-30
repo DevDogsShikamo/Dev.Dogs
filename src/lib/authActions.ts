@@ -225,4 +225,26 @@ function askMode(x: number, y: number, title: string, onMode: (modo: string) => 
   });
 }
 
-g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode };
+// Active memberships of a group (grupo_membresias + perros(nombre)) → the grupos.miembros / empresa.miembros rows, with the
+// weekdays the recurrence covers (d1..d7 = Monday..Sunday; recurrencia_aplica in 20260101000002_grupos.sql) and
+// their label. Used by DataBootstrap (independent walker) and SalidasBridge (business).
+type Membresia = { perro_id: string; activo?: boolean; recurrencia?: { tipo?: string; dias?: string[] }; perros?: { nombre?: string } };
+const DIAS = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
+const DIAS_LBL = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+function miembros(grupoId: string, rows: Membresia[]): Record<string, unknown>[] {
+  return (rows || []).filter((m) => m.activo !== false).map((m) => {
+    const rec = m.recurrencia || {};
+    const t = rec.tipo || "diario";
+    const on = DIAS.map((d) => (t === "diario" || t === "semanal") && (!rec.dias || rec.dias.indexOf(d) >= 0));
+    const n = on.filter(Boolean).length;
+    const dias = t !== "diario" && t !== "semanal" ? "Personalizada"
+      : n === 7 ? "Todos los días"
+      : n === 5 && on.slice(0, 5).every(Boolean) ? "Lunes a viernes"
+      : DIAS_LBL.filter((_, i) => on[i]).join(", ");
+    const row: Record<string, unknown> = { id: grupoId + "|" + m.perro_id, grupoId, perroId: m.perro_id, nombre: (m.perros && m.perros.nombre) || "Perro", dias };
+    on.forEach((v, i) => { row["d" + (i + 1)] = v; });
+    return row;
+  });
+}
+
+g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode, miembros };

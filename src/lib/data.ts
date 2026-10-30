@@ -24,6 +24,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("politica_invalida") >= 0) return "Revisa las políticas: Requisitos y Responsabilidad son obligatorias y cada sección admite hasta 4000 caracteres.";
   if (m.indexOf("aviso_rol_pendiente") >= 0) return "Antes de reservar o comprar, acepta el aviso sobre quién presta el servicio: cierra sesión y vuelve a entrar.";
   if (m.indexOf("negocio_sin_identidad") >= 0) return "Tu negocio todavía no completó sus datos legales. Cuando lo haga podrás reservar y comprar.";
+  if (m.indexOf("prestacion_no_asignable") >= 0) return "Ese servicio ya no se puede asignar: empezó, terminó o fue cancelado.";
   if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
   if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
   if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
@@ -201,13 +202,45 @@ export function grupoCrear(nombre: string, zona: string, hora: number, duracion:
   });
 }
 
+// grupo_actualizar (owner/office) also re-stamps hour, service and price on the group's future walks.
 export function grupoActualizar(id: string, nombre: string, zona: string, hora: number, duracion: number, servicio: string, color: string): void {
-  supa.from("grupos").update(grupoFields({ nombre, zona, hora, duracion, servicio, color })).eq("id", id).then(done("No se pudo guardar la salida", refresh));
+  supa.rpc("grupo_actualizar", {
+    p_grupo: id, p_nombre: nombre || "", p_hora: hhmm(hora || 8), p_servicio: servicio || null,
+    p_duracion: duracion || 60, p_zona: zona || "", p_color: color || "purple",
+  }).then(done("No se pudo guardar la salida", refresh));
 }
 
-// Optimista (grupoDel ya lo quitó): éxito → nada; error → toast+revert.
+// Optimista (grupoDel ya lo quitó). grupo_eliminar deactivates the group and its memberships and deletes its
+// future walks; the refresh brings the agenda in line.
 export function grupoEliminar(id: string): void {
-  supa.from("grupos").update({ activo: false }).eq("id", id).then(done("No se pudo eliminar la salida"));
+  supa.rpc("grupo_eliminar", { p_grupo: id }).then(done("No se pudo eliminar la salida", refresh));
+}
+
+// A dog joins a group (or changes its days): d1..d7 = Monday..Sunday; all seven = every day. The server creates
+// the walks of the next 57 days and returns how many dates it left out because the walker already had 8 dogs.
+export function grupoAgregarPerro(grupo: string, perro: string, d1: boolean, d2: boolean, d3: boolean, d4: boolean, d5: boolean, d6: boolean, d7: boolean): void {
+  if (!grupo || !perro) { toast("Elige el perro"); return; }
+  const dias = [d1, d2, d3, d4, d5, d6, d7].map(function (on, i) { return on ? i + 1 : 0; }).filter(Boolean);
+  if (!dias.length) { toast("Elige al menos un día"); return; }
+  supa.rpc("grupo_agregar_perro", { p_grupo: grupo, p_perro: perro, p_dias: dias.length === 7 ? null : dias }).then(function (res) {
+    if (res.error) { toast(errMsg(res.error, "No se pudo agregar el perro a la salida")); refresh(); return; }
+    if (Number(res.data) > 0) toast("El perro quedó en la salida, pero " + res.data + " día(s) no se agendaron: el paseador ya tiene 8 perros a esa hora.");
+    refresh();
+  });
+}
+
+// The dog leaves the group: its future walks of that group are deleted.
+export function grupoQuitarPerro(grupo: string, perro: string): void {
+  supa.rpc("grupo_quitar_perro", { p_grupo: grupo, p_perro: perro }).then(done("No se pudo quitar el perro de la salida", refresh));
+}
+
+// A booking without a group (bath, daycare...) gets its assignee; prestacionTomar = the signed-in owner takes it.
+export function prestacionAsignar(id: string, cuidador: string): void {
+  if (!id || !cuidador) return;
+  supa.rpc("prestacion_asignar", { p_id: id, p_cuidador: cuidador }).then(done("No se pudo asignar el servicio", refresh));
+}
+export function prestacionTomar(id: string): void {
+  resolveSesion().then(function (s) { if (s.uid) prestacionAsignar(id, s.uid); });
 }
 
 // ---- Drag & drop de grupos (RPCs en migration_grupos.sql) ----------------
@@ -342,8 +375,8 @@ export function invitacionQuitar(id: string): void {
 }
 
 // Asigna un paseador a una salida (grupos.cuidador_id) vía el RPC grupo_asignar: dueño u
-// oficina, y el cuidador debe ser paseador del negocio o el dueño. Las prestaciones FUTURAS
-// que genere el grupo usarán este cuidador; las ya materializadas no se retro-cambian.
+// oficina, y el cuidador debe ser paseador del negocio o el dueño. The group's future programado walks get the
+// new walker too; if one of them would give him a ninth dog the whole change is refused (paseador_lleno).
 export function grupoAsignar(grupoId: string, cuidadorId: string): void {
   supa.rpc("grupo_asignar", { p_grupo: grupoId, p_cuidador: cuidadorId || null }).then(done("No se pudo asignar el paseador"));
 }

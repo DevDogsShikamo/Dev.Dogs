@@ -31,6 +31,49 @@ export const GUARDED_RPCS = [
     damage: async () => ((await hora()) === '08:00' ? null : 'group g1 hour changed'),
     undo: resetHora,
   },
+  // F1 agenda: d2 belongs to no group; d4 is g2's only dog; nonWalk is an unassigned bath.
+  {
+    name: 'grupo_agregar_perro',
+    args: { p_grupo: ids.grupos.g1, p_perro: ids.perros.d2 },
+    damage: async () => {
+      const { data } = await admin().from('grupo_membresias').select('id').eq('grupo_id', ids.grupos.g1).eq('perro_id', ids.perros.d2)
+      return data.length ? 'd2 joined group g1' : null
+    },
+    undo: async () => {
+      await admin().from('prestaciones').delete().eq('perro_id', ids.perros.d2).eq('grupo_id', ids.grupos.g1)
+      await admin().from('grupo_membresias').delete().eq('grupo_id', ids.grupos.g1).eq('perro_id', ids.perros.d2)
+    },
+  },
+  {
+    name: 'grupo_quitar_perro',
+    args: { p_grupo: ids.grupos.g2, p_perro: ids.perros.d4 },
+    damage: async () => {
+      const { data } = await admin().from('grupo_membresias').select('activo').eq('grupo_id', ids.grupos.g2).eq('perro_id', ids.perros.d4).single()
+      return data.activo ? null : 'd4 left group g2'
+    },
+    undo: () => admin().from('grupo_membresias').update({ activo: true }).eq('grupo_id', ids.grupos.g2),
+  },
+  {
+    name: 'grupo_actualizar',
+    args: { p_grupo: ids.grupos.g1, p_nombre: 'G1', p_hora: '23:57', p_servicio: ids.servicios.paseoA, p_duracion: 90, p_zona: 'Norte', p_color: 'purple' },
+    damage: async () => ((await hora()) === '08:00' ? null : 'group g1 hour changed'),
+    undo: resetHora,
+  },
+  {
+    name: 'grupo_eliminar',
+    args: { p_grupo: ids.grupos.g2 },
+    damage: async () => ((await admin().from('grupos').select('activo').eq('id', ids.grupos.g2).single()).data.activo ? null : 'group g2 deleted'),
+    undo: async () => {
+      await admin().from('grupos').update({ activo: true }).eq('id', ids.grupos.g2)
+      await admin().from('grupo_membresias').update({ activo: true }).eq('grupo_id', ids.grupos.g2)
+    },
+  },
+  {
+    name: 'prestacion_asignar',
+    args: { p_id: ids.prestaciones.nonWalk, p_cuidador: ids.users.WALKER_CO },
+    damage: async () => ((await admin().from('prestaciones').select('cuidador_id').eq('id', ids.prestaciones.nonWalk).single()).data.cuidador_id ? 'nonWalk assigned' : null),
+    undo: () => admin().from('prestaciones').update({ cuidador_id: null }).eq('id', ids.prestaciones.nonWalk),
+  },
 ]
 
 // Call `rpc` as `client`, report what changed, and always revert it.
