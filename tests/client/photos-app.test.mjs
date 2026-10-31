@@ -33,8 +33,8 @@ test('S5b: the photo origin defaults to production and is overridable only throu
 const settle = () => new Promise((r) => setTimeout(r, 25))
 const src = text('src/components/FotoUpload.js')
 
-function setup({ bitmap = { width: 4000, height: 3000 }, sizes = [900_000], puts = [201], registrar = { data: 'foto-1' }, tags = [{ id: 'p1' }, { id: 'p2' }] } = {}) {
-  const log = { rpc: [], puts: [], toasts: [], uploaded: [], toBlob: [], canvas: null }
+function setup({ bitmap = { width: 4000, height: 3000 }, sizes = [900_000], puts = [201], registrar = { data: 'foto-1' }, tags = [{ id: 'p1' }, { id: 'p2' }], perro } = {}) {
+  const log = { rpc: [], puts: [], toasts: [], uploaded: [], toBlob: [], canvas: null, events: [] }
   const el = () => ({ style: {}, kids: [], on: {}, clicks: 0, files: [], addEventListener(t, f) { this.on[t] = f }, appendChild(c) { this.kids.push(c) }, click() { this.clicks++ } })
   const document = {
     createElement: (tag) => {
@@ -55,6 +55,7 @@ function setup({ bitmap = { width: 4000, height: 3000 }, sizes = [900_000], puts
   }
   const g = {
     __ddFotos: FOTOS,
+    dispatchEvent: (e) => log.events.push(e.type),
     __ddUtils: { toast: (m) => log.toasts.push(m) },
     __supa: {
       rpc: (name, args) => { log.rpc.push({ name, args }); return Promise.resolve(registrar) },
@@ -65,7 +66,7 @@ function setup({ bitmap = { width: 4000, height: 3000 }, sizes = [900_000], puts
   const URL = { createObjectURL: () => 'blob:preview' }
   const mount = new Function('document', 'createImageBitmap', 'fetch', 'URL', 'globalThis', `${src}; return mount`)(document, createImageBitmap, fetch, URL, g)
   const host = el()
-  const update = mount(host, { tags }, { uploaded: (u) => log.uploaded.push(u) })
+  const update = mount(host, perro ? { perro } : { tags }, { uploaded: (u) => log.uploaded.push(u) })
   const [btn, input] = host.kids
   const pick = async () => { input.files = [{ name: 'a.jpg' }]; input.on.change(); await settle() }
   return { log, update, btn, input, pick, host }
@@ -147,4 +148,30 @@ test('errors are mapped to a toast: an invalid or oversized photo is not retried
   const late = setup({ registrar: { error: { message: 'fuera_de_ventana' } } })
   await late.pick()
   assert.match(late.log.toasts[0], /hoy o ayer/i)
+})
+
+// ---- dog profile photo (inputs.perro): same re-encoding, no registration, PUT /p/{perro} ----------------
+test('perro: the photo is re-encoded and uploaded to /p/{perro} without registering; the data is re-read', async () => {
+  const t = setup({ perro: 'dog-1' })
+  assert.match(t.btn.textContent, /Cambiar foto/)
+  await t.pick()
+  assert.deepEqual(t.log.rpc, [], 'no foto_registrar for a dog photo')
+  assert.deepEqual(t.log.toBlob, [{ type: 'image/jpeg', q: 0.8 }])
+  assert.deepEqual(t.log.puts.map((p) => [p.url, p.init.method, p.init.headers.authorization]), [[`${FOTOS}/p/dog-1`, 'PUT', 'Bearer tok-1']])
+  assert.deepEqual(t.log.events, ['supa:refresh'], 'the bridges re-read foto_at')
+  assert.equal(t.log.uploaded.length, 1)
+  assert.match(t.log.toasts[0], /Foto del perro actualizada/)
+})
+test('perro: a refused upload explains it and a retryable one keeps the bytes for the retry', async () => {
+  const no = setup({ perro: 'dog-1', puts: [403] })
+  await no.pick()
+  assert.match(no.log.toasts[0], /permiso/)
+  assert.deepEqual(no.log.events, [])
+  const net = setup({ perro: 'dog-1', puts: ['network', 201] })
+  await net.pick()
+  assert.match(net.btn.textContent, /Reintentar/)
+  net.btn.on.click()
+  await settle()
+  assert.deepEqual(net.log.puts.map((p) => p.url), [`${FOTOS}/p/dog-1`, `${FOTOS}/p/dog-1`])
+  assert.deepEqual(net.log.events, ['supa:refresh'])
 })

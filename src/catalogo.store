@@ -53,8 +53,8 @@ action setRelaciones(rows: list<Relacion>) mutates relaciones { relaciones.set(r
 # falla, dispara supa:refresh para revertir a la verdad + un toast. Editar campos
 # básicos NO toca relN/relWorst (patch solo setea lo listado). Params con prefijo
 # n* para no chocar con los campos (item-implícito en `with`).
-action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconducta: text, nsoc: text, ntips: text, nfoto: text, ncelo: bool, ncontagio: bool, ncert: text) mutates perros {
-  perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, foto: nfoto, celo: ncelo, contagio: ncontagio, certificado: ncert }
+action perroPatch(pid: text, nnombre: text, nraza: text, ntamano: text, nconducta: text, nsoc: text, ntips: text, ncelo: bool, ncontagio: bool, ncert: text) mutates perros {
+  perros.patch where id == pid with { nombre: nnombre, raza: nraza, tamano: ntamano, conducta: nconducta, sociabilidad: nsoc, tips: ntips, celo: ncelo, contagio: ncontagio, certificado: ncert }
 }
 action perroQuitar(pid: text) mutates perros { perros.remove where id == pid }
 action setLoaded mutates loaded { loaded.set(true) }

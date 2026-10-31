@@ -12,11 +12,13 @@ function mount(el, inputs, on) {
       if (!s.negocioId) return;
       Promise.all([supa.rpc("is_owner"), supa.rpc("has_finanzas")]).then(function (r) {
         if (!(r[0].data === true || r[1].data === true)) return;
-        supa.from("suscripciones")
-          .select("id,perro_id,servicio_id,estado,inicio,fin,precio_mensual,perros(nombre),servicios(nombre,tarifas(precio_mensual))")
-          .eq("negocio_id", s.negocioId).in("estado", ["activa", "cancelada"]).or("fin.is.null,fin.gte." + U.today())
-          .order("inicio")
-          .then(function (res) {
+        // Every plan, past the 1000-row cap (U.pageAll; the order ends in id).
+        U.pageAll(function () {
+          return supa.from("suscripciones")
+            .select("id,perro_id,servicio_id,estado,inicio,fin,precio_mensual,perros(nombre),servicios(nombre,tarifas(precio_mensual))")
+            .eq("negocio_id", s.negocioId).in("estado", ["activa", "cancelada"]).or("fin.is.null,fin.gte." + U.today())
+            .order("inicio").order("id");
+        }).then(function (res) {
             if (res && res.error) return;   // keep what is shown if the network failed
             on.planes((res.data || []).map(function (p) {
               var svc = p.servicios || {}, t = svc.tarifas || {};

@@ -15,12 +15,14 @@ function mount(el, inputs, on) {
     negocio().then(function (neg) {
       if (!neg) return;
       var nombres = {};
-      supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
+      var todas = globalThis.__ddUtils.pageAll;   // whole lists past the 1000-row cap; orders end in id
+      todas(function () { return supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").order("id"); }).then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
-        supa.from("grupos")
-          .select("id,nombre,zona,hora,duracion_min,color,servicio_id,cuidador_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
-          .eq("negocio_id", neg).eq("activo", true).order("hora")
-          .then(function (res) {
+        todas(function () {
+          return supa.from("grupos")
+            .select("id,nombre,zona,hora,duracion_min,color,servicio_id,cuidador_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
+            .eq("negocio_id", neg).eq("activo", true).order("hora").order("id");
+        }).then(function (res) {
             if (res && res.error) return;
             // The dogs of each outing, with their weekdays (Agregar perro / Quitar).
             var miembros = [];

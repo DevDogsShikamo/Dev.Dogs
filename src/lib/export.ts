@@ -3,6 +3,7 @@
 // arma la tabla y dispara una descarga del navegador (app real; no en artifacts).
 // El separador es ";" porque en Colombia la coma es decimal (Excel lo parsea bien).
 import { mesLabel, resolveSesion, supa, toast } from "./authActions";
+import { pageAll } from "./localData.js";
 
 type Fila = { fecha: string; servicio: string; estado: string; precio: number; cobrable: boolean; cobrado: boolean };
 
@@ -31,13 +32,14 @@ export function servicioLabel(servicio: string, detalle: unknown): string {
   return mes ? "Mensualidad " + servicio + " · " + mesLabel(mes) : servicio;
 }
 
-// Trae todas las prestaciones del perro (RLS: el dueño ve las de su perro).
+// Trae todas las prestaciones del perro (RLS: el dueño ve las de su perro), past the 1000-row cap.
 function traerFilas(perroId: string): Promise<Fila[]> {
-  return supa
+  return pageAll(() => supa
     .from("prestaciones")
     .select("fecha,estado,tipo,detalle,cobros(precio_aplicado,cobrable,cobrado),servicios(nombre)")
     .eq("perro_id", perroId)
     .order("fecha")
+    .order("id"))
     .then((res: { data?: unknown[] | null }) => {
       const rows = (res.data || []) as Record<string, unknown>[];
       return rows.map((r): Fila => {
@@ -122,7 +124,7 @@ export function descargarEstadoCuentaExcel(perroId: string, perroNombre: string)
 // ---- "Exportar mes" (Reportes: owner or finance office) -------------------------------------------------
 // The charges of one month ("YYYY-MM") of the caller's business: finished, chargeable services, monthly charges
 // included. RLS on `cobros` gives them only to the owner and the finance office.
-// ponytail: one PostgREST page (1000 rows a month); page with .range() if a business outgrows it.
+// Every row of the month (pageAll, past the 1000-row cap).
 type FilaMes = { fecha: string; perro: string; cliente: string; servicio: string; monto: number; pagado: boolean };
 const CABECERA_MES = ["Fecha", "Perro", "Cliente", "Servicio", "Monto", "Estado"];
 
@@ -131,11 +133,11 @@ function traerMes(mes: string): Promise<FilaMes[]> {
   const desde = mes + "-01";
   const hasta = mes + "-" + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0");
   return resolveSesion().then((s) => Promise.all([
-    supa.rpc("perro_duenos_nombres"),
-    supa.from("cobros")
+    pageAll(() => supa.rpc("perro_duenos_nombres").order("perro_id").order("nombre")),
+    pageAll(() => supa.from("cobros")
       .select("precio_aplicado,cobrado,prestaciones!inner(fecha,estado,tipo,detalle,perro_id,perros(nombre),servicios(nombre))")
       .eq("negocio_id", s.negocioId).eq("cobrable", true).eq("prestaciones.estado", "finalizado")
-      .gte("prestaciones.fecha", desde).lte("prestaciones.fecha", hasta),
+      .gte("prestaciones.fecha", desde).lte("prestaciones.fecha", hasta).order("prestacion_id")),
   ])).then(([dr, cr]: { data?: unknown[] | null }[]) => {
     const duenos: Record<string, string> = {};
     ((dr.data || []) as { perro_id: string; nombre: string }[]).forEach((d) => { duenos[d.perro_id] = d.nombre || ""; });

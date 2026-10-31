@@ -8,12 +8,13 @@ import { APP0, COMMENT, EXIF, jpeg } from './_jpeg.mjs'
 const ID = '0f0f0f0f-0000-4000-8000-000000000001'
 const NEG = '0e0e0e0e-0000-4000-8000-000000000002'
 const KEY = `f/${NEG}/${ID}.jpg`
+const PKEY = `p/${NEG}/${ID}.jpg` // a dog profile photo: ID is the perro
 const SUPABASE = 'https://stg.supabase.co'
 const MB2 = 2 * 1024 * 1024
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
 // Supabase stub keyed by the bearer token: good = uploader/owner, stranger = row not visible, expired = rejected JWT.
-function supabase({ confirm = 204, keys = [KEY] } = {}) {
+function supabase({ confirm = 204, keys = [KEY], pkey = PKEY } = {}) {
   const calls = []
   const fetchImpl = async (url, init) => {
     const u = new URL(url)
@@ -25,6 +26,9 @@ function supabase({ confirm = 204, keys = [KEY] } = {}) {
     if (u.pathname.endsWith('/foto_confirmar')) return confirm === 204 ? new Response(null, { status: 204 }) : json(confirm, { code: '42501' })
     if (u.pathname.endsWith('/foto_retencion_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, keys)
     if (u.pathname === '/rest/v1/paseo_fotos') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG }])
+    if (u.pathname.endsWith('/perro_foto_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, pkey)
+    if (u.pathname.endsWith('/perro_foto_confirmar')) return confirm === 204 ? new Response(null, { status: 204 }) : json(confirm, { code: '42501' })
+    if (u.pathname === '/rest/v1/perros') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG, foto_at: token === 'nofoto' ? null : '2026-10-30T10:00:00+00:00' }])
     return json(404, {})
   }
   return { calls, fetchImpl }
@@ -213,4 +217,45 @@ test('GET serves the r/ copy once the lifecycle rule removed f/, and still 404s 
   assert.equal(res.status, 200)
   assert.deepEqual(new Uint8Array(await res.arrayBuffer()), CLEAN)
   assert.equal((await call('GET', `/f/${ID}`, { token: 'stranger', r2: bucket({ [RKEY]: CLEAN }) })).res.status, 404)
+})
+
+// ---- dog profile photo: PUT/GET /p/{perro_id} ---------------------------------------------------------
+const OTHER = jpeg({ parts: [APP0, COMMENT, COMMENT] })
+test('perro: a clean JPEG is stored under p/ (server-chosen key) and confirmed with its size', async () => {
+  const { res, sb, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN })
+  assert.equal(res.status, 201)
+  assert.deepEqual([...r2.store.keys()], [PKEY])
+  assert.deepEqual(sb.calls.map((c) => [c.path, c.body]), [
+    ['/rest/v1/rpc/perro_foto_autorizar', JSON.stringify({ p_perro: ID })],
+    ['/rest/v1/rpc/perro_foto_confirmar', JSON.stringify({ p_perro: ID, p_bytes: CLEAN.length })],
+  ])
+})
+test('perro: a refusal, a key outside p/ or for another dog, and a bad file store nothing', async () => {
+  for (const [label, opts, status] of [
+    ['stranger', { token: 'stranger' }, 403], ['expired', { token: 'expired' }, 401],
+    ['key under f/', { sb: supabase({ pkey: KEY }) }, 502], ['another dog', { sb: supabase({ pkey: `p/${NEG}/${INC}.jpg` }) }, 502],
+    ['exif', { body: jpeg({ parts: [APP0, EXIF] }) }, 422], ['type', { type: 'image/png' }, 415],
+  ]) {
+    const { res, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN, ...opts })
+    assert.equal(res.status, status, label)
+    assert.equal(r2.store.size, 0, label)
+  }
+})
+test('perro: a failed confirm keeps the object (one per dog, the previous photo is already replaced) and relays the refusal', async () => {
+  const { res, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN, sb: supabase({ confirm: 403 }), r2: bucket({ [PKEY]: OTHER }) })
+  assert.equal(res.status, 403)
+  assert.deepEqual([...r2.store.keys()], [PKEY])
+})
+test('perro: GET serves p/ to whoever reads the dog row; a hidden dog or a dog without photo is the same 404', async () => {
+  const seen = await call('GET', `/p/${ID}`, { r2: bucket({ [PKEY]: CLEAN, [KEY]: OTHER }) })
+  assert.equal(seen.res.status, 200)
+  assert.equal(seen.res.headers.get('cache-control'), 'private, no-store')
+  assert.deepEqual(new Uint8Array(await seen.res.arrayBuffer()), CLEAN)
+  assert.equal(seen.sb.calls[0].path, `/rest/v1/perros?id=eq.${ID}&select=id,negocio_id,foto_at`)
+  const hidden = await call('GET', `/p/${ID}`, { token: 'stranger', r2: bucket({ [PKEY]: CLEAN }) })
+  const unset = await call('GET', `/p/${ID}`, { token: 'nofoto', r2: bucket({ [PKEY]: CLEAN }) })
+  const missing = await call('GET', `/p/${ID}`, { r2: bucket() })
+  assert.deepEqual([hidden.res.status, unset.res.status, missing.res.status], [404, 404, 404])
+  assert.equal(await hidden.res.text(), await unset.res.text())
+  for (const method of ['POST', 'DELETE']) assert.equal((await call(method, `/p/${ID}`)).res.status, 405, method)
 })
