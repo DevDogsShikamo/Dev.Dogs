@@ -100,7 +100,7 @@ function mount(el, inputs, on) {
       if (dur > g.dur) g.dur = dur;
       g.dogs.push({
         id: r.id, nombre: p.nombre || "Perro", conducta: p.conducta || "", obs: p.tips || "",
-        raza: p.raza || "", tamano: p.tamano || "", foto: p.foto_url || "",
+        raza: p.raza || "", tamano: p.tamano || "", foto: globalThis.__ddUtils.perroFoto(p.id, p.foto_at),
         estado: r.estado || "programado"
       });
     });
@@ -239,13 +239,16 @@ function mount(el, inputs, on) {
           on.noDisp(buildNoDisp(cols, horario).concat(buildVacaOff(cols, vacas)));
         } else { if (on.descansos) on.descansos([]); on.noDisp([]); }
       });
-      supa.from("prestaciones")
-        .select("id,estado,tipo,fecha,grupo_id,detalle,perros(nombre,conducta,tips,raza,tamano,foto_url),servicios(nombre,duracion_min)")
-        .eq("cuidador_id", uid)
-        .neq("estado", "cancelado")   // a booking the client cancelled is not on the walker's calendar
-        .gte("fecha", iso(start))
-        .lte("fecha", iso(end))
-        .then(function (res) {
+      // Every row of the range (a month view can pass the 1000-row cap); the order ends in id.
+      globalThis.__ddUtils.pageAll(function () {
+        return supa.from("prestaciones")
+          .select("id,estado,tipo,fecha,grupo_id,detalle,perros(id,nombre,conducta,tips,raza,tamano,foto_at),servicios(nombre,duracion_min)")
+          .eq("cuidador_id", uid)
+          .neq("estado", "cancelado")   // a booking the client cancelled is not on the walker's calendar
+          .gte("fecha", iso(start))
+          .lte("fecha", iso(end))
+          .order("id");
+      }).then(function (res) {
           var data = res.data || [];
           if (view === "mes") {
             var counts = {};
@@ -255,6 +258,8 @@ function mount(el, inputs, on) {
             var groups = buildGroups(data);
             on.eventos(groups.map(eventoOf));
             on.detalle(detalleOf(groups));
+            // Dog photos come from the photo Worker: drawn again once they are cached.
+            globalThis.__ddUtils.perroFotos(data.map(function (r) { return r.perros; })).then(function (n) { if (n) load(); });
           }
         });
     });

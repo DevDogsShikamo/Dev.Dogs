@@ -7,6 +7,8 @@ function mount(el, inputs, on) {
   // Date/color helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
   var U = globalThis.__ddUtils;
   var iso = U.iso, addDays = U.addDays, colorFor = U.colorFor;
+  // Whole lists past the 1000-row cap (a busy week of a big business); orders end in id.
+  var todas = U.pageAll;
 
   var ES = {
     DIASC: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
@@ -44,14 +46,16 @@ function mount(el, inputs, on) {
 
       // Nombres de paseadores del negocio.
       var nombres = {};
-      supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
+      todas(function () { return supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").order("id"); }).then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
 
-        supa.from("prestaciones")
-          .select("id,estado,tipo,fecha,detalle,cuidador_id,servicios(nombre)")
-          .eq("negocio_id", neg).gte("fecha", start).lte("fecha", end)
-          .is("detalle->>mensualidad", null)   // a monthly charge of a plan is no outing
-          .then(function (res) {
+        todas(function () {
+          return supa.from("prestaciones")
+            .select("id,estado,tipo,fecha,detalle,cuidador_id,servicios(nombre)")
+            .eq("negocio_id", neg).gte("fecha", start).lte("fecha", end)
+            .is("detalle->>mensualidad", null)   // a monthly charge of a plan is no outing
+            .order("id");
+        }).then(function (res) {
             if (res && res.error || sem !== semana) return;   // a newer week was asked meanwhile
             var groups = {}, order = [];
             (res.data || []).forEach(function (r) {
@@ -87,10 +91,11 @@ function mount(el, inputs, on) {
 
         // Bookings nobody is assigned to (a service without a group): the owner or office assigns them.
         if (on.sinAsignar) {
-          supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
-            .eq("negocio_id", neg).is("cuidador_id", null).eq("estado", "programado")
-            .gte("fecha", start).not("tipo", "in", "(comida,accesorio)").order("fecha").limit(50)
-            .then(function (res) {
+          todas(function () {
+            return supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
+              .eq("negocio_id", neg).is("cuidador_id", null).eq("estado", "programado")
+              .gte("fecha", start).not("tipo", "in", "(comida,accesorio)").order("fecha").order("id");
+          }).then(function (res) {
               if (res && res.error) return;
               on.sinAsignar((res.data || []).map(function (r) {
                 return { id: r.id, fecha: r.fecha || "", hora: (r.detalle && r.detalle.hora) || "", servicio: (r.servicios && r.servicios.nombre) || r.tipo || "", perro: (r.perros && r.perros.nombre) || "Perro" };

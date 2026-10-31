@@ -2,7 +2,7 @@
 // so we expose the client on globalThis for the headless Custom auth bridges to read.
 // The publishable key is public by design; RLS on the DB is what protects data.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { purgeKeys, shouldPurge } from "./localData.js";
+import { pageAll, purgeKeys, shouldPurge } from "./localData.js";
 
 // Test hook: the E2E harness sets window.__DD_CFG = { url, key, fotos } to point the app at
 // STAGING (Supabase and the photo Worker). It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
@@ -259,4 +259,40 @@ function miembros(grupoId: string, rows: Membresia[]): Record<string, unknown>[]
   });
 }
 
-g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode, miembros, mesLabel };
+// ---- Dog profile photos (photo Worker GET /p/{perro}) ------------------------------------------------------------
+// Fetched with the user's token and shown as blob: URLs kept in memory only (never persisted), one per dog and
+// perros.foto_at, so a new upload is fetched again. perroFoto reads the cache (synchronous, "" = the initial
+// fallback); perroFotos fetches the missing ones and resolves true when at least one arrived, so a bridge re-emits.
+// A dog the caller cannot read, or without a photo, is a 404 and simply stays on the fallback.
+type FotoRow = { id?: string; foto_at?: string | null } | null | undefined;
+const perroBlobs: Record<string, string> = {}; // "id|foto_at" -> blob: URL
+const perroActual: Record<string, string> = {}; // id -> its current key, to revoke the replaced blob
+const perroPend: Record<string, Promise<boolean>> = {};
+function perroFoto(id: string, at?: string | null): string {
+  return (id && at && perroBlobs[id + "|" + at]) || "";
+}
+function perroFotos(rows: FotoRow[]): Promise<boolean> {
+  const faltan = (rows || []).filter((r): r is { id: string; foto_at: string } => !!(r && r.id && r.foto_at && !perroBlobs[r.id + "|" + r.foto_at]));
+  if (!faltan.length) return Promise.resolve(false);
+  return supa.auth.getSession().then((r) => {
+    const tok = r.data.session?.access_token;
+    if (!tok) return false;
+    return Promise.all(faltan.map((f) => {
+      const k = f.id + "|" + f.foto_at;
+      return (perroPend[k] ??= fetch(cfg.fotos + "/p/" + f.id, { headers: { authorization: "Bearer " + tok } })
+        .then((res) => (res.ok ? res.blob() : null))
+        .then((b) => {
+          if (!b) return false;
+          if (perroActual[f.id] && perroBlobs[perroActual[f.id]]) { URL.revokeObjectURL(perroBlobs[perroActual[f.id]]); delete perroBlobs[perroActual[f.id]]; }
+          perroBlobs[k] = URL.createObjectURL(b);
+          perroActual[f.id] = k;
+          return true;
+        })
+        .catch(() => false)
+        .finally(() => { delete perroPend[k]; }));
+    })).then((got) => got.some(Boolean));
+  });
+}
+
+// pageAll (localData.js): the bridges read whole lists past the 1000-row cap with it.
+g.__ddUtils = { iso, today, pad, addDays, colorFor, toast, askMode, miembros, mesLabel, pageAll, perroFoto, perroFotos };

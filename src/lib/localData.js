@@ -46,3 +46,17 @@ export function classify(res) {
   if (!err.code && !status) return 'network'
   return 'rejected'
 }
+
+// Reads a whole PostgREST list past the server's row cap (1000 on Supabase), one .range() page at a time.
+// `build` returns a FRESH query (a builder runs once) whose order ends in a unique column, so pages neither
+// overlap nor skip rows. An error on any page is returned as the error: never a silently partial list.
+export function pageAll(build, size = 1000) {
+  const out = []
+  const step = (from) => build().range(from, from + size - 1).then((res) => {
+    if (res && res.error) return { data: null, error: res.error }
+    const rows = (res && res.data) || []
+    out.push(...rows)
+    return rows.length < size ? { data: out, error: null } : step(from + size)
+  })
+  return step(0)
+}

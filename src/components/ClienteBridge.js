@@ -6,6 +6,8 @@ function mount(el, inputs, on) {
   // Date/session helpers: single source of truth on globalThis.__ddUtils / __ddSesion.
   var U = globalThis.__ddUtils;
   var iso = U.iso, addDaysD = U.addDays, today = U.today;
+  // Whole lists past the 1000-row cap (the balance and the statement need every row); orders end in a unique key.
+  var todas = U.pageAll;
   // The four causes a business may reject a review for (resenas.motivo_rechazo), as the author reads them.
   var MOTIVOS = { ofensiva: "Ofensiva o discriminatoria", datos_personales: "Contiene datos personales", no_relacionada: "No es sobre el servicio", falsa_o_spam: "Falsa o spam" };
 
@@ -14,10 +16,11 @@ function mount(el, inputs, on) {
   // en la pagina una URL con permiso). Una foto vencida, perdida o sin acceso responde 404: no se
   // muestra nada y no se avisa (WP-7a).
   var blobs = {}; // foto_id -> blob: URL
-  function fotosDe(presIds) {
+  // By dog, not by walk id: a long history of walk ids would not fit in the URL.
+  function fotosDe(perroIds) {
     var supa = globalThis.__supa;
-    if (!presIds.length) return Promise.resolve([]);
-    return supa.from("paseo_foto_perros").select("foto_id,prestacion_id").in("prestacion_id", presIds)
+    if (!perroIds.length) return Promise.resolve([]);
+    return todas(function () { return supa.from("paseo_foto_perros").select("foto_id,prestacion_id").in("perro_id", perroIds).order("foto_id").order("prestacion_id"); })
       .then(function (r) { return (r && !r.error && r.data) || []; });
   }
   function traer(id, tok) {
@@ -68,17 +71,23 @@ function mount(el, inputs, on) {
       if (!s.uid) return;
 
       // Mis perros (perro_duenos activos → perros).
-      supa.from("perro_duenos").select("perro_id,perros(id,nombre,raza,tamano,foto_url,activo,en_celo,enfermedad_contagiosa,certificado_salud)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
+      supa.from("perro_duenos").select("perro_id,perros(id,nombre,raza,tamano,conducta,tips,sociabilidad,foto_at,activo,en_celo,enfermedad_contagiosa,certificado_salud)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
         if (res && res.error) return;
         var rows = res.data || [];
-        var perros = [], ids = [];
+        var perros = [], ids = [], vivos = [], planes = {};
         rows.forEach(function (r) {
           var d = r.perros || {};
           if (!d.id || d.activo === false) return;   // un perro dado de baja por el negocio ya no se lista
           ids.push(d.id);
-          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", foto: d.foto_url || "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "", plan: "" });
+          vivos.push(d);
+          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", conducta: d.conducta || "", tips: d.tips || "", sociabilidad: d.sociabilidad || "", foto: "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "", plan: "" });
         });
-        if (on.misPerros) on.misPerros(perros);
+        // The profile photo (cached blob: URL, "" = the fallback) and the monthly plan are filled in on each emit.
+        function emitPerros() {
+          if (on.misPerros) on.misPerros(perros.map(function (d, i) { return Object.assign({}, d, { plan: planes[d.id] || "", foto: U.perroFoto(d.id, vivos[i].foto_at) }); }));
+        }
+        emitPerros();
+        U.perroFotos(vivos).then(function (n) { if (n) emitPerros(); });
         if (on.loaded) on.loaded(true);
 
         // Monthly plans of my dogs (RLS: the dog's owners read them): "Plan mensual: Paseo", plus its end once cancelled.
@@ -86,18 +95,18 @@ function mount(el, inputs, on) {
           supa.from("suscripciones").select("perro_id,estado,fin,servicios(nombre)").in("perro_id", ids).in("estado", ["activa", "cancelada"])
             .or("fin.is.null,fin.gte." + today()).then(function (sr) {
               if (sr && sr.error) return;
-              var planes = {};
+              planes = {};
               (sr.data || []).forEach(function (p) {
                 var t = "Plan mensual: " + ((p.servicios && p.servicios.nombre) || "") + (p.estado === "cancelada" ? " · termina el " + p.fin : "");
                 planes[p.perro_id] = planes[p.perro_id] ? planes[p.perro_id] + " · " + t : t;
               });
-              on.misPerros(perros.map(function (d) { return Object.assign({}, d, { plan: planes[d.id] || "" }); }));
+              emitPerros();
             });
         }
 
         // Mis paseos (prestaciones de esos perros).
         if (on.misPaseos && ids.length) {
-          supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,cobros(precio_aplicado,cobrable,cobrado),perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").then(function (pr) {
+          todas(function () { return supa.from("prestaciones").select("id,fecha,estado,tipo,detalle,perro_id,cobros(precio_aplicado,cobrable,cobrado),perros(nombre),servicios(nombre)").in("perro_id", ids).order("fecha").order("id"); }).then(function (pr) {
             if (pr && pr.error) return;
             var t = today();
             // Device clock, like today(): the server re-checks with the Bogotá clock.
@@ -130,7 +139,7 @@ function mount(el, inputs, on) {
             on.misPaseos(paseos);
             // Fotos del paseo: las etiquetas que el RLS me deja ver (solo perros mios, foto subida y vigente).
             // Las novedades usan las etiquetas; las imagenes se piden despues al Worker con mi token.
-            fotosDe(paseos.map(function (p) { return p.id; })).then(function (tags) {
+            fotosDe(ids).then(function (tags) {
               if (on.novedades) novedades(paseos, tags);
               if (on.misFotos) mostrar(tags);
             });
@@ -140,7 +149,7 @@ function mount(el, inputs, on) {
 
       // Salidas disponibles del negocio (para reservar).
       if (on.salidas && s.negocioId) {
-        supa.from("grupos").select("id,zona,hora,servicio_id,servicios(nombre,tipo)").eq("negocio_id", s.negocioId).eq("activo", true).order("hora").then(function (gr) {
+        todas(function () { return supa.from("grupos").select("id,zona,hora,servicio_id,servicios(nombre,tipo)").eq("negocio_id", s.negocioId).eq("activo", true).order("hora").order("id"); }).then(function (gr) {
           if (gr && gr.error) return;
           var sal = (gr.data || []).map(function (g) {
             var svc = g.servicios || {};
@@ -169,7 +178,7 @@ function mount(el, inputs, on) {
 
       // Catálogo de servicios del negocio (para pedir baño/guardería/corte/etc.).
       if (on.servicios && s.negocioId) {
-        supa.from("servicios").select("id,nombre,tipo,modelo_cobro,tarifas(precio)").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").then(function (svr) {
+        todas(function () { return supa.from("servicios").select("id,nombre,tipo,modelo_cobro,tarifas(precio)").eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").order("id"); }).then(function (svr) {
           if (svr && svr.error) return;
           var svs = (svr.data || []).map(function (r) {
             var mensual = r.modelo_cobro === "mensual";
