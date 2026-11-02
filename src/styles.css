@@ -1718,6 +1718,9 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-netbar-sync{background:#1e293b;color:#e0f2fe}
 .dd-netbar-sync svg{animation:dd-spin 1s linear infinite}
 .dd-netbar-n{opacity:.85;font-weight:600}
+.dd-netbar-fallo{position:static;flex-direction:column;align-items:stretch;text-align:left}
+.dd-netbar-texto{font-weight:500;white-space:pre-wrap;overflow-wrap:anywhere;max-height:8rem;overflow:auto;user-select:text}
+.dd-netbar-x{align-self:flex-end;background:#ffedd5;color:#7c2d12;border:0;border-radius:0.5rem;padding:0.25rem 0.75rem;font-weight:700;cursor:pointer}
 @keyframes dd-spin{to{transform:rotate(360deg)}}
 
 /* ===================== PORTAL PLACEHOLDER (empresa / cliente) ===================== */

@@ -86,7 +86,7 @@ part PoliticaTexto(version: text) {
         Text "Datos legales del negocio: el jefe y el personal de gestión de ese negocio los ven completos; sus paseadores y sus clientes los ven con el número de documento de una persona natural (cédula o pasaporte) oculto, salvo sus últimos cuatro dígitos. Solo el jefe los registra y los cambia."
         Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros. Si un dueño reporta una foto guardada como evidencia de un incidente, deja de mostrarse a los clientes y al paseador y solo la ven el jefe y el personal de gestión del negocio."
         Text "Incidentes: el jefe y el personal de gestión del negocio, quien lo reportó y los dueños (principal y co-dueños) del perro."
-        Text "Foto de perfil del perro: quienes pueden ver el perro, es decir, el jefe y el personal de gestión del negocio, el paseador que lo pasea y sus dueños (principal y co-dueños). La suben el jefe, el personal de gestión o sus dueños."
+        Text "Foto de perfil del perro: quienes pueden ver el perro, es decir, el jefe y el personal de gestión del negocio, el paseador que lo pasea y sus dueños (principal y co-dueños). La suben o la quitan el jefe, el personal de gestión o sus dueños."
         Text "Reportes de fotos: quien lo hizo, el jefe y el personal de gestión del negocio."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
@@ -95,7 +95,7 @@ part PoliticaTexto(version: text) {
     Section class("pv-sec") {
       Title "6. Conservación" h2
       List {
-        Text "Foto de perfil del perro: se conserva mientras el perro esté registrado; una nueva foto reemplaza a la anterior."
+        Text "Foto de perfil del perro: se conserva mientras el perro esté registrado; una nueva foto reemplaza a la anterior. El archivo se elimina del almacenamiento cuando se quita la foto o cuando el perro se da de baja, aunque los demás datos del perro se conserven."
         Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
         Text "Fotos guardadas como evidencia de un incidente: las de ese paseo en las que sale el perro se conservan, junto con una copia del archivo, más allá de los 30 días durante [COMPLETAR: plazo de conservación de la evidencia]."
         Text "Una foto reportada que no es evidencia se borra de inmediato de la aplicación; su archivo se elimina del almacenamiento a los 30 días de haberse subido."
@@ -142,7 +142,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol, negocio y su nombre, y si hay un documento pendiente de aceptar."
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
-        Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión y los cambios que aún no se han enviado."
+        Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión, los cambios que aún no se han enviado y el texto de un reporte de incidente que el servidor no aceptó, hasta que lo descarte."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
         Text "Las fotos de los paseos y las de perfil de los perros no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
       }

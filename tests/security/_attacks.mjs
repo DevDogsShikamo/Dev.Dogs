@@ -189,7 +189,10 @@ export async function makeDog(ownerId, { history }) {
 }
 // prestaciones.perro_id stops cascading in S2b1, so a dog with history is removed
 // together with its rows, through the service role.
+// A dog marked with a photo refuses removal (trg_perro_foto_guardia); the tests that store a real object delete it
+// through the Worker first, the mark alone has nothing behind it.
 export async function dropDog(id) {
   await admin().from('prestaciones').delete().eq('perro_id', id)
+  await admin().from('perros').update({ foto_at: null }).eq('id', id)
   return admin().from('perros').delete().eq('id', id)
 }

@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -256,6 +256,7 @@ action perroGuardar(p: PerroDraft) mutates pform {
 }
 # Borrado optimista: desaparece al instante; perroEliminar persiste + reconcilia.
 action perroBorrar mutates conf { catalogo.perroQuitar(confId)  perroEliminar(confId)  conf.set("") }
+action fotoQuitar mutates conf { perroFotoQuitar(pedit)  conf.set("") }
 # Ver ficha (modal linkeable) y buscador.
 action perroVer(id: text) mutates pdetail, relOpen, conf { pdetail.set(id)  relOpen.set(false)  conf.set("") }
 action perroCerrarDetalle mutates pdetail, relOpen { pdetail.set("")  relOpen.set(false) }
@@ -351,7 +352,7 @@ Stack class("dd-app") {
   # Toast de avisos (errores de escritura optimista).
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
-  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending, fallidos: net.setFallidos)
   Custom SupaAuthForm inputs(mode: "watch") on(politica: auth.setPolitica)
 
   # ---------- TOGGLE DE IDIOMA (flotante) ----------
@@ -1599,6 +1600,12 @@ Stack class("dd-app") {
                   Stack class("dd-paseo-fotos-head") {
                     Span "Foto del perro" class("dd-hor-lbl")
                     Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
+                when (catalogo.perros.count where id == pedit and foto != "") > 0 {
+                  Stack class("dd-cat-list") {
+                    Button "Quitar foto" -> pedir("foto", pedit) class("dd-cat-add")
+                    when conf == "foto" and confId == pedit { Confirmar(texto: "¿Quitar la foto de este perro? El archivo se elimina.", si: "Sí, quitar", onSi: fotoQuitar, onNo: confNo) }
                   }
                 }
                 when pedit != "" and auth.isOwner {

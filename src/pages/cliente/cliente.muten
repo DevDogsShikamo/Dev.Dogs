@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, miPerroActualizar, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
+use perroFotoQuitar, reservarPaseo, reservarServicio, venderProducto, crearMiPerro, miPerroActualizar, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -63,7 +63,12 @@ state {
   cancelId     = "" : text
   # Photo with its "Reportar" reasons open (Ley 1581 art. 7: a person or a minor appears in it).
   repFoto      = "" : text
+  # Dog whose profile photo is about to be removed (in-page confirmation step).
+  fotoConf     = "" : text
 }
+action fotoPedir mutates fotoConf { fotoConf.set(pedit) }
+action fotoNo mutates fotoConf { fotoConf.set("") }
+action fotoQuitar mutates fotoConf { perroFotoQuitar(fotoConf)  fotoConf.set("") }
 # Cancel a scheduled service of my dog: ask first, then the RPC (any fee is the business's own policy).
 action cancelPedir(id: text) mutates cancelId { cancelId.set(id) }
 action cancelNo mutates cancelId { cancelId.set("") }
@@ -348,6 +353,12 @@ Stack class("dd-app") {
                   Stack class("dd-paseo-fotos-head") {
                     Span "Foto del perro" class("dd-hor-lbl")
                     Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
+                when (cliente.misPerros.count where id == pedit and foto != "") > 0 {
+                  Stack class("dd-cat-list") {
+                    Button "Quitar foto" -> fotoPedir class("dd-cat-add")
+                    when fotoConf == pedit { Confirmar(texto: "¿Quitar la foto de este perro? El archivo se elimina.", si: "Sí, quitar", onSi: fotoQuitar, onNo: fotoNo) }
                   }
                 }
                 when pedit != "" { Text "El celo, la enfermedad contagiosa y el certificado de salud los registra tu negocio." class("dd-rel-hint") }

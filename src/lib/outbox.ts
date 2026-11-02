@@ -7,7 +7,7 @@
 // updates es sumar tipos de op acá. A replayed op must be idempotent on the server (incidente_reportar carries a
 // client-generated p_id), because a reply lost to the network leaves the op queued after it was applied.
 import { currentUid, supa, toast } from "./authActions";
-import { classify, opsFor } from "./localData.js";
+import { classify, incidenteFallido, opsFor } from "./localData.js";
 
 // Every op is tagged with the user who queued it and only that user replays it. Ops of another
 // user stay parked (never replayed, never counted) until a sign-out/expiry purge removes them.
@@ -54,6 +54,34 @@ function applied(name: string, params: Record<string, unknown>, data: unknown): 
     if (synced[name]) synced[name](params, data);
   } catch {
     /* a follow-up never blocks the queue */
+  }
+}
+
+// A refused incident can be the notice of a lost dog: its text stays on the device (dd:*, purged on sign-out) and the
+// shell shows it with what failed until it is discarded. NetWatch reads this key into net.store.
+const FALLIDOS = "dd:incidentes-fallidos";
+type Fallido = { id: string };
+function fallidos(): Fallido[] {
+  try {
+    return JSON.parse(localStorage.getItem(FALLIDOS) || "[]") as Fallido[];
+  } catch {
+    return [];
+  }
+}
+function keepRejected(name: string, params: Record<string, unknown>, error: unknown): void {
+  if (name !== "incidente_reportar") return;
+  try {
+    localStorage.setItem(FALLIDOS, JSON.stringify([...fallidos(), incidenteFallido(params, error, currentUid(), new Date().toISOString())]));
+    window.dispatchEvent(new CustomEvent("dd:outbox"));
+  } catch {
+    /* noop */
+  }
+}
+export function falloDescartar(id: string): void {
+  try {
+    localStorage.setItem(FALLIDOS, JSON.stringify(fallidos().filter((f) => f.id !== id)));
+  } catch {
+    /* noop */
   }
 }
 
@@ -106,6 +134,7 @@ export function flush(): void {
         }
         if (c === "rejected") {
           rejected++;
+          keepRejected(op.name, op.params, r.error);
           return step(i + 1);
         }
         finish(mine.slice(i), c); // network | auth: keep this op and the rest
@@ -130,6 +159,7 @@ export function rpcOrQueue(name: string, params: Record<string, unknown>): void 
       else if (c === "network") enqueue(name, params); // postgrest-js reports a dead network as an error, not a throw
       else if (c === "auth") toast("Sesión vencida — inicia sesión de nuevo");
       else if (c === "rejected") {
+        keepRejected(name, params, r.error);
         toast("No se pudo guardar");
         refresh();
       }

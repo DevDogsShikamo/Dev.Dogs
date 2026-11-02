@@ -1,10 +1,18 @@
 # Estado de conexión (para el aviso offline). Lo alimenta el Custom NetWatch
 # (montado en cada portal, porque los Custom del shell no montan). El shell
 # renderiza el aviso desde acá.
+use falloDescartar from "~/lib/outbox.ts"
+
+# An incident report the server refused: its text stays visible in the shell until discarded.
+entity Fallido { id text  uid text  texto text  motivo text  at text }
+
 state {
   online  = true : bool
   pending = 0 : number
+  fallidos = [] : list<Fallido>
 }
 
 action setOnline(v: bool) mutates online { online.set(v) }
 action setPending(n: number) mutates pending { pending.set(n) }
+action setFallidos(rows: list<Fallido>) mutates fallidos { fallidos.set(rows) }
+action descartar(fid: text) mutates fallidos { falloDescartar(fid)  fallidos.remove where id == fid }

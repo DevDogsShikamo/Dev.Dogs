@@ -14,7 +14,7 @@ const MB2 = 2 * 1024 * 1024
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
 // Supabase stub keyed by the bearer token: good = uploader/owner, stranger = row not visible, expired = rejected JWT.
-function supabase({ confirm = 204, keys = [KEY], pkey = PKEY } = {}) {
+function supabase({ confirm = 204, keys = [KEY], pkey = PKEY, quitar = 204 } = {}) {
   const calls = []
   const fetchImpl = async (url, init) => {
     const u = new URL(url)
@@ -28,6 +28,7 @@ function supabase({ confirm = 204, keys = [KEY], pkey = PKEY } = {}) {
     if (u.pathname === '/rest/v1/paseo_fotos') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG }])
     if (u.pathname.endsWith('/perro_foto_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, pkey)
     if (u.pathname.endsWith('/perro_foto_confirmar')) return confirm === 204 ? new Response(null, { status: 204 }) : json(confirm, { code: '42501' })
+    if (u.pathname.endsWith('/perro_foto_quitar')) return quitar === 204 ? new Response(null, { status: 204 }) : json(quitar, {})
     if (u.pathname === '/rest/v1/perros') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG, foto_at: token === 'nofoto' ? null : '2026-10-30T10:00:00+00:00' }])
     return json(404, {})
   }
@@ -241,10 +242,15 @@ test('perro: a refusal, a key outside p/ or for another dog, and a bad file stor
     assert.equal(r2.store.size, 0, label)
   }
 })
-test('perro: a failed confirm keeps the object (one per dog, the previous photo is already replaced) and relays the refusal', async () => {
-  const { res, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN, sb: supabase({ confirm: 403 }), r2: bucket({ [PKEY]: OTHER }) })
-  assert.equal(res.status, 403)
+test('perro: an upstream fault on confirm keeps the object (the previous photo is already replaced) and answers 502', async () => {
+  const { res, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN, sb: supabase({ confirm: 500 }), r2: bucket({ [PKEY]: OTHER }) })
+  assert.equal(res.status, 502)
   assert.deepEqual([...r2.store.keys()], [PKEY])
+})
+test('perro: a confirm refused with 403 (the dog was removed during the upload) removes the object', async () => {
+  const { res, r2 } = await call('PUT', `/p/${ID}`, { body: CLEAN, sb: supabase({ confirm: 403 }) })
+  assert.equal(res.status, 403)
+  assert.equal(r2.store.size, 0)
 })
 test('perro: GET serves p/ to whoever reads the dog row; a hidden dog or a dog without photo is the same 404', async () => {
   const seen = await call('GET', `/p/${ID}`, { r2: bucket({ [PKEY]: CLEAN, [KEY]: OTHER }) })
@@ -257,5 +263,42 @@ test('perro: GET serves p/ to whoever reads the dog row; a hidden dog or a dog w
   const missing = await call('GET', `/p/${ID}`, { r2: bucket() })
   assert.deepEqual([hidden.res.status, unset.res.status, missing.res.status], [404, 404, 404])
   assert.equal(await hidden.res.text(), await unset.res.text())
-  for (const method of ['POST', 'DELETE']) assert.equal((await call(method, `/p/${ID}`)).res.status, 405, method)
+  assert.equal((await call('POST', `/p/${ID}`)).res.status, 405)
+})
+
+// ---- dog profile photo: DELETE /p/{perro_id} ---------------------------------------------------------
+test('perro: DELETE removes the object, clears foto_at with the caller token and answers 204', async () => {
+  const { res, sb, r2 } = await call('DELETE', `/p/${ID}`, { r2: bucket({ [PKEY]: CLEAN, [KEY]: OTHER }) })
+  assert.equal(res.status, 204)
+  assert.deepEqual([...r2.store.keys()], [KEY], 'only the photo of this dog')
+  assert.deepEqual(sb.calls.map((c) => [c.path, c.token, c.body]), [
+    ['/rest/v1/rpc/perro_foto_autorizar', 'good', JSON.stringify({ p_perro: ID })],
+    ['/rest/v1/rpc/perro_foto_quitar', 'good', JSON.stringify({ p_perro: ID })],
+  ])
+})
+test('perro: DELETE without a photo is a success', async () => {
+  const { res, sb } = await call('DELETE', `/p/${ID}`)
+  assert.equal(res.status, 204)
+  assert.equal(sb.calls.length, 2)
+})
+test('perro: DELETE refused, without a token or with a bad key leaves the object', async () => {
+  for (const [label, opts, status] of [
+    ['stranger', { token: 'stranger' }, 403], ['expired', { token: 'expired' }, 401], ['no token', { token: null }, 401],
+    ['key under f/', { sb: supabase({ pkey: KEY }) }, 502], ['another dog', { sb: supabase({ pkey: `p/${NEG}/${INC}.jpg` }) }, 502],
+  ]) {
+    const { res, r2, sb } = await call('DELETE', `/p/${ID}`, { r2: bucket({ [PKEY]: CLEAN }), ...opts })
+    assert.equal(res.status, status, label)
+    assert.deepEqual([...r2.store.keys()], [PKEY], label)
+    assert.ok(!sb.calls.some((c) => c.path.endsWith('/perro_foto_quitar')), label)
+  }
+})
+test('perro: a failed clear is relayed so the caller retries (the object is already gone)', async () => {
+  const { res, r2 } = await call('DELETE', `/p/${ID}`, { sb: supabase({ quitar: 500 }), r2: bucket({ [PKEY]: CLEAN }) })
+  assert.equal(res.status, 502)
+  assert.equal(r2.store.size, 0)
+})
+test('DELETE is only for /p: walk photos and retener answer 405; the preflight lists it', async () => {
+  for (const path of [`/f/${ID}`, `/retener/${INC}`]) assert.equal((await call('DELETE', path)).res.status, 405, path)
+  const ok = await call('OPTIONS', `/p/${ID}`, { token: null, origin: 'https://app.example' })
+  assert.match(ok.res.headers.get('access-control-allow-methods'), /DELETE/)
 })

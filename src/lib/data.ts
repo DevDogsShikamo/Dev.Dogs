@@ -88,10 +88,31 @@ export function perroActualizar(id: string, p: PerroInput): void {
 // Borrado OPTIMISTA (ya se quitó del store). El RPC (solo el jefe) da de baja el perro sin
 // perder su historial y limpia agenda futura, grupos y relaciones de los demás; el refresh
 // reconcilia el conteo. Si falla, el refresh revierte.
+// The photo goes first: the database refuses to remove a dog marked with one (perro_con_foto) and only the Worker
+// reaches R2. Always asked, also for a dog without a mark: it clears an object left by a confirm that never arrived.
 export function perroEliminar(id: string): void {
-  supa.rpc("perro_eliminar", { p_id: id }).then(function (res) {
-    if (res && (res as { error?: unknown }).error) toast("No se pudo eliminar el perro");
-    refresh();
+  fotoBorrar(id).then(function (borrada) {
+    if (!borrada) { toast("No se pudo eliminar el perro"); refresh(); return; }
+    supa.rpc("perro_eliminar", { p_id: id }).then(function (res) {
+      if (res && (res as { error?: unknown }).error) toast("No se pudo eliminar el perro");
+      refresh();
+    });
+  });
+}
+
+// DELETE /p/{perro} on the photo Worker with the user's token: the object and perros.foto_at; true when both are gone.
+function fotoBorrar(id: string): Promise<boolean> {
+  const fotos = (globalThis as Record<string, unknown>).__ddFotos as string;
+  return supa.auth.getSession().then(function (r) {
+    const tok = r.data.session?.access_token;
+    if (!tok) return false;
+    return fetch(fotos + "/p/" + id, { method: "DELETE", headers: { authorization: "Bearer " + tok } }).then((res) => res.ok);
+  }).catch(() => false);
+}
+export function perroFotoQuitar(id: string): void {
+  fotoBorrar(id).then(function (borrada) {
+    toast(borrada ? "Foto quitada" : "No se pudo quitar la foto");
+    if (borrada) refresh();
   });
 }
 
@@ -500,7 +521,7 @@ export function reservaCancelar(id: string): void {
 }
 
 // ---- Incidents (Ley 2480 de 2025 arts. 15 and 16) and photo reports (Ley 1581 art. 7) ----------------
-// incidente_reportar: the assigned walker on his walk of today or yesterday, or the owner/office on any dog of the
+// incidente_reportar: the assigned walker on his walk of the last 7 days, or the owner/office on any dog of the
 // business. On a walk the server marks its photos of that dog as evidence; the photo Worker then copies them out
 // of the 30-day expiry (POST /retener). If that copy fails, the photos still last their 30 days.
 // Through the outbox: a walker without signal reports anyway and it is sent when the connection returns. p_id is

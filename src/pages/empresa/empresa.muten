@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
@@ -187,6 +187,7 @@ action perroGuardar(p: PerroDraft) mutates pform {
   pform.set(false)
 }
 action perroBorrar mutates conf { catalogo.perroQuitar(confId)  perroEliminar(confId)  conf.set("") }
+action fotoQuitar mutates conf { perroFotoQuitar(pedit)  conf.set("") }
 # Co-dueños: solo el jefe (RPC coduenio_*); el perro es el que está abierto en el form.
 action coAgregar(did: text) { coduenioAgregar(pedit, did) }
 action coQuitar mutates conf { coduenioQuitar(pedit, confId)  conf.set("") }
@@ -310,7 +311,7 @@ Stack class("dd-app") {
   # Agenda semanal multi-paseador (#5).
   Custom AgendaEmpresaBridge inputs(semana: @semana) on(rango: rangoSet, agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda, sinAsignar: empresa.setSinAsignar)
   # Vigía de red (O4): alimenta el aviso offline del shell.
-  Custom NetWatch on(online: net.setOnline, pending: net.setPending)
+  Custom NetWatch on(online: net.setOnline, pending: net.setPending, fallidos: net.setFallidos)
   Custom SupaAuthForm inputs(mode: "watch") on(politica: auth.setPolitica)
 
   # ---------- SIDEBAR (escritorio) ----------
@@ -919,6 +920,12 @@ Stack class("dd-app") {
                   Stack class("dd-paseo-fotos-head") {
                     Span "Foto del perro" class("dd-hor-lbl")
                     Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
+                when (catalogo.perros.count where id == pedit and foto != "") > 0 {
+                  Stack class("dd-cat-list") {
+                    Button "Quitar foto" -> pedir("foto", pedit) class("dd-cat-add")
+                    when conf == "foto" and confId == pedit { Confirmar(texto: "¿Quitar la foto de este perro? El archivo se elimina.", si: "Sí, quitar", onSi: fotoQuitar, onNo: confNo) }
                   }
                 }
                 when pedit {
