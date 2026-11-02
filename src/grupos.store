@@ -36,6 +36,10 @@ entity PerroPaseo {
   cert   text
 }
 
+# A stop of the walker's map of today (M2): one per dog with a walk today, with its pickup point when it has one
+# (recogida_mis_paseos; tiene = false is "Sin punto de recogida"). hora = its first walk today.
+entity Parada { id text  nombre text  hora text  lat number  lng number  nota text  tiene bool }
+
 # Perro que sale hoy (para la fila de avatares del Inicio). Único por nombre.
 entity PerroHoy { nombre text }
 
@@ -78,6 +82,8 @@ state {
   todos       = [] : list<GrupoAdmin>
   perrosHoy   = [] : list<PerroHoy> persist
   perrosPaseo = [] : list<PerroPaseo> persist
+  # Kept offline with the day agenda: the walker needs the pickup points without signal.
+  paradas     = [] : list<Parada> persist
   conflictos  = [] : list<Conflicto>
   # Not persisted: the walker re-reads them online (the business portal keeps its own in empresa.store).
   miembros    = [] : list<Miembro>
@@ -101,6 +107,7 @@ action setFecha(v: text) mutates fecha { fecha.set(v) }
 action setTodos(rows: list<GrupoAdmin>) mutates todos { todos.set(rows) }
 action setPerrosHoy(rows: list<PerroHoy>) mutates perrosHoy { perrosHoy.set(rows) }
 action setPerrosPaseo(rows: list<PerroPaseo>) mutates perrosPaseo { perrosPaseo.set(rows) }
+action setParadas(rows: list<Parada>) mutates paradas { paradas.set(rows) }
 action setConflictos(rows: list<Conflicto>) mutates conflictos { conflictos.set(rows) }
 action setMiembros(rows: list<Miembro>) mutates miembros { miembros.set(rows) }
 action setSinAsignar(rows: list<SinAsignar>) mutates sinAsignar { sinAsignar.set(rows) }
@@ -125,4 +132,4 @@ action noSalLocal(motivoArg: text) mutates perrosPaseo, noSalId { perrosPaseo.pa
 # Optimista: borrar una salida del ABM desaparece al instante.
 action grupoDel(pid: text) mutates todos { todos.remove where id == pid }
 # Limpia el cache al hacer logout (in-memory + persist).
-action limpiar mutates todos, grupos, perrosHoy, perrosPaseo, conflictos, miembros, sinAsignar { todos.reset()  grupos.reset()  perrosHoy.reset()  perrosPaseo.reset()  conflictos.reset()  miembros.reset()  sinAsignar.reset() }
+action limpiar mutates todos, grupos, perrosHoy, perrosPaseo, paradas, conflictos, miembros, sinAsignar { todos.reset()  grupos.reset()  perrosHoy.reset()  perrosPaseo.reset()  paradas.reset()  conflictos.reset()  miembros.reset()  sinAsignar.reset() }

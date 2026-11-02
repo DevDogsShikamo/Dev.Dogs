@@ -147,6 +147,7 @@ part PoliticaTexto(version: text) {
         Text "La sesión de acceso y datos básicos para enrutar la aplicación: identificador, nombre, rol, negocio y su nombre, y si hay un documento pendiente de aceptar."
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
         Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión, los cambios que aún no se han enviado y el texto de un reporte de incidente que el servidor no aceptó, hasta que lo descarte."
+        Text "Solo en el paseador: los puntos de recogida de los perros de sus paseos del día (ubicación y nota) y las porciones del mapa de esa zona, para orientarse sin conexión. El mapa proviene de OpenStreetMap y no contiene datos personales."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
         Text "Las fotos de los paseos y las de perfil de los perros no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
       }

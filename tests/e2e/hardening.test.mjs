@@ -14,7 +14,8 @@ const PHONE = { WALKER_CO: '+57 300 111 0001', CLIENT: '+57 300 222 0002' }
 const PORTAL_URL = { OWNER: 'empresa', OFFICE: 'empresa', CLIENT: 'cliente', WALKER_CO: 'app', WALKER_CO2: 'app' }
 // Local-storage keys a role may legitimately hold (UI preferences and routing guards are allowed everywhere).
 const PREFS = /^muten:(auth|i18n|calendario):/
-const WALKER_DAY = /^muten:grupos:(grupos|fecha|perrosHoy|perrosPaseo)$/
+// paradas: today's stops of the walker map with their pickup points (M2), kept for the offline map.
+const WALKER_DAY = /^muten:grupos:(grupos|fecha|perrosHoy|perrosPaseo|paradas)$/
 const OURS = /^(muten:|dd:)/
 const sbKey = `sb-${new URL(loadConfig().url).host.split('.')[0]}-auth-token`
 const GHOST = '00000000-0000-4000-8000-000000000000' // a walk id that does not exist

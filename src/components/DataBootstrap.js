@@ -221,6 +221,7 @@ function mount(el, inputs, on) {
           if (on.fecha) on.fecha(fechaLabel());
           if (on.perrosHoy) on.perrosHoy(perrosHoy);
           if (on.perrosPaseo) on.perrosPaseo(perrosPaseo);
+          if (on.paradas) loadParadas(rows);
 
           // Conflictos: pares incompatibles en la MISMA salida (tolera NO cuenta).
           if (on.conflictos) {
@@ -252,6 +253,30 @@ function mount(el, inputs, on) {
           }
           U.perroFotos(rows.map(function (r) { return r.perros; })).then(function (n) { if (n) loadGruposHoy(); });
         });
+    });
+  }
+
+  // ---------- STOPS OF TODAY'S MAP (M2) ----------
+  // One stop per dog walked today (rows: today's prestaciones of the walker), with its pickup point when the dog has
+  // one (recogida_mis_paseos, today only: the store persists it for the offline map). A failed read keeps the stored
+  // stops instead of turning every dog into "Sin punto de recogida".
+  function loadParadas(rows) {
+    var supa = globalThis.__supa, hoy = today(), seen = {}, paradas = [];
+    rows.forEach(function (r) {
+      var pobj = r.perros || {}, hora = (r.detalle && r.detalle.hora) || "";
+      if (!pobj.id) return;
+      if (seen[pobj.id]) { if (hora && hora < seen[pobj.id].hora) seen[pobj.id].hora = hora; return; }
+      seen[pobj.id] = { id: pobj.id, nombre: pobj.nombre || "Perro", hora: hora, lat: 0, lng: 0, nota: "", tiene: false };
+      paradas.push(seen[pobj.id]);
+    });
+    supa.rpc("recogida_mis_paseos", { p_desde: hoy, p_hasta: hoy }).then(function (res) {
+      if (!res || res.error) return;
+      (res.data || []).forEach(function (p) {
+        var s = seen[p.perro_id];
+        if (s) { s.lat = Number(p.lat); s.lng = Number(p.lng); s.nota = p.nota || ""; s.tiene = true; }
+      });
+      paradas.sort(function (a, b) { return a.hora < b.hora ? -1 : a.hora > b.hora ? 1 : (a.nombre < b.nombre ? -1 : 1); });
+      on.paradas(paradas);
     });
   }
 

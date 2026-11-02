@@ -14,10 +14,13 @@ const stores = readdirSync(join(ROOT, 'src')).filter((f) => f.endsWith('.store')
 // What each store may keep on the device (design section 7). Anything not listed persists nothing.
 const ALLOWED = {
   'auth.store': ['loggedIn', 'userId', 'userName', 'rol', 'negocioId', 'isOwner', 'politicaPendiente', 'sinPerfil', 'aceptacionPendiente', 'negocioNombre'], // routing guards + the business name the client portal shows
-  'grupos.store': ['grupos', 'fecha', 'perrosHoy', 'perrosPaseo'], // the walker day agenda
+  'grupos.store': ['grupos', 'fecha', 'perrosHoy', 'perrosPaseo', 'paradas'], // the walker day agenda + today's pickup points (M2 offline map)
   'calendario.store': ['anchor', 'view', 'sel', 'ocultos'], // UI preferences
   'i18n.store': ['lang'],
 }
+// The one note allowed on the device: the pickup note of a stop of the walker's offline map (M2, max 120 chars, e.g.
+// the gate or the tower), which the assigned walker needs at the door without signal.
+const EXEMPT = { Parada: ['nota'] }
 const FORBIDDEN = /telefono|phone|salari|precio|price|cobr|factur|codigo|\bcode\b|token|email|nota\b|notas|tip\b|propina|invit|slug|foto/i
 
 const persisted = (src) =>
@@ -37,7 +40,7 @@ test('CC-1b: no persisted entity carries a phone, price, note, salary, code or e
     for (const { name, type } of persisted(src)) {
       const entity = type.match(/list<(\w+)>/)?.[1]
       const body = entity && src.match(new RegExp(String.raw`entity\s+${entity}\s*\{([^}]*)\}`))?.[1]
-      const fields = (body || name).split(/[\s,]+/).join(' ')
+      const fields = (body || name).split(/[\s,]+/).filter((w) => !(EXEMPT[entity] || []).includes(w)).join(' ')
       assert.ok(!FORBIDDEN.test(entity ? fields : name), `${f}: persisted "${name}" (${entity || type}) has a sensitive field`)
     }
   }
