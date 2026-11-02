@@ -31,6 +31,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("dueno_no_puede_salir") >= 0) return "Eres el dueño del negocio: no puedes salir de él.";
   if (m.indexOf("dueno_invalido") >= 0) return "Esa persona no es cliente de tu negocio.";
   if (m.indexOf("perro_invalido") >= 0) return "Revisa los datos del perro: el nombre es obligatorio (máximo 80 caracteres) y las indicaciones admiten hasta 1000.";
+  if (m.indexOf("recogida_invalida") >= 0) return "El punto de recogida no es válido: vuelve a usar tu ubicación (la nota admite hasta 120 caracteres).";
   if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
   return msg;
 }
@@ -114,6 +115,35 @@ export function perroFotoQuitar(id: string): void {
     toast(borrada ? "Foto quitada" : "No se pudo quitar la foto");
     if (borrada) refresh();
   });
+}
+
+// ---- Pickup point of a dog (M1, RPCs recogida_*) ----------------------------------------------------
+// An active owner of the dog, or the owner or office of its business. Not optimistic: "dd:recogida" makes the
+// Recogida Custom read the stored point again (rounded by the server) without reloading the whole portal.
+function recogidaRecargar(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dd:recogida"));
+}
+// "Usar mi ubicación actual": RecogidaBridge reads the device location once and hands it to the page.
+export function recogidaUbicar(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dd:ubicar"));
+}
+export function recogidaGuardar(perro: string, lat: string, lng: string, nota: string): void {
+  const a = Number(lat), b = Number(lng), n = (nota || "").trim();
+  if (!perro || lat === "" || lng === "" || !isFinite(a) || !isFinite(b)) { toast("Primero usa tu ubicación actual"); return; }
+  if (n.length > 120) { toast("La nota admite hasta 120 caracteres"); return; }
+  supa.rpc("recogida_guardar", { p_perro: perro, p_lat: a, p_lng: b, p_nota: n || null })
+    .then(done("No se pudo guardar el punto de recogida", function () { toast("Punto de recogida guardado"); recogidaRecargar(); }));
+}
+export function recogidaBorrar(perro: string): void {
+  if (!perro) return;
+  supa.rpc("recogida_borrar", { p_perro: perro })
+    .then(done("No se pudo quitar el punto de recogida", function () { toast("Punto de recogida quitado"); recogidaRecargar(); }));
+}
+// Opens the point on openstreetmap.org in a new tab, so whoever saved it can check it (no map inside the app in M1).
+export function verEnMapa(lat: string, lng: string): void {
+  const a = Number(lat), b = Number(lng);
+  if (lat === "" || lng === "" || !isFinite(a) || !isFinite(b)) return;
+  window.open("https://www.openstreetmap.org/?mlat=" + a + "&mlon=" + b + "#map=18/" + a + "/" + b, "_blank", "noopener");
 }
 
 // Co-dueños (solo el jefe): el RPC valida que el perro y el cliente sean del negocio.

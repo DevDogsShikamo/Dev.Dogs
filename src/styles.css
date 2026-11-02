@@ -1781,6 +1781,7 @@ body.dd-org-grabbing{cursor:grabbing}
 /* ===================== PORTAL CLIENTE ===================== */
 .dd-app .dd-cli-empty{font-size:0.9rem;color:var(--dim)}
 .dd-app .dd-cli-hint{font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem;line-height:1.4}
+.dd-app .dd-recogida-aviso{color:#92600a;background:#fdf0d5;border-radius:8px;padding:0.5rem 0.7rem}
 .dd-app .dd-cli-resbtn{padding:0.45rem 0.9rem;font-size:0.85rem}
 /* Estado de cuenta / registro del perro (la "libreta" + export) */
 .dd-app .dd-cli-facbtn{padding:0.4rem 0.75rem;font-size:0.82rem}
