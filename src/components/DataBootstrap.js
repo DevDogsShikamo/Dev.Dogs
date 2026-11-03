@@ -139,11 +139,13 @@ function mount(el, inputs, on) {
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
       supa.from("grupos")
-        .select("id,nombre,zona,hora,duracion_min,color,servicio_id,servicios(nombre)")
+        .select("id,nombre,zona,hora,duracion_min,color,servicio_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
         .eq("negocio_id", s.negocioId).eq("activo", true).order("hora")
         .then(function (res) {
           if (res && res.error) return;   // SWR: no pisar el cache si falló
+          var miembros = [];
           var rows = (res.data || []).map(function (r) {
+            miembros = miembros.concat(globalThis.__ddUtils.miembros(r.id, r.grupo_membresias));
             return {
               id: r.id, nombre: r.nombre || "", zona: r.zona || "", hora: r.hora || "08:00",
               horaNum: parseInt(String(r.hora || "8"), 10) || 8, duracion: r.duracion_min || 60,
@@ -151,6 +153,7 @@ function mount(el, inputs, on) {
             };
           });
           on.todos(rows);
+          if (on.miembros) on.miembros(miembros);
         });
     });
   }
@@ -275,7 +278,27 @@ function mount(el, inputs, on) {
     });
   }
 
+  // ---------- BOOKINGS WITHOUT AN ASSIGNEE (the independent walker takes them: "Tomar") ----------
+  // RLS: only the owner and office read them, so a company walker gets an empty list.
+  function loadSinAsignar() {
+    var supa = globalThis.__supa;
+    if (!supa || !on.sinAsignar) return;
+    globalThis.__ddSesion().then(function (s) {
+      if (!s.negocioId) return;
+      supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
+        .eq("negocio_id", s.negocioId).is("cuidador_id", null).eq("estado", "programado")
+        .gte("fecha", today()).not("tipo", "in", "(comida,accesorio)").order("fecha").limit(50)
+        .then(function (res) {
+          if (res && res.error) return;   // SWR: keep what is shown if the network failed
+          on.sinAsignar((res.data || []).map(function (r) {
+            return { id: r.id, fecha: r.fecha || "", hora: (r.detalle && r.detalle.hora) || "", servicio: (r.servicios && r.servicios.nombre) || cap(r.tipo || ""), perro: (r.perros && r.perros.nombre) || "Perro" };
+          }));
+        });
+    });
+  }
+
   function loadAll() {
+    loadSinAsignar();
     loadIdentidad();
     loadInvitaciones();
     loadPerros();

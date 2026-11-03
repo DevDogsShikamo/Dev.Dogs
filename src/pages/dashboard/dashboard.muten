@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -69,6 +69,18 @@ state {
   relNota   = "" : text
   relMotivo = "" : text
   orgMode = false : bool
+  # Add a dog to a group, or change the days of one already in it (agrEdit): ad1..ad7 = Monday..Sunday.
+  agrGrupo  = "" : text
+  agrNombre = "" : text
+  agrPerro  = "" : text
+  agrEdit   = false : bool
+  ad1 = true : bool
+  ad2 = true : bool
+  ad3 = true : bool
+  ad4 = true : bool
+  ad5 = true : bool
+  ad6 = true : bool
+  ad7 = true : bool
   hdias   = [] : list<text>
   hf1d    = 7  : number
   hf1h    = 12 : number
@@ -125,7 +137,11 @@ action salir mutates salirConfirma {
 action salirCancelar mutates salirConfirma { salirConfirma.set(false) }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
 # Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
-action moverPerroGrupo(m: MovePayload) { moverPerro(m.perro, m.hacia, m.modo, m.fecha) }
+# A dog from "Sin grupo" dropped with "Siempre" joins the group every day (grupo_agregar_perro); "Solo hoy" books that day.
+action moverPerroGrupo(m: MovePayload) {
+  if m.desde == "" and m.modo == "siempre" { grupoAgregarPerro(m.hacia, m.perro, true, true, true, true, true, true, true) }
+  else { moverPerro(m.perro, m.hacia, m.modo, m.fecha) }
+}
 # Drag & drop: cambiar la hora de un grupo entero (arrastrarlo a otra franja).
 action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fecha) }
 # Drag sobre el calendario: reprogramar una ocurrencia (día/hora).
@@ -259,13 +275,31 @@ action grupoGuardar mutates gform {
 }
 action grupoBorrar(id: text) { grupos.grupoDel(id)  grupoEliminar(id) }
 
+# ---- Dogs of a group: add (with its days), change its days, remove (the owner; the RPCs validate) ----
+action agrAbrir(gid: text, nombre: text) mutates agrGrupo, agrNombre, agrPerro, agrEdit, ad1, ad2, ad3, ad4, ad5, ad6, ad7 {
+  agrGrupo.set(gid)  agrNombre.set(nombre)  agrPerro.set("")  agrEdit.set(false)
+  ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(true)  ad7.set(true)
+}
+action agrEditar(gid: text, nombre: text, pid: text, a1: bool, a2: bool, a3: bool, a4: bool, a5: bool, a6: bool, a7: bool) mutates agrGrupo, agrNombre, agrPerro, agrEdit, ad1, ad2, ad3, ad4, ad5, ad6, ad7 {
+  agrGrupo.set(gid)  agrNombre.set(nombre)  agrPerro.set(pid)  agrEdit.set(true)
+  ad1.set(a1)  ad2.set(a2)  ad3.set(a3)  ad4.set(a4)  ad5.set(a5)  ad6.set(a6)  ad7.set(a7)
+}
+action agrTodos mutates ad1, ad2, ad3, ad4, ad5, ad6, ad7 { ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(true)  ad7.set(true) }
+action agrSemana mutates ad1, ad2, ad3, ad4, ad5, ad6, ad7 { ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(false)  ad7.set(false) }
+action agrPick(pid: text) mutates agrPerro { agrPerro.set(pid) }
+action agrCerrar mutates agrGrupo { agrGrupo.set("") }
+action agrGuardar mutates agrGrupo { grupoAgregarPerro(agrGrupo, agrPerro, ad1, ad2, ad3, ad4, ad5, ad6, ad7)  agrGrupo.set("") }
+action quitarPerro(key: text, gid: text, pid: text) { grupos.miembroDel(key)  grupoQuitarPerro(gid, pid) }
+# A booking without a group (bath, daycare...) nobody runs yet: the independent walker takes it.
+action tomar(id: text) { grupos.sinAsignarDel(id)  prestacionTomar(id) }
+
 Stack class("dd-app") {
 
   # ---------- BOOTSTRAP DE DATOS (montado UNA vez; hidrata los stores) ----------
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -495,6 +529,23 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           # Drag de bloques sobre la grilla (delegación en document; sin fetch).
           Custom CalendarioDnD on(reprogramar: reprogramarBloqueAction)
+
+          # Bookings without a group that nobody runs yet (the owner's business): take them.
+          when auth.isOwner and grupos.sinAsignar.length > 0 {
+            Stack class("dd-agrp") {
+              Span "Servicios sin asignar" class("dd-agrp-h")
+              each grupos.sinAsignar as b {
+                Stack class("dd-agrp-item") {
+                  Span "{b.fecha}" class("dd-agrp-hora")
+                  Stack class("dd-agrp-info") {
+                    Span "{b.servicio}" class("nm")
+                    Span "{b.perro} {b.hora}" class("meta")
+                  }
+                  Button "Tomar" -> tomar(b.id) class("dd-gchip")
+                }
+              }
+            }
+          }
 
           # Modal: agregar / gestionar descansos (vacaciones)
           when vform {
@@ -1094,6 +1145,19 @@ Stack class("dd-app") {
                 Stack class("dd-cat-info") {
                   Stack class("nmline") { Span "{g.nombre}" class("nm")  when g.zona { Span "{g.zona}" class("cd") } }
                   Span "{g.hora} · {g.duracion} {i18n.d.gp.min}" class("meta")
+                  when auth.isOwner {
+                    Stack class("dd-mbr") {
+                      each grupos.miembros as m where m.grupoId == g.id {
+                        Stack class("dd-mbr-chip") {
+                          Span "{m.nombre}"
+                          Span "· {m.dias}" class("d")
+                          Button -> agrEditar(g.id, g.nombre, m.perroId, m.d1, m.d2, m.d3, m.d4, m.d5, m.d6, m.d7) aria(label: "Cambiar días") { Icon "lucide:calendar-days" }
+                          Button -> quitarPerro(m.id, g.id, m.perroId) aria(label: "Quitar") { Icon "lucide:x" }
+                        }
+                      }
+                      Button "Agregar perro" -> agrAbrir(g.id, g.nombre) class("dd-gchip dd-mbr-add")
+                    }
+                  }
                 }
                 Stack class("acts") {
                   Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
@@ -1140,6 +1204,47 @@ Stack class("dd-app") {
                     Button -> gpickColor("yellow") class("dd-gcolor dd-gc-yellow") class("on" when gcolor == "yellow") { Span "" class("sw") }
                   }
                   Button "{i18n.d.gp.guardar}" -> grupoGuardar class("dd-cat-add dd-hor-save")
+                }
+              }
+            }
+          }
+
+          # Add a dog to the group (picker of the active dogs not in it yet) or change its days.
+          when agrGrupo != "" {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: agrCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  when agrEdit { Title "Días de paseo · {agrNombre}" h3 }
+                  when not agrEdit { Title "Agregar perro · {agrNombre}" h3 }
+                  Button -> agrCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  when not agrEdit {
+                    Stack class("dd-gform") {
+                      Span "Perro" class("dd-hor-lbl")
+                      Stack class("dd-gsvc") {
+                        each catalogo.perros as p where (grupos.miembros.count where grupoId == agrGrupo and perroId == p.id) == 0 {
+                          Button "{p.nombre}" -> agrPick(p.id) class("dd-gchip") class("on" when agrPerro == p.id)
+                        }
+                      }
+                    }
+                  }
+                  Span "Días" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    Button "Todos los días" -> agrTodos class("dd-gchip")
+                    Button "Lunes a viernes" -> agrSemana class("dd-gchip")
+                  }
+                  Stack class("dd-gsvc") {
+                    Checkbox bind(ad1) "Lun"
+                    Checkbox bind(ad2) "Mar"
+                    Checkbox bind(ad3) "Mié"
+                    Checkbox bind(ad4) "Jue"
+                    Checkbox bind(ad5) "Vie"
+                    Checkbox bind(ad6) "Sáb"
+                    Checkbox bind(ad7) "Dom"
+                  }
+                  Button "Guardar" -> agrGuardar class("dd-cat-add dd-hor-save") disabled when agrPerro == ""
                 }
               }
             }

@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -58,6 +58,20 @@ state {
   asigSalida = "" : text
   asigNombre = "" : text
   asigForm   = false : bool
+  # Add a dog to an outing, or change the days of one already in it (agrEdit): ad1..ad7 = Monday..Sunday.
+  agrGrupo  = "" : text
+  agrNombre = "" : text
+  agrPerro  = "" : text
+  agrEdit   = false : bool
+  ad1 = true : bool
+  ad2 = true : bool
+  ad3 = true : bool
+  ad4 = true : bool
+  ad5 = true : bool
+  ad6 = true : bool
+  ad7 = true : bool
+  # The booking without an assignee whose walker or staff member is being chosen.
+  presAsig  = "" : text
   sdraft   = {} : ServicioDraft
   sedit    = "" : text
   sform    = false : bool
@@ -184,6 +198,27 @@ action asigAbrir(id: text, nombre: text) mutates asigSalida, asigNombre, asigFor
 action asigCerrar mutates asigForm { asigForm.set(false) }
 action asigElegir(cid: text, cnom: text) mutates asigForm { empresa.asignarSet(asigSalida, cid, cnom)  grupoAsignar(asigSalida, cid)  asigForm.set(false) }
 
+# ---- Dogs of an outing: add (with its days), change its days, remove (owner or office; the RPCs validate) ----
+action agrAbrir(gid: text, nombre: text) mutates agrGrupo, agrNombre, agrPerro, agrEdit, ad1, ad2, ad3, ad4, ad5, ad6, ad7 {
+  agrGrupo.set(gid)  agrNombre.set(nombre)  agrPerro.set("")  agrEdit.set(false)
+  ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(true)  ad7.set(true)
+}
+action agrEditar(gid: text, nombre: text, pid: text, a1: bool, a2: bool, a3: bool, a4: bool, a5: bool, a6: bool, a7: bool) mutates agrGrupo, agrNombre, agrPerro, agrEdit, ad1, ad2, ad3, ad4, ad5, ad6, ad7 {
+  agrGrupo.set(gid)  agrNombre.set(nombre)  agrPerro.set(pid)  agrEdit.set(true)
+  ad1.set(a1)  ad2.set(a2)  ad3.set(a3)  ad4.set(a4)  ad5.set(a5)  ad6.set(a6)  ad7.set(a7)
+}
+action agrTodos mutates ad1, ad2, ad3, ad4, ad5, ad6, ad7 { ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(true)  ad7.set(true) }
+action agrSemana mutates ad1, ad2, ad3, ad4, ad5, ad6, ad7 { ad1.set(true)  ad2.set(true)  ad3.set(true)  ad4.set(true)  ad5.set(true)  ad6.set(false)  ad7.set(false) }
+action agrPick(pid: text) mutates agrPerro { agrPerro.set(pid) }
+action agrCerrar mutates agrGrupo { agrGrupo.set("") }
+action agrGuardar mutates agrGrupo { grupoAgregarPerro(agrGrupo, agrPerro, ad1, ad2, ad3, ad4, ad5, ad6, ad7)  agrGrupo.set("") }
+action quitarPerro(key: text, gid: text, pid: text) { empresa.miembroDel(key)  grupoQuitarPerro(gid, pid) }
+
+# ---- Bookings without an assignee (a service without an outing): assign a walker ----
+action presAbrir(pid: text) mutates presAsig { presAsig.set(pid) }
+action presCerrar mutates presAsig { presAsig.set("") }
+action presElegir(cid: text) mutates presAsig { empresa.sinAsignarDel(presAsig)  prestacionAsignar(presAsig, cid)  presAsig.set("") }
+
 # ---- Cobrar un paseo pendiente (optimista + persiste) ----
 action cobrar(id: text) { empresa.cobroDel(id)  cobroMarcar(id) }
 
@@ -204,10 +239,10 @@ Stack class("dd-app") {
   Custom Toast
   Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
   Custom ReportesBridge on(finanzas: empresa.setFinanzas, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
-  Custom SalidasBridge on(salidas: empresa.setSalidas)
+  Custom SalidasBridge on(salidas: empresa.setSalidas, miembros: empresa.setMiembros)
   Custom IncidentesBridge on(items: incidentes.setItems)
   # Agenda semanal multi-paseador (#5).
-  Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda)
+  Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda, sinAsignar: empresa.setSinAsignar)
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
 
@@ -390,6 +425,17 @@ Stack class("dd-app") {
                   Span "{s.hora} · {s.servicio}" class("meta")
                   when s.cuidadorNombre { Span "Paseador: {s.cuidadorNombre}" class("obs") }
                   when s.cuidadorNombre == "" { Span "Sin asignar" class("dd-sal-sin") }
+                  Stack class("dd-mbr") {
+                    each empresa.miembros as m where m.grupoId == s.id {
+                      Stack class("dd-mbr-chip") {
+                        Span "{m.nombre}"
+                        Span "· {m.dias}" class("d")
+                        Button -> agrEditar(s.id, s.nombre, m.perroId, m.d1, m.d2, m.d3, m.d4, m.d5, m.d6, m.d7) aria(label: "Cambiar días") { Icon "lucide:calendar-days" }
+                        Button -> quitarPerro(m.id, s.id, m.perroId) aria(label: "Quitar") { Icon "lucide:x" }
+                      }
+                    }
+                    Button "Agregar perro" -> agrAbrir(s.id, s.nombre) class("dd-gchip dd-mbr-add")
+                  }
                 }
                 Stack class("acts") {
                   Button -> asigAbrir(s.id, s.nombre) class("dd-cat-icon") aria(label: "Asignar paseador a {s.nombre}") { Icon "lucide:user-cog" }
@@ -446,6 +492,47 @@ Stack class("dd-app") {
               }
             }
           }
+
+          # Add a dog to the outing (picker of the active dogs not in it yet) or change its days.
+          when agrGrupo != "" {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: agrCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  when agrEdit { Title "Días de paseo · {agrNombre}" h3 }
+                  when not agrEdit { Title "Agregar perro · {agrNombre}" h3 }
+                  Button -> agrCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  when not agrEdit {
+                    Stack class("dd-gform") {
+                      Span "Perro" class("dd-hor-lbl")
+                      Stack class("dd-gsvc") {
+                        each catalogo.perros as p where (empresa.miembros.count where grupoId == agrGrupo and perroId == p.id) == 0 {
+                          Button "{p.nombre}" -> agrPick(p.id) class("dd-gchip") class("on" when agrPerro == p.id)
+                        }
+                      }
+                    }
+                  }
+                  Span "Días" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    Button "Todos los días" -> agrTodos class("dd-gchip")
+                    Button "Lunes a viernes" -> agrSemana class("dd-gchip")
+                  }
+                  Stack class("dd-gsvc") {
+                    Checkbox bind(ad1) "Lun"
+                    Checkbox bind(ad2) "Mar"
+                    Checkbox bind(ad3) "Mié"
+                    Checkbox bind(ad4) "Jue"
+                    Checkbox bind(ad5) "Vie"
+                    Checkbox bind(ad6) "Sáb"
+                    Checkbox bind(ad7) "Dom"
+                  }
+                  Button "Guardar" -> agrGuardar class("dd-cat-add dd-hor-save") disabled when agrPerro == ""
+                }
+              }
+            }
+          }
         }
       }
 
@@ -453,6 +540,41 @@ Stack class("dd-app") {
       when section == "agenda" {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") { Title "Agenda de la semana" h2 }
+          # Bookings without an outing nobody runs yet (bath, daycare...): assign a walker.
+          when empresa.sinAsignar.length > 0 {
+            Stack class("dd-agrp") {
+              Span "Servicios sin asignar" class("dd-agrp-h")
+              each empresa.sinAsignar as b {
+                Stack class("dd-agrp-item") {
+                  Span "{b.fecha}" class("dd-agrp-hora")
+                  Stack class("dd-agrp-info") {
+                    Span "{b.servicio}" class("nm")
+                    Span "{b.perro} {b.hora}" class("meta")
+                  }
+                  Button "Asignar" -> presAbrir(b.id) class("dd-gchip")
+                }
+              }
+            }
+          }
+          when presAsig != "" {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: presCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Asignar servicio" h3
+                  Button -> presCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  Span "Elige quién lo atiende" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    each empresa.paseadores as p {
+                      Button "{p.nombre}" -> presElegir(p.id) class("dd-gchip")
+                    }
+                  }
+                }
+              }
+            }
+          }
           when empresa.nAgenda == 0 {
             Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:calendar" }  Title "Sin salidas" h2  Text "No hay salidas programadas esta semana." }
           }

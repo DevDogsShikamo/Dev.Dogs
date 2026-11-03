@@ -2,15 +2,17 @@
 // Layout de CARRILES horarios: cada hora es una fila-zona.
 //   • Arrastrar un CHIP (perro) a otro grupo  → on.mover  (menú Solo hoy / Siempre).
 //   • Arrastrar un GRUPO (por su cabecera) a otro carril → on.moverGrupo (cambia la hora).
+//   • "Sin grupo" lists the active dogs in no group: dragging one into a group → on.mover with desde "".
 // Auto-fetch de grupos + membresías; re-lee en supa:refresh.
 function mount(el, inputs, on) {
   var grupos = (inputs && inputs.grupos) || [];
+  var sueltos = [];
   var supa = globalThis.__supa;
   var HORA_MIN = 6, HORA_MAX = 19;
   var lastX = 0, lastY = 0;
   var STR = {
-    es: { sinPerros: "Sin perros", mover: "Mover perro a este grupo" },
-    en: { sinPerros: "No dogs", mover: "Move dog to this group" }
+    es: { sinPerros: "Sin perros", mover: "Mover perro a este grupo", sinGrupo: "Sin grupo" },
+    en: { sinPerros: "No dogs", mover: "Move dog to this group", sinGrupo: "No group" }
   };
   function T(k) { return STR[globalThis.__lang === "en" ? "en" : "es"][k]; }
 
@@ -34,8 +36,9 @@ function mount(el, inputs, on) {
         if (!neg) return;
         supa.from("grupos")
           .select("id,nombre,hora,color,grupo_membresias(perro_id,perros(id,nombre,foto_url))")
-          .eq("negocio_id", neg).eq("activo", true).order("hora")
+          .eq("negocio_id", neg).eq("activo", true).eq("grupo_membresias.activo", true).order("hora")
           .then(function (res) {
+            if (res && res.error) return;
             grupos = (res.data || []).map(function (g) {
               return {
                 id: g.id, nombre: g.nombre, hora: g.hora, color: g.color || "purple",
@@ -45,7 +48,13 @@ function mount(el, inputs, on) {
                 })
               };
             });
-            render();
+            var enGrupo = {};
+            grupos.forEach(function (g) { g.perros.forEach(function (p) { enGrupo[p.id] = true; }); });
+            supa.from("perros").select("id,nombre,foto_url").eq("negocio_id", neg).eq("activo", true).order("nombre").then(function (pr) {
+              sueltos = (pr.data || []).filter(function (p) { return !enGrupo[p.id]; })
+                .map(function (p) { return { id: p.id, nombre: p.nombre || "Perro", foto: p.foto_url || "" }; });
+              render();
+            });
           });
       });
     });
@@ -54,6 +63,7 @@ function mount(el, inputs, on) {
   function render() {
     el.className = "dd-org";
     el.innerHTML = "";
+    if (sueltos.length) el.appendChild(gcard({ id: "", nombre: T("sinGrupo"), hora: "", color: "pool", perros: sueltos }));
     var lanes = document.createElement("div");
     lanes.className = "dd-org-lanes";
     for (var H = HORA_MIN; H <= HORA_MAX; H++) {
@@ -84,9 +94,10 @@ function mount(el, inputs, on) {
     head.className = "dd-org-ghead";
     head.dataset.grupo = g.id;
     head.innerHTML = '<span class="grip" aria-hidden="true">⠿</span><b>' + esc(g.nombre) + '</b><span class="h">' + esc(g.hora) + '</span>';
-    head.addEventListener("pointerdown", onGroupDown);
+    if (g.id) head.addEventListener("pointerdown", onGroupDown);
     var drop = document.createElement("div");
-    drop.className = "dd-org-drop";
+    // The pool is no drop target: taking a dog out of its group is "Quitar" in the group list.
+    drop.className = g.id ? "dd-org-drop" : "dd-org-pool";
     drop.dataset.grupo = g.id;
     (g.perros || []).forEach(function (p) {
       var chip = document.createElement("button");

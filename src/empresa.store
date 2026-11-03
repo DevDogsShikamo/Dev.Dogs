@@ -48,6 +48,11 @@ entity Pendiente { id text  fecha text  perro text  servicio text  monto number 
 # Agenda semanal (multi-paseador): cabeceras de día + salidas por (día, hora, servicio, paseador).
 entity AgendaDia  { fecha text  label text  count number }
 entity AgendaItem { fecha text  hora text  tipo text  servicio text  cuidador text  dogs number  cancelados number  estado text  color text }
+# A dog of an outing (active membership) and its weekdays: d1..d7 = Monday..Sunday, dias = their label. Same shape
+# as grupos.Miembro; kept here because grupos.store persists state and this portal keeps nothing on the device (P8).
+entity SalidaPerro { id text  grupoId text  perroId text  nombre text  dias text  d1 bool  d2 bool  d3 bool  d4 bool  d5 bool  d6 bool  d7 bool }
+# A booking nobody is assigned to yet (a service without an outing).
+entity ServicioSinAsignar { id text  fecha text  hora text  servicio text  perro text }
 # Reseña de un cliente (solo el jefe la lee y la modera; RLS).
 entity ResenaNeg { id text  autor text  rating number  texto text  publicar bool  estado text  fecha text }
 
@@ -78,8 +83,15 @@ state {
   agendaDias   = [] : list<AgendaDia>
   agenda       = [] : list<AgendaItem>
   resenas      = [] : list<ResenaNeg>
+  miembros     = [] : list<SalidaPerro>
+  sinAsignar   = [] : list<ServicioSinAsignar>
   loaded       = false : bool
 }
+action setMiembros(rows: list<SalidaPerro>) mutates miembros { miembros.set(rows) }
+action setSinAsignar(rows: list<ServicioSinAsignar>) mutates sinAsignar { sinAsignar.set(rows) }
+# Optimistic: a removed dog and an assigned booking leave their lists at once (the RPC's refresh reconciles).
+action miembroDel(key: text) mutates miembros { miembros.remove where id == key }
+action sinAsignarDel(sid: text) mutates sinAsignar { sinAsignar.remove where id == sid }
 get nResenas = resenas.length
 action setResenas(rows: list<ResenaNeg>) mutates resenas { resenas.set(rows) }
 action resenaSet(rid: text, est: text) mutates resenas { resenas.patch where id == rid with { estado: est } }
@@ -125,7 +137,7 @@ action setStats(hoy: number, prog: number, curso: number, fin: number) mutates p
   paseosHoy.set(hoy)  programados.set(prog)  enCurso.set(curso)  finalizados.set(fin)
 }
 # Limpia los datos del negocio al hacer logout (dispositivo compartido).
-action limpiar mutates paseadores, clientes, gestion, invitaciones, codigoNuevo, codigoEmail, duenos, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, resenas, loaded {
-  resenas.reset()  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  codigoNuevo.set("")  codigoEmail.set("")  duenos.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
+action limpiar mutates paseadores, clientes, gestion, invitaciones, codigoNuevo, codigoEmail, duenos, salidas, pendientes, agendaDias, agenda, ingresosDia, topServicios, porPaseador, facturado, cobrado, pendiente, paseosHoy, programados, enCurso, finalizados, perrosTot, resenas, miembros, sinAsignar, loaded {
+  miembros.reset()  sinAsignar.reset()  resenas.reset()  paseadores.reset()  clientes.reset()  gestion.reset()  invitaciones.reset()  codigoNuevo.set("")  codigoEmail.set("")  duenos.reset()  salidas.reset()  pendientes.reset()  agendaDias.reset()  agenda.reset()  ingresosDia.reset()  topServicios.reset()  porPaseador.reset()
   facturado.set(0)  cobrado.set(0)  pendiente.set(0)  paseosHoy.set(0)  programados.set(0)  enCurso.set(0)  finalizados.set(0)  perrosTot.set(0)  loaded.set(false)
 }

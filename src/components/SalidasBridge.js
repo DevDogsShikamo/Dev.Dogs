@@ -18,10 +18,14 @@ function mount(el, inputs, on) {
       supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
         supa.from("grupos")
-          .select("id,nombre,zona,hora,duracion_min,color,servicio_id,cuidador_id,servicios(nombre)")
+          .select("id,nombre,zona,hora,duracion_min,color,servicio_id,cuidador_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
           .eq("negocio_id", neg).eq("activo", true).order("hora")
           .then(function (res) {
             if (res && res.error) return;
+            // The dogs of each outing, with their weekdays (Agregar perro / Quitar).
+            var miembros = [];
+            (res.data || []).forEach(function (g) { miembros = miembros.concat(globalThis.__ddUtils.miembros(g.id, g.grupo_membresias)); });
+            if (on.miembros) on.miembros(miembros);
             var rows = (res.data || []).map(function (g) {
               return {
                 id: g.id, nombre: g.nombre || "", zona: g.zona || "", hora: g.hora || "08:00",

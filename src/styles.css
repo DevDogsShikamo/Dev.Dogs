@@ -1761,6 +1761,16 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-rep-monto{margin-left:auto;font-weight:800;color:var(--purple);white-space:nowrap;align-self:center;font-size:0.95rem}
 
 .dd-app .dd-sal-sin{font-size:0.78rem;color:#b4530b;font-weight:700}
+/* Dogs of an outing (Agregar perro / Quitar) and the "Sin grupo" pool of the organizer. */
+.dd-app .dd-mbr{display:flex;flex-direction:row;flex-wrap:wrap;gap:0.35rem;margin-top:0.4rem}
+.dd-app .dd-mbr-chip{display:flex;flex-direction:row;align-items:center;gap:0.25rem;padding:0.2rem 0.3rem 0.2rem 0.6rem;border-radius:999px;font-size:0.78rem;font-weight:700;background:var(--bg);border:0.0625rem solid var(--line)}
+.dd-app .dd-mbr-chip .d{color:var(--dim);font-weight:600}
+.dd-app .dd-mbr-chip button{background:none;border:0;padding:0.15rem;color:var(--dim);cursor:pointer;display:flex}
+.dd-app .dd-mbr-add{font-size:0.78rem;padding:0.25rem 0.6rem}
+.dd-app .dd-org > .dd-org-gcard{width:100%;flex:none;margin-bottom:0.6rem}
+.dd-app .dd-org-c-pool{border-top:0.22rem dashed var(--dim)}
+.dd-app .dd-org-pool{display:flex;flex-direction:row;flex-wrap:wrap;gap:0.4rem;margin:0.4rem;padding:0.3rem}
+.dd-app .dd-org-pool .dd-org-chip{width:auto}
 
 /* ===================== PORTAL CLIENTE ===================== */
 .dd-app .dd-cli-empty{font-size:0.9rem;color:var(--dim)}

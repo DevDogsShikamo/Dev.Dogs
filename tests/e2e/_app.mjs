@@ -13,7 +13,9 @@ import { admin } from '../security/_actors.mjs'
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const MUTEN = fileURLToPath(new URL('../../node_modules/@muten/core/dist/bin/muten.js', import.meta.url))
 
-// muten dev takes 5173 when free and otherwise a free port, and prints the URL.
+// muten dev takes 5173 when free and otherwise a free port, and prints the URL. It listens on IPv4, while
+// Chromium resolves "localhost" to ::1 first: another dev server on [::1]:5173 (any other project) would
+// answer instead. So the browser is pointed at 127.0.0.1, which the app and the Worker treat as local too.
 function startServer() {
   const child = spawn(process.execPath, [MUTEN, 'dev', ROOT], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] })
   const url = new Promise((resolve, reject) => {
@@ -24,7 +26,7 @@ function startServer() {
       const m = out.match(/http:\/\/localhost:(\d+)\//)
       if (m) {
         clearTimeout(timer)
-        resolve(`http://localhost:${m[1]}`)
+        resolve(`http://127.0.0.1:${m[1]}`)
       }
     })
     child.on('exit', (code) => reject(new Error(`muten dev exited with ${code}:\n${out}`)))
@@ -48,7 +50,7 @@ ${build.stderr}`)
     res.writeHead(200, { 'content-type': types[extname(hit)] || 'application/octet-stream' })
     res.end(readFileSync(hit))
   })
-  const url = new Promise((resolve) => http.listen(0, '127.0.0.1', () => resolve(`http://localhost:${http.address().port}`)))
+  const url = new Promise((resolve) => http.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${http.address().port}`)))
   return { child: { kill: () => http.close() }, url, http }
 }
 
