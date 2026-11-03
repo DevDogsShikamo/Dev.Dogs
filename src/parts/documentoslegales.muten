@@ -14,7 +14,7 @@ part DocumentosLegales(version: text) {
         Text "DevDogs no procesa pagos. Los precios los fija cada negocio y los cobros se registran en la aplicación; el pago se hace directamente entre el dueño y el negocio. El estado de cuenta no es una factura electrónica."
         Text "Cada negocio responde por el servicio que presta y por las obligaciones de la Ley 2480 de 2025 (Ley Kiara): valoración de comportamiento, certificado de salud del perro, máximo ocho perros por paseador, traílla en espacio público, bozal cuando la ley lo exige, entre otras."
         Text "Las fotos de los paseos se guardan sin ubicación, las ven solo quien las subió y los dueños de los perros etiquetados, y se eliminan a los 30 días, salvo las que quedan como evidencia de un incidente. Cada dueño puede reportar una foto en la que aparezca una persona o un menor de edad."
-        Text "No hay cookies, publicidad, analítica ni rastreo de ubicación (GPS). En el dispositivo se guarda lo mínimo para que la aplicación funcione, y se borra al cerrar sesión."
+        Text "No hay cookies, publicidad, analítica ni rastreo de ubicación. El punto de recogida de un perro, si su dueño o el negocio lo guardan, se almacena y solo lo ven el negocio, los dueños del perro y el paseador asignado a sus paseos. La ubicación del teléfono del paseador se usa solo en el teléfono para mostrarle el mapa: nunca se envía ni se guarda. En el dispositivo se guarda lo mínimo para que la aplicación funcione, y se borra al cerrar sesión."
         Text "Puede consultar, corregir y descargar sus datos, y presentar solicitudes, desde la página Mis datos de su cuenta."
       }
     }

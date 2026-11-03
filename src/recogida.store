@@ -1,0 +1,45 @@
+# Pickup point of the dog open in a dog sheet (client portal, business portal, independent walker). The Recogida
+# bridge loads the stored point (cargar) and hands over a location read on the device (ubicar): nLat/nLng/nPrec are
+# that unsaved reading, nNota the note being edited. "Guardar" sends the new reading, or the stored point with the
+# edited note.
+use recogidaUbicar, recogidaGuardar, recogidaBorrar, verEnMapa from "~/lib/data.ts"
+
+entity RecogidaFila { perro text  lat text  lng text  nota text }
+entity RecogidaGps  { lat text  lng text  precision number }
+
+state {
+  perro      = "" : text
+  lat        = "" : text
+  lng        = "" : text
+  nota       = "" : text
+  nLat       = "" : text
+  nLng       = "" : text
+  nPrec      = 0 : number
+  nNota      = "" : text
+  quitarConf = false : bool
+  # A location is being read (the button says so and does not fire twice).
+  buscando   = false : bool
+}
+
+get tiene        = lat != ""
+get nuevo        = nLat != ""
+# Over 50 m the reading may be another building: warn and suggest checking it on the map.
+get impreciso    = nLat != "" and nPrec > 50
+get puedeGuardar = lat != "" or nLat != ""
+get mLat         = nLat != "" ? nLat : lat
+get mLng         = nLat != "" ? nLng : lng
+
+action cargar(p: RecogidaFila) mutates perro, lat, lng, nota, nLat, nLng, nPrec, nNota, quitarConf, buscando {
+  buscando.set(false)  perro.set(p.perro)  lat.set(p.lat)  lng.set(p.lng)  nota.set(p.nota)  nNota.set(p.nota)
+  nLat.set("")  nLng.set("")  nPrec.set(0)  quitarConf.set(false)
+}
+action pedirUbicacion mutates buscando { buscando.set(true)  recogidaUbicar() }
+action ubicar(g: RecogidaGps) mutates nLat, nLng, nPrec, buscando { buscando.set(false)  nLat.set(g.lat)  nLng.set(g.lng)  nPrec.set(g.precision) }
+action fallo mutates buscando { buscando.set(false) }
+action guardar {
+  if nLat != "" { recogidaGuardar(perro, nLat, nLng, nNota) } else { recogidaGuardar(perro, lat, lng, nNota) }
+}
+action quitarPedir mutates quitarConf { quitarConf.set(true) }
+action quitarNo mutates quitarConf { quitarConf.set(false) }
+action quitar mutates quitarConf { recogidaBorrar(perro)  quitarConf.set(false) }
+action verMapa { verEnMapa(mLat, mLng) }

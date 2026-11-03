@@ -361,6 +361,12 @@ Stack class("dd-app") {
                     when fotoConf == pedit { Confirmar(texto: "¿Quitar la foto de este perro? El archivo se elimina.", si: "Sí, quitar", onSi: fotoQuitar, onNo: fotoNo) }
                   }
                 }
+                # Pickup point (M1): any active owner of the dog, the owner and the office save it; the walker sees it later.
+                when pedit != "" {
+                  RecogidaPunto(titulo: "Punto de recogida") {
+                    Custom RecogidaBridge inputs(perro: @pedit) on(cargado: recogida.cargar, ubicado: recogida.ubicar, fallo: recogida.fallo)
+                  }
+                }
                 when pedit != "" { Text "El celo, la enfermedad contagiosa y el certificado de salud los registra tu negocio." class("dd-rel-hint") }
               }
             }

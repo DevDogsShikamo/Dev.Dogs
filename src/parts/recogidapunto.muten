@@ -1,0 +1,27 @@
+# "Punto de recogida" block of a dog sheet: the page owns the dog and mounts RecogidaBridge (load + device location)
+# as the slot; this part shows the recogida store. M1 stores the point only: the walker sees it on a map later.
+part RecogidaPunto(titulo: text) {
+  Stack class("dd-cat-list dd-recogida") {
+    Span "{$titulo}" class("dd-hor-lbl")
+    when recogida.tiene {
+      Text "Guardado: {recogida.lat}, {recogida.lng}" class("dd-cli-hint")
+      when recogida.nota { Text "Nota: {recogida.nota}" class("dd-cli-hint") }
+    }
+    when not recogida.tiene { Text "Sin punto de recogida. Desde el lugar donde el paseador recoge al perro, usa tu ubicación actual." class("dd-cli-hint") }
+    slot
+    Button -> recogida.pedirUbicacion class("dd-cat-add") disabled when recogida.buscando {
+      Icon "lucide:locate-fixed"
+      when recogida.buscando { Span "Buscando tu ubicación…" }
+      when not recogida.buscando { Span "Usar mi ubicación actual" }
+    }
+    when recogida.nuevo { Text "Nueva ubicación: {recogida.nLat}, {recogida.nLng} (± {recogida.nPrec} m). Revísala y toca Guardar." class("dd-cli-hint") }
+    when recogida.impreciso { Text "La precisión es baja (± {recogida.nPrec} m): el punto puede estar en otro lugar. Revísalo en el mapa o intenta de nuevo al aire libre." class("dd-cli-hint dd-recogida-aviso") aria(live: "polite") }
+    SearchField bind(recogida.nNota) "Nota para el paseador (opcional), p. ej. portería torre 2"
+    Stack class("acts") {
+      Button "Guardar" -> recogida.guardar class("dd-cat-add") disabled when not recogida.puedeGuardar
+      when recogida.puedeGuardar { Button "Ver en el mapa" -> recogida.verMapa class("dd-cat-add") }
+      when recogida.tiene { Button "Quitar" -> recogida.quitarPedir class("dd-cat-add") }
+    }
+    when recogida.quitarConf { Confirmar(texto: "¿Quitar el punto de recogida de este perro?", si: "Sí, quitar", onSi: recogida.quitar, onNo: recogida.quitarNo) }
+  }
+}

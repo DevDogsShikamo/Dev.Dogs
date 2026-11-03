@@ -1608,6 +1608,12 @@ Stack class("dd-app") {
                     when conf == "foto" and confId == pedit { Confirmar(texto: "¿Quitar la foto de este perro? El archivo se elimina.", si: "Sí, quitar", onSi: fotoQuitar, onNo: confNo) }
                   }
                 }
+                # Pickup point (M1): the owner of an independent business saves it for his dogs.
+                when pedit != "" {
+                  RecogidaPunto(titulo: "Punto de recogida") {
+                    Custom RecogidaBridge inputs(perro: @pedit) on(cargado: recogida.cargar, ubicado: recogida.ubicar, fallo: recogida.fallo)
+                  }
+                }
                 when pedit != "" and auth.isOwner {
                   Stack class("dd-cat-list") {
                     Title "Dueños" h4
