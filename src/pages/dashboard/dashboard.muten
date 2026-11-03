@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -22,7 +22,6 @@ entity PerroDraft {
   contagio     bool
   certificado  date
   tips         text
-  foto         text
 }
 # Payloads del drag & drop (Organizador Custom).
 entity MovePayload { perro text  desde text  hacia text  modo text  fecha text }
@@ -203,6 +202,8 @@ action fotoMarca(pid: text) mutates fotoSin { fotoSin.toggle(pid) }
 get incError = incPerro == "" ? "Elige el perro." : (incTipo == "" ? "Elige el tipo de incidente." : (incTexto.length < 10 ? "Describe lo que pasó con al menos 10 caracteres." : (incTexto.length > 2000 ? "Máximo 2000 caracteres." : "")))
 action incAbrir(pres: text, perro: text) mutates incPres, incPerro, incTipo, incTexto, incForm { incPres.set(pres)  incPerro.set(perro)  incTipo.set("")  incTexto.set("")  incForm.set(pres == "") }
 action incTipoSet(t: text) mutates incTipo { incTipo.set(t) }
+# Ver más: the next 50 incidents (IncidentesBridge).
+action incMas { incidentesVerMas() }
 action incPerroSet(id: text) mutates incPerro { incPerro.set(id) }
 action incCerrar mutates incPres, incForm { incPres.set("")  incForm.set(false) }
 action incEnviar mutates incPres, incForm { incidenteReportar(incPerro, incPres, incTipo, incTexto)  incPres.set("")  incForm.set(false) }
@@ -240,8 +241,8 @@ effect { calendario.init() }
 
 # ---- Catálogo de perros: alta / edición / borrado (persisten a Supabase) ----
 action perroNuevo mutates pdraft, pedit, pform, pdetail { pdraft.reset()  pedit.set("")  pdetail.set("")  pform.set(true) }
-action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, contagio: bool, cert: text) mutates pdraft, pedit, pform, pdetail {
-  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, contagio: contagio, certificado: cert, tips: tips, foto: foto })
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, celo: bool, contagio: bool, cert: text) mutates pdraft, pedit, pform, pdetail {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, contagio: contagio, certificado: cert, tips: tips })
   pedit.set(id)
   pdetail.set("")
   pform.set(true)
@@ -250,7 +251,7 @@ action perroCerrar mutates pform { pform.set(false) }
 action perroGuardar(p: PerroDraft) mutates pform {
   # Edición optimista: patch al store al instante, luego persiste (revierte si falla).
   if pedit == "" { perroCrear(p) }
-  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado)  perroActualizar(pedit, p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.celo, p.contagio, p.certificado)  perroActualizar(pedit, p) }
   pform.set(false)
 }
 # Borrado optimista: desaparece al instante; perroEliminar persiste + reconcilia.
@@ -344,7 +345,7 @@ Stack class("dd-app") {
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
   Custom HorarioBridge on(dias: hsetDias, franjas: hsetFranjas)
-  Custom IncidentesBridge on(items: incidentes.setItems)
+  Custom IncidentesBridge on(items: incidentes.setItems, mas: incidentes.setMas)
   # Monthly plans of his business (only the owner reads them; a company walker fetches nothing).
   Custom PlanesBridge on(planes: planes.setPlanes)
   # Toast de avisos (errores de escritura optimista).
@@ -1094,6 +1095,7 @@ Stack class("dd-app") {
           Stack class("dd-cat-list") {
             each incidentes.items as i { IncidenteItem(i: i) }
           }
+          when incidentes.hayMas { Button "Ver más" -> incMas class("dd-cat-add dd-ver-mas") }
         }
       }
 
@@ -1448,7 +1450,7 @@ Stack class("dd-app") {
                   }
                   when auth.isOwner {
                     Stack class("acts") {
-                      Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
+                      Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
                       Button -> pedir("perro", p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
                     }
                   }
@@ -1573,7 +1575,7 @@ Stack class("dd-app") {
                     }
                   }
 
-                  when auth.isOwner { Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" } }
+                  when auth.isOwner { Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.celo, p.contagio, p.certificado) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" } }
                 }
               }
             }
@@ -1592,6 +1594,13 @@ Stack class("dd-app") {
                 Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
                 Text "{i18n.d.pr.relHint}" class("dd-rel-hint")
                 when pedit == "" { Text "Después de guardarlo, ábrelo de nuevo para elegir su dueño principal." class("dd-rel-hint") }
+                # Profile photo of the dog (photo Worker, p/): the owner, the office and the dog's owners change it.
+                when pedit != "" {
+                  Stack class("dd-paseo-fotos-head") {
+                    Span "Foto del perro" class("dd-hor-lbl")
+                    Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
                 when pedit != "" and auth.isOwner {
                   Stack class("dd-cat-list") {
                     Title "Dueños" h4

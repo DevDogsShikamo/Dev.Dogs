@@ -58,7 +58,7 @@ part PoliticaTexto(version: text) {
         Text "Cuenta: nombre, correo electrónico, teléfono y contraseña. La contraseña la gestiona el proveedor de autenticación y no se almacena en texto legible."
         Text "Negocio: nombre y tipo de negocio (empresa o paseador independiente)."
         Text "Datos legales del negocio, que registra el jefe para identificarse ante sus clientes (artículos 50 y 53 de la Ley 1480 de 2011): nombre o razón social, tipo y número de documento (NIT, cédula o pasaporte), dirección de notificaciones, teléfono y correo. En el caso del paseador independiente, el documento es su número de identificación personal."
-        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, si tiene una enfermedad contagiosa, la fecha de expedición del certificado de salud, observaciones y enlace a la foto de perfil."
+        Text "Perros: nombre, raza, tamaño, conducta, compatibilidad con otros perros (nivel, nota y motivo), si está en celo, si tiene una enfermedad contagiosa, la fecha de expedición del certificado de salud, observaciones y la foto de perfil, que la aplicación reduce de tamaño y sin metadatos de la imagen (EXIF) antes de subirla."
         Text "Servicios: fecha, hora y estado de cada paseo o servicio, paseador asignado, hora de recogida y de entrega, motivo de inasistencia, zona o dirección de recogida del grupo y pertenencia a grupos de paseo."
         Text "Cobros: precio aplicado, si es cobrable, si fue pagado, quién lo confirmó y el saldo pendiente."
         Text "Equipo del negocio: salario fijo mensual de los paseadores empleados, visible solo para el jefe y para el propio empleado."
@@ -82,10 +82,11 @@ part PoliticaTexto(version: text) {
         Text "Personal de gestión con permiso de finanzas (otorgado solo por el jefe): lo mismo que el personal de gestión, más cobros, tarifas y reportes financieros."
         Text "Personal de gestión sin permiso de finanzas: perros, grupos, paseos y nombres de clientes; no ve cobros, tarifas, salarios ni teléfonos de clientes."
         Text "Paseador de una empresa: solo los perros que pasea, sus grupos y los paseos que tiene asignados; no ve cobros ni datos de contacto de clientes."
-        Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Ningún cliente edita los datos del perro: los administra el negocio. Un co-dueño puede ver y reservar, pero no comprar productos."
+        Text "Cliente (dueño del perro): sus perros, sus paseos y sus cobros y saldo. Cada dueño (principal o co-dueño) puede editar el nombre, la raza, el tamaño, la conducta, la sociabilidad, las observaciones y la foto de perfil de sus perros; el celo, la enfermedad contagiosa, el certificado de salud y las relaciones con otros perros los registra el negocio. Un co-dueño puede ver y reservar, pero no comprar productos."
         Text "Datos legales del negocio: el jefe y el personal de gestión de ese negocio los ven completos; sus paseadores y sus clientes los ven con el número de documento de una persona natural (cédula o pasaporte) oculto, salvo sus últimos cuatro dígitos. Solo el jefe los registra y los cambia."
         Text "Fotos de los paseos: solo el paseador que las subió y los dueños (principal y co-dueños) de los perros etiquetados en la foto. El jefe del negocio y el personal de gestión no las ven, salvo que las hayan subido o sean dueños de uno de esos perros. Si un dueño reporta una foto guardada como evidencia de un incidente, deja de mostrarse a los clientes y al paseador y solo la ven el jefe y el personal de gestión del negocio."
         Text "Incidentes: el jefe y el personal de gestión del negocio, quien lo reportó y los dueños (principal y co-dueños) del perro."
+        Text "Foto de perfil del perro: quienes pueden ver el perro, es decir, el jefe y el personal de gestión del negocio, el paseador que lo pasea y sus dueños (principal y co-dueños). La suben el jefe, el personal de gestión o sus dueños."
         Text "Reportes de fotos: quien lo hizo, el jefe y el personal de gestión del negocio."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
@@ -94,6 +95,7 @@ part PoliticaTexto(version: text) {
     Section class("pv-sec") {
       Title "6. Conservación" h2
       List {
+        Text "Foto de perfil del perro: se conserva mientras el perro esté registrado; una nueva foto reemplaza a la anterior."
         Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
         Text "Fotos guardadas como evidencia de un incidente: las de ese paseo en las que sale el perro se conservan, junto con una copia del archivo, más allá de los 30 días durante [COMPLETAR: plazo de conservación de la evidencia]."
         Text "Una foto reportada que no es evidencia se borra de inmediato de la aplicación; su archivo se elimina del almacenamiento a los 30 días de haberse subido."
@@ -129,7 +131,7 @@ part PoliticaTexto(version: text) {
       Title "8. Dónde se alojan los datos y transferencia internacional" h2
       List {
         Text "Los datos de la cuenta y del negocio se alojan con Supabase, proveedor de base de datos y autenticación, en la región us-west-2 de Estados Unidos. Esto implica enviar los datos fuera de Colombia."
-        Text "Las fotos de los paseos se alojan en Cloudflare R2 y se entregan a través de Cloudflare Workers (Cloudflare, Estados Unidos), en un almacenamiento privado sin enlaces públicos. Cada foto se entrega solo a quien tiene permiso, mediante una solicitud autenticada. Esto implica enviar las fotos fuera de Colombia."
+        Text "Las fotos de los paseos y las fotos de perfil de los perros se alojan en Cloudflare R2 y se entregan a través de Cloudflare Workers (Cloudflare, Estados Unidos), en un almacenamiento privado sin enlaces públicos. Cada foto se entrega solo a quien tiene permiso, mediante una solicitud autenticada. Esto implica enviar las fotos fuera de Colombia."
         Text "Proveedor de alojamiento de la aplicación web: [COMPLETAR: proveedor y país]."
       }
       Text "Fundamento de la transferencia internacional: [COMPLETAR: fundamento que indique el abogado]."
@@ -142,7 +144,7 @@ part PoliticaTexto(version: text) {
         Text "Preferencias de la interfaz, como idioma y vista del calendario."
         Text "Solo en el paseador: la agenda del día (servicio, horario, nombres de los perros y estado de cada uno) para trabajar sin conexión y los cambios que aún no se han enviado."
         Text "Archivos estáticos de la aplicación, sin datos personales, para que cargue más rápido."
-        Text "Las fotos de los paseos no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
+        Text "Las fotos de los paseos y las de perfil de los perros no se guardan en el dispositivo: se descargan al abrirlas, se muestran desde la memoria del navegador y se descartan al cerrar o actualizar la página."
       }
       Text "Al cerrar sesión o al vencer la sesión, estos datos se borran del dispositivo. Los cambios sin enviar se descartan solo si el paseador lo confirma al salir."
     }

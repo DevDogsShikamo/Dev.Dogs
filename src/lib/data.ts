@@ -2,7 +2,7 @@
 // Each persists to Supabase, then dispatches "supa:refresh" so the read bridges
 // (DataBootstrap, etc.) re-read and update the stores reactively.
 import { supa, toast, resolveSesion, signOut } from "./authActions";
-import { rpcOrQueue } from "./outbox";
+import { onSynced, rpcOrQueue } from "./outbox";
 import { copiarCodigo } from "./share";
 import { politicaPayload } from "./politicaNegocio.js";
 
@@ -30,6 +30,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("plan_existente") >= 0) return "Ese perro ya tiene un plan mensual activo de ese servicio.";
   if (m.indexOf("dueno_no_puede_salir") >= 0) return "Eres el dueño del negocio: no puedes salir de él.";
   if (m.indexOf("dueno_invalido") >= 0) return "Esa persona no es cliente de tu negocio.";
+  if (m.indexOf("perro_invalido") >= 0) return "Revisa los datos del perro: el nombre es obligatorio (máximo 80 caracteres) y las indicaciones admiten hasta 1000.";
   if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
   return msg;
 }
@@ -48,7 +49,8 @@ function done(msg: string, onOk?: () => void) {
 // ---- Catálogo de perros (schema v3) --------------------------------------
 // Alta: resuelve el negocio del usuario (por su profile) y luego inserta el perro.
 // tamano debe ser pequeno|mediano|grande o null (check constraint).
-type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; foto?: string; sociabilidad?: string; celo?: boolean; contagio?: boolean; certificado?: string };
+// The photo is not a field: it is uploaded through the photo Worker (FotoUpload, PUT /p/{perro}).
+type PerroInput = { nombre?: string; raza?: string; tamano?: string; conducta?: string; tips?: string; sociabilidad?: string; celo?: boolean; contagio?: boolean; certificado?: string };
 
 function perroFields(p: PerroInput): Record<string, unknown> {
   return {
@@ -57,7 +59,6 @@ function perroFields(p: PerroInput): Record<string, unknown> {
     tamano: p.tamano ? p.tamano : null,
     conducta: p.conducta || null,
     tips: p.tips || null,
-    foto_url: p.foto || null,
     sociabilidad: p.sociabilidad ? p.sociabilidad : null,
     en_celo: !!p.celo,
     enfermedad_contagiosa: !!p.contagio,
@@ -443,6 +444,17 @@ export function crearMiPerro(p: PerroInput): void {
   }).then(done("No se pudo registrar el perro", refresh));
 }
 
+// The client edits its own dog (principal or co-owner; RPC mi_perro_actualizar): the same fields it sets when
+// registering one. Heat, contagious disease, certificate and relations stay with the business.
+export function miPerroActualizar(id: string, p: PerroInput): void {
+  if (!id) return;
+  if (!p || !p.nombre || !p.nombre.trim()) { toast("El perro necesita un nombre"); return; }
+  supa.rpc("mi_perro_actualizar", {
+    p_perro: id, p_nombre: p.nombre, p_raza: p.raza || null, p_tamano: p.tamano || null,
+    p_conducta: p.conducta || null, p_tips: p.tips || null, p_sociabilidad: p.sociabilidad || null,
+  }).then(done("No se pudo guardar el perro", function () { toast("Datos del perro guardados"); refresh(); }));
+}
+
 // ---- Reserva del CLIENTE ------------------------------------------------------
 // El browser NUNCA manda precio ni tipo: el RPC reservar (valida que el perro sea del
 // cliente y el servicio de su negocio) saca tipo, cuidador, hora y precio del catálogo/salida.
@@ -491,15 +503,21 @@ export function reservaCancelar(id: string): void {
 // incidente_reportar: the assigned walker on his walk of today or yesterday, or the owner/office on any dog of the
 // business. On a walk the server marks its photos of that dog as evidence; the photo Worker then copies them out
 // of the 30-day expiry (POST /retener). If that copy fails, the photos still last their 30 days.
+// Through the outbox: a walker without signal reports anyway and it is sent when the connection returns. p_id is
+// generated here, so a replay of the same report is stored once (the server returns the stored incident).
 export function incidenteReportar(perro: string, prestacion: string, tipo: string, descripcion: string): void {
   if (!perro || !tipo) { toast("Elige el perro y el tipo de incidente"); return; }
-  supa.rpc("incidente_reportar", { p_perro: perro, p_prestacion: prestacion || null, p_tipo: tipo, p_descripcion: descripcion })
-    .then(function (res) {
-      if (res.error) { toast(errMsg(res.error, "No se pudo reportar el incidente")); return; }
-      toast("Incidente reportado. Lo ven el negocio y los dueños del perro.");
-      refresh();
-      if (prestacion) retenerFotos(String(res.data));
-    });
+  rpcOrQueue("incidente_reportar", { p_perro: perro, p_prestacion: prestacion || null, p_tipo: tipo, p_descripcion: descripcion, p_id: crypto.randomUUID() });
+}
+onSynced("incidente_reportar", function (params, data) {
+  toast("Incidente reportado. Lo ven el negocio y los dueños del perro.");
+  refresh();
+  if (params.p_prestacion) retenerFotos(String(data || params.p_id));
+});
+
+// "Ver más" of the incident lists: IncidentesBridge appends the next page.
+export function incidentesVerMas(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("incidentes:mas"));
 }
 
 // ponytail: one attempt, a failure is only announced; add a retry (POST /retener is idempotent) if it shows up.

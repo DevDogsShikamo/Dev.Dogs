@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
@@ -28,7 +28,6 @@ entity PerroDraft {
   contagio     bool
   certificado  date
   tips         text
-  foto         text
 }
 
 # Legal identity of the business (Ley 1480 art. 50 and 53): 0 or 1 row from the bridge.
@@ -139,6 +138,8 @@ action salir { catalogo.limpiar()  servicios.limpiar()  empresa.limpiar()  incid
 get incError = incPerro == "" ? "Elige el perro." : (incTipo == "" ? "Elige el tipo de incidente." : (incTexto.length < 10 ? "Describe lo que pasó con al menos 10 caracteres." : (incTexto.length > 2000 ? "Máximo 2000 caracteres." : "")))
 action incAbrir mutates incForm, incPerro, incTipo, incTexto { incPerro.set("")  incTipo.set("")  incTexto.set("")  incForm.set(true) }
 action incTipoSet(t: text) mutates incTipo { incTipo.set(t) }
+# Ver más: the next 50 incidents (IncidentesBridge).
+action incMas { incidentesVerMas() }
 action incPerroSet(id: text) mutates incPerro { incPerro.set(id) }
 action incCerrar mutates incForm { incForm.set(false) }
 action incEnviar mutates incForm { incidenteReportar(incPerro, "", incTipo, incTexto)  incForm.set(false) }
@@ -175,14 +176,14 @@ action servicioBorrar mutates conf { servicios.servicioDel(confId)  servicioElim
 
 # ---- Catálogo de perros (ABM del jefe) ----
 action perroNuevo mutates pdraft, pedit, pform { pdraft.reset()  pedit.set("")  pform.set(true) }
-action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, foto: text, celo: bool, contagio: bool, cert: text) mutates pdraft, pedit, pform {
-  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, contagio: contagio, certificado: cert, tips: tips, foto: foto })
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text, celo: bool, contagio: bool, cert: text) mutates pdraft, pedit, pform {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, celo: celo, contagio: contagio, certificado: cert, tips: tips })
   pedit.set(id)  pform.set(true)
 }
 action perroCerrar mutates pform { pform.set(false) }
 action perroGuardar(p: PerroDraft) mutates pform {
   if pedit == "" { perroCrear(p) }
-  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado)  perroActualizar(pedit, p) }
+  else { catalogo.perroPatch(pedit, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.celo, p.contagio, p.certificado)  perroActualizar(pedit, p) }
   pform.set(false)
 }
 action perroBorrar mutates conf { catalogo.perroQuitar(confId)  perroEliminar(confId)  conf.set("") }
@@ -305,7 +306,7 @@ Stack class("dd-app") {
   Custom ReportesBridge inputs(mes: @repMes) on(meses: mesesCargar, mesServicios: mesServSet, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom PlanesBridge on(planes: planes.setPlanes)
   Custom SalidasBridge on(salidas: empresa.setSalidas, miembros: empresa.setMiembros)
-  Custom IncidentesBridge on(items: incidentes.setItems)
+  Custom IncidentesBridge on(items: incidentes.setItems, mas: incidentes.setMas)
   # Agenda semanal multi-paseador (#5).
   Custom AgendaEmpresaBridge inputs(semana: @semana) on(rango: rangoSet, agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda, sinAsignar: empresa.setSinAsignar)
   # Vigía de red (O4): alimenta el aviso offline del shell.
@@ -866,6 +867,7 @@ Stack class("dd-app") {
           Stack class("dd-cat-list") {
             each incidentes.items as i { IncidenteItem(i: i) }
           }
+          when incidentes.hayMas { Button "Ver más" -> incMas class("dd-cat-add dd-ver-mas") }
         }
       }
 
@@ -893,7 +895,7 @@ Stack class("dd-app") {
                     Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
                   }
                   Stack class("acts") {
-                    Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
+                    Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar perro") { Icon "lucide:pencil" }
                     Button -> pedir("perro", p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar perro") { Icon "lucide:trash-2" }
                   }
                 }
@@ -912,6 +914,13 @@ Stack class("dd-app") {
                 Form bind(pdraft) submit(perroGuardar) "Guardar perro"
                 Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
                 when pedit == "" { Text "Después de guardarlo, ábrelo de nuevo para elegir su dueño principal." class("dd-rel-hint") }
+                # Profile photo of the dog (photo Worker, p/): the owner, the office and the dog's owners change it.
+                when pedit != "" {
+                  Stack class("dd-paseo-fotos-head") {
+                    Span "Foto del perro" class("dd-hor-lbl")
+                    Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
                 when pedit {
                   when auth.isOwner {
                     Stack class("dd-cat-list") {

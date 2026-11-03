@@ -1,11 +1,12 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, miPerroActualizar, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
 use estadoCertificado from "~/lib/kiara.js"
 
-# Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro).
+# Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro) y edición de uno suyo
+# (principal o co-dueño, RPC mi_perro_actualizar): los mismos campos.
 entity PerroDraft {
   nombre       text required
   raza         text
@@ -47,6 +48,8 @@ state {
   prodForm     = false : bool
   pdraft       = {} : PerroDraft
   pform        = false : bool
+  # The dog being edited ("" = registering a new one).
+  pedit        = "" : text
   notifOpen    = false : bool
   rsRating     = 0 : number
   rsTexto      = "" : text
@@ -92,9 +95,17 @@ action notifToggle mutates notifOpen { notifOpen.toggle() }
 action notifCerrar mutates notifOpen { notifOpen.set(false) }
 action irAgenda mutates section, notifOpen { section.set("agenda")  notifOpen.set(false) }
 # Registrar un perro propio (el server lo crea y me enlaza como dueño principal).
-action perroNuevo mutates pdraft, pform { pdraft.reset()  pform.set(true) }
+action perroNuevo mutates pdraft, pedit, pform { pdraft.reset()  pedit.set("")  pform.set(true) }
+action perroEditar(id: text, nombre: text, raza: text, tamano: text, conducta: text, soc: text, tips: text) mutates pdraft, pedit, pform {
+  pdraft.set({ nombre: nombre, raza: raza, tamano: tamano, conducta: conducta, sociabilidad: soc, tips: tips })
+  pedit.set(id)  pform.set(true)
+}
 action perroCerrar mutates pform { pform.set(false) }
-action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
+action miPerroGuardar(p: PerroDraft) mutates pform {
+  if pedit == "" { crearMiPerro(p) } else { miPerroActualizar(pedit, p) }
+  pform.set(false)
+}
+get perroTitulo = pedit == "" ? "Registrar perro" : "Editar perro"
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
 action salir { cliente.limpiar()  incidentes.limpiar()  auth.logout() }
 # Leave the business (confirmed in the page): the client loses its access and its links to the dogs; the session ends.
@@ -125,7 +136,7 @@ Stack class("dd-app") {
 
   Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
   Custom PoliticaBridge on(secciones: polSecs, meta: polMeta)
-  Custom IncidentesBridge on(items: incidentes.setItems)
+  Custom IncidentesBridge on(items: incidentes.setItems, mas: incidentes.setMas)
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
@@ -317,6 +328,7 @@ Stack class("dd-app") {
                   when p.plan { Span "{p.plan}" class("meta dd-plan") }
                 }
                 Stack class("acts") {
+                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips) class("dd-cat-add") { Icon "lucide:pencil"  Span "Editar" }
                   Button -> cliente.facturaAbrir(p.id, p.nombre) class("dd-cat-add dd-cli-facbtn") { Icon "lucide:file-text"  Span "Estado de cuenta" }
                 }
               }
@@ -327,10 +339,18 @@ Stack class("dd-app") {
               Stack class("dd-cal-scrimbg") on(click: perroCerrar)
               Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
                 Stack class("dd-cat-formhead") {
-                  Title "Registrar perro" h3
+                  Title "{perroTitulo}" h3
                   Button -> perroCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
                 }
                 Form bind(pdraft) submit(miPerroGuardar) "Guardar perro"
+                # Profile photo (photo Worker, p/): any active owner of the dog changes it.
+                when pedit != "" {
+                  Stack class("dd-paseo-fotos-head") {
+                    Span "Foto del perro" class("dd-hor-lbl")
+                    Custom FotoUpload inputs(perro: @pedit)
+                  }
+                }
+                when pedit != "" { Text "El celo, la enfermedad contagiosa y el certificado de salud los registra tu negocio." class("dd-rel-hint") }
               }
             }
           }

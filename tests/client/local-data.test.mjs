@@ -1,7 +1,7 @@
 // S6: pure rules behind the end-of-session purge and the offline outbox (design section 7).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classify, opsFor, purgeKeys, shouldPurge } from '../../src/lib/localData.js'
+import { classify, opsFor, pageAll, purgeKeys, shouldPurge } from '../../src/lib/localData.js'
 
 const base = { event: 'INITIAL_SESSION', session: null, online: true, hasToken: false, loggedIn: true }
 
@@ -87,4 +87,21 @@ test('boot.js finishes a pending purge before the app boots, and does nothing ot
   }
   assert.deepEqual(run(true), { left: ['sb-x-auth-token'], flag: false })
   assert.deepEqual(run(false), { left: ['muten:auth:userId', 'dd:outbox', 'sb-x-auth-token'], flag: false })
+})
+
+// F5b: pageAll reads a PostgREST list past the 1000-row cap, page by page, and never returns a partial list.
+test('pageAll walks .range() pages until a short page, and stops at the first error', async () => {
+  const rows = Array.from({ length: 2500 }, (_, i) => i)
+  const calls = []
+  const build = () => ({ range: (a, b) => { calls.push([a, b]); return Promise.resolve({ data: rows.slice(a, b + 1), error: null }) } })
+  assert.deepEqual(await pageAll(build), { data: rows, error: null })
+  assert.deepEqual(calls, [[0, 999], [1000, 1999], [2000, 2999]])
+  calls.length = 0
+  const exact = () => ({ range: (a, b) => { calls.push([a, b]); return Promise.resolve({ data: rows.slice(0, 1000).slice(a, b + 1), error: null }) } })
+  assert.equal((await pageAll(exact)).data.length, 1000)
+  assert.deepEqual(calls, [[0, 999], [1000, 1999]], 'a full last page needs one more (empty) page')
+  let n = 0
+  const flaky = () => ({ range: (a, b) => Promise.resolve(n++ ? { data: null, error: { message: 'down' } } : { data: rows.slice(a, b + 1), error: null }) })
+  assert.deepEqual(await pageAll(flaky), { data: null, error: { message: 'down' } }, 'an error is not a short list')
+  assert.deepEqual(await pageAll(() => ({ range: () => Promise.resolve({ data: [], error: null }) })), { data: [], error: null })
 })

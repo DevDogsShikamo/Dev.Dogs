@@ -4,6 +4,8 @@
 //   GET /f/{foto_id}   paseo_fotos row visible to the caller? -> BUCKET.get (key derived from the row; the r/ copy
 //                      once the lifecycle rule expired f/)
 //   POST /retener/{incidente_id}   foto_retencion_autorizar -> copy each f/ key to r/ (the rule only expires f/)
+//   PUT /p/{perro_id}  dog profile photo: perro_foto_autorizar -> validate -> BUCKET.put (replaces) -> perro_foto_confirmar
+//   GET /p/{perro_id}  perros row with foto_at visible to the caller? -> BUCKET.get p/{negocio}/{perro}.jpg
 // Vars: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (public), ALLOWED_ORIGINS (comma list), ALLOW_LOCALHOST ("1" in staging).
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const MAX_BYTES = 2 * 1024 * 1024
@@ -64,10 +66,10 @@ export async function handle(request, env, fetchImpl = fetch) {
   if (!env.BUCKET || !env.SUPABASE_URL) return fail(500, 'mal_configurado')
   if (!allowed) return fail(403, 'origen_no_permitido')
   if (request.method === 'OPTIONS') return reply(204)
-  const [, ruta, raw] = new RegExp(`^/(f|retener)/(${UUID})$`, 'i').exec(new URL(request.url).pathname) ?? []
+  const [, ruta, raw] = new RegExp(`^/(f|p|retener)/(${UUID})$`, 'i').exec(new URL(request.url).pathname) ?? []
   const id = raw?.toLowerCase()
   if (!id) return fail(404, 'no_encontrado')
-  if (!(ruta === 'f' ? ['GET', 'PUT'] : ['POST']).includes(request.method)) return fail(405, 'metodo_no_permitido')
+  if (!(ruta === 'retener' ? ['POST'] : ['GET', 'PUT']).includes(request.method)) return fail(405, 'metodo_no_permitido')
   const token = /^Bearer (\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1]
   if (!token) return fail(401, 'no_autenticado')
 
@@ -96,20 +98,22 @@ export async function handle(request, env, fetchImpl = fetch) {
   }
 
   if (request.method === 'GET') {
-    const up = await supabase(`paseo_fotos?id=eq.${id}&select=id,negocio_id`)
+    const up = await supabase(ruta === 'p' ? `perros?id=eq.${id}&select=id,negocio_id,foto_at` : `paseo_fotos?id=eq.${id}&select=id,negocio_id`)
     if (!up.ok) return refused(up)
     const [row] = await up.json()
     // A hidden row and a missing row are the same 404: no existence leak.
-    if (!row || row.id !== id || !new RegExp(`^${UUID}$`, 'i').test(row.negocio_id)) return fail(404, 'no_encontrado')
-    const object = (await env.BUCKET.get(`f/${row.negocio_id}/${id}.jpg`)) ?? (await env.BUCKET.get(`r/${row.negocio_id}/${id}.jpg`))
+    if (!row || row.id !== id || !new RegExp(`^${UUID}$`, 'i').test(row.negocio_id) || (ruta === 'p' && !row.foto_at)) return fail(404, 'no_encontrado')
+    const object = ruta === 'p' ? await env.BUCKET.get(`p/${row.negocio_id}/${id}.jpg`)
+      : (await env.BUCKET.get(`f/${row.negocio_id}/${id}.jpg`)) ?? (await env.BUCKET.get(`r/${row.negocio_id}/${id}.jpg`))
     if (!object) return fail(404, 'no_encontrado')
     return reply(200, object.body, { 'content-type': 'image/jpeg', 'content-length': String(object.size) })
   }
 
-  const auth = await rpc('foto_subida_autorizar', { p_id: id })
+  const perro = ruta === 'p'
+  const auth = await rpc(perro ? 'perro_foto_autorizar' : 'foto_subida_autorizar', perro ? { p_perro: id } : { p_id: id })
   if (!auth.ok) return refused(auth)
   const key = await auth.json()
-  if (typeof key !== 'string' || !new RegExp(`^f/${UUID}/${id}\\.jpg$`).test(key)) return fail(502, 'proveedor_no_disponible')
+  if (typeof key !== 'string' || !new RegExp(`^${ruta}/${UUID}/${id}\\.jpg$`).test(key)) return fail(502, 'proveedor_no_disponible')
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'image/jpeg') return fail(415, 'tipo_no_permitido')
   if (Number(request.headers.get('content-length')) > MAX_BYTES) return fail(413, 'demasiado_grande')
   const bytes = await readCapped(request.body, MAX_BYTES)
@@ -118,9 +122,11 @@ export async function handle(request, env, fetchImpl = fetch) {
   if (verdict !== 'ok') return fail(422, verdict === 'exif' ? 'exif_no_permitido' : 'jpeg_invalido')
 
   await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg' } })
-  const done = await rpc('foto_confirmar', { p_id: id, p_bytes: bytes.length })
+  const done = await rpc(perro ? 'perro_foto_confirmar' : 'foto_confirmar', perro ? { p_perro: id, p_bytes: bytes.length } : { p_id: id, p_bytes: bytes.length })
   if (!done.ok) {
-    await env.BUCKET.delete(key) // never leave an object the database does not know about
+    // Never leave a walk photo the database does not know about. A dog photo already replaced the previous object of
+    // its key, so it stays; it is served only while perros.foto_at is set.
+    if (!perro) await env.BUCKET.delete(key)
     return refused(done)
   }
   return reply(201, JSON.stringify({ id, bytes: bytes.length }), { 'content-type': 'application/json' })

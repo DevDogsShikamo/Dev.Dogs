@@ -23,6 +23,7 @@ function mount(el, inputs, on) {
   // Date helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
   var U = globalThis.__ddUtils;
   var p = U.pad, today = U.today;
+  // Every list below is read whole with U.pageAll (PostgREST caps a select at 1000 rows); each order ends in id.
   function nowNum() { var d = new Date(); return d.getHours() + d.getMinutes() / 60; }
   function timeNum(t) { if (!t) return 8; var a = String(t).split(":"); return (+a[0]) + (+a[1] || 0) / 60; }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
@@ -47,10 +48,11 @@ function mount(el, inputs, on) {
     if (!supa) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
-      supa.from("perros")
-        .select("id,nombre,raza,tamano,conducta,tips,foto_url,sociabilidad,en_celo,enfermedad_contagiosa,certificado_salud,incompatibles")
-        .eq("negocio_id", s.negocioId).eq("activo", true).order("nombre")
-        .then(function (res) {
+      U.pageAll(function () {
+        return supa.from("perros")
+          .select("id,nombre,raza,tamano,conducta,tips,foto_at,sociabilidad,en_celo,enfermedad_contagiosa,certificado_salud,incompatibles")
+          .eq("negocio_id", s.negocioId).eq("activo", true).order("nombre").order("id");
+      }).then(function (res) {
           if (res && res.error) return;   // SWR: no pisar el cache si la red falló
           var raw = res.data || [];
           var RANK = { cuidado: 1, tolera: 2, no_tolera: 3 };
@@ -74,7 +76,7 @@ function mount(el, inputs, on) {
             ids.forEach(function (x) { if ((RANK[rel[x].nivel] || 0) > (RANK[worst] || 0)) worst = rel[x].nivel; });
             return {
               id: r.id, nombre: r.nombre || "", raza: r.raza || "", tamano: r.tamano || "",
-              conducta: r.conducta || "", tips: r.tips || "", foto: r.foto_url || "",
+              conducta: r.conducta || "", tips: r.tips || "", foto: U.perroFoto(r.id, r.foto_at),
               sociabilidad: r.sociabilidad || "", celo: !!r.en_celo, contagio: !!r.enfermedad_contagiosa, certificado: r.certificado_salud || "",
               relN: ids.length, relWorst: worst
             };
@@ -90,13 +92,15 @@ function mount(el, inputs, on) {
                 if (!o) return;
                 flat.push({
                   id: r.id + "|" + otherId, deId: r.id, aId: otherId,
-                  aNombre: o.nombre || "", aFoto: o.foto_url || "", aRaza: o.raza || "",
+                  aNombre: o.nombre || "", aFoto: U.perroFoto(o.id, o.foto_at), aRaza: o.raza || "",
                   nivel: rel[otherId].nivel, nota: rel[otherId].nota, motivo: rel[otherId].motivo || ""
                 });
               });
             });
             on.relaciones(flat);
           }
+          // Profile photos arrive from the photo Worker after the list: re-read once they are cached.
+          U.perroFotos(raw).then(function (n) { if (n) loadPerros(); });
         });
     });
   }
@@ -114,10 +118,11 @@ function mount(el, inputs, on) {
         });
       }
       if (on.servicios) {
-        supa.from("servicios")
-          .select("id,nombre,tipo,duracion_min,modelo_cobro,tarifas(precio,precio_mensual)")
-          .eq("negocio_id", s.negocioId).eq("activo", true).order("tipo")
-          .then(function (res) {
+        U.pageAll(function () {
+          return supa.from("servicios")
+            .select("id,nombre,tipo,duracion_min,modelo_cobro,tarifas(precio,precio_mensual)")
+            .eq("negocio_id", s.negocioId).eq("activo", true).order("tipo").order("id");
+        }).then(function (res) {
             if (res && res.error) return;   // SWR: no pisar el cache si falló
             var rows = (res.data || []).map(function (r) {
               var mensual = r.modelo_cobro === "mensual", t = r.tarifas || {};   // tarifas: null si el rol no ve precios
@@ -138,10 +143,11 @@ function mount(el, inputs, on) {
     if (!supa || !on.todos) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
-      supa.from("grupos")
-        .select("id,nombre,zona,hora,duracion_min,color,servicio_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
-        .eq("negocio_id", s.negocioId).eq("activo", true).order("hora")
-        .then(function (res) {
+      U.pageAll(function () {
+        return supa.from("grupos")
+          .select("id,nombre,zona,hora,duracion_min,color,servicio_id,servicios(nombre),grupo_membresias(perro_id,activo,recurrencia,perros(nombre))")
+          .eq("negocio_id", s.negocioId).eq("activo", true).order("hora").order("id");
+      }).then(function (res) {
           if (res && res.error) return;   // SWR: no pisar el cache si falló
           var miembros = [];
           var rows = (res.data || []).map(function (r) {
@@ -164,11 +170,12 @@ function mount(el, inputs, on) {
     if (!supa || !on.groups) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.uid) return;
-      supa.from("prestaciones")
-        .select("id,estado,tipo,detalle,perros(id,nombre,foto_url,incompatibles,en_celo,enfermedad_contagiosa,certificado_salud),servicios(nombre,duracion_min)")
-        // A booking the client cancelled is not walked: it stays out of today's groups.
-        .eq("cuidador_id", s.uid).eq("fecha", today()).neq("estado", "cancelado")
-        .then(function (res) {
+      U.pageAll(function () {
+        return supa.from("prestaciones")
+          .select("id,estado,tipo,detalle,perros(id,nombre,foto_at,incompatibles,en_celo,enfermedad_contagiosa,certificado_salud),servicios(nombre,duracion_min)")
+          // A booking the client cancelled is not walked: it stays out of today's groups.
+          .eq("cuidador_id", s.uid).eq("fecha", today()).neq("estado", "cancelado").order("id");
+      }).then(function (res) {
           if (res && res.error) return;   // no pisar con vacío si la red falló
           var rows = res.data || [], groups = {}, order = [], perrosSeen = {}, perrosHoy = [], perrosPaseo = [];
           rows.forEach(function (r) {
@@ -188,7 +195,7 @@ function mount(el, inputs, on) {
             if (d.hora_recibido && !g.recibido) g.recibido = d.hora_recibido;
             if (d.hora_entrega && !g.entrega) g.entrega = d.hora_entrega;
             var nombre = pobj.nombre || "Perro";
-            g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: pobj.foto_url || "", estado: estado, inc: pobj.incompatibles || [] });
+            g.dogs.push({ id: pobj.id || "", presId: r.id, nombre: nombre, foto: U.perroFoto(pobj.id, pobj.foto_at), estado: estado, inc: pobj.incompatibles || [] });
             perrosPaseo.push({ id: r.id, perroId: pobj.id || "", gkey: key, nombre: nombre, estado: estado, motivo: d.motivo_no_salio || "", celo: celo, contagio: contagio, cert: pobj.certificado_salud || "" });
             if (!perrosSeen[nombre]) { perrosSeen[nombre] = true; perrosHoy.push({ nombre: nombre }); }
           });
@@ -243,6 +250,7 @@ function mount(el, inputs, on) {
             conflictos.sort(function (a, b) { return (RANK[b.nivel] || 0) - (RANK[a.nivel] || 0); });
             on.conflictos(conflictos);
           }
+          U.perroFotos(rows.map(function (r) { return r.perros; })).then(function (n) { if (n) loadGruposHoy(); });
         });
     });
   }
@@ -254,9 +262,10 @@ function mount(el, inputs, on) {
     if (!supa || !on.invitaciones) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
-      supa.from("invitaciones").select("id,rol,email,estado,expires_at").eq("negocio_id", s.negocioId)
-        .eq("estado", "pendiente").gt("expires_at", new Date().toISOString()).order("created_at")
-        .then(function (res) {
+      U.pageAll(function () {
+        return supa.from("invitaciones").select("id,rol,email,estado,expires_at").eq("negocio_id", s.negocioId)
+          .eq("estado", "pendiente").gt("expires_at", new Date().toISOString()).order("created_at").order("id");
+      }).then(function (res) {
           if (res && res.error) return;   // SWR: no pisar el cache si falló
           on.invitaciones((res.data || []).map(function (i) {
             return { id: i.id, rol: i.rol || "", email: i.email || "", estado: i.estado || "", vence: new Date(i.expires_at).toLocaleDateString("es") };
@@ -272,12 +281,12 @@ function mount(el, inputs, on) {
     if (!supa || !on.clientes) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
-      supa.from("profiles").select("id,nombre").eq("negocio_id", s.negocioId).eq("rol", "cliente").order("nombre").then(function (cr) {
+      U.pageAll(function () { return supa.from("profiles").select("id,nombre").eq("negocio_id", s.negocioId).eq("rol", "cliente").order("nombre").order("id"); }).then(function (cr) {
         if (cr && cr.error) return;   // SWR: keep what is shown if the network failed
         on.clientes((cr.data || []).map(function (c) { return { id: c.id, nombre: c.nombre || "", telefono: "" }; }));
       });
       if (!on.duenos) return;
-      supa.from("perro_duenos").select("perro_id,dueno_id,rol,profiles!dueno_id(nombre)").eq("estado", "activo").then(function (dr) {
+      U.pageAll(function () { return supa.from("perro_duenos").select("perro_id,dueno_id,rol,profiles!dueno_id(nombre)").eq("estado", "activo").order("id"); }).then(function (dr) {
         if (dr && dr.error) return;
         on.duenos((dr.data || []).map(function (d) {
           return { id: d.dueno_id, perroId: d.perro_id, nombre: (d.profiles && d.profiles.nombre) || "", rol: d.rol || "" };
@@ -308,10 +317,11 @@ function mount(el, inputs, on) {
     if (!supa || !on.sinAsignar) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
-      supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
-        .eq("negocio_id", s.negocioId).is("cuidador_id", null).eq("estado", "programado")
-        .gte("fecha", today()).not("tipo", "in", "(comida,accesorio)").order("fecha").limit(50)
-        .then(function (res) {
+      U.pageAll(function () {
+        return supa.from("prestaciones").select("id,fecha,detalle,tipo,perros(nombre),servicios(nombre)")
+          .eq("negocio_id", s.negocioId).is("cuidador_id", null).eq("estado", "programado")
+          .gte("fecha", today()).not("tipo", "in", "(comida,accesorio)").order("fecha").order("id");
+      }).then(function (res) {
           if (res && res.error) return;   // SWR: keep what is shown if the network failed
           on.sinAsignar((res.data || []).map(function (r) {
             return { id: r.id, fecha: r.fecha || "", hora: (r.detalle && r.detalle.hora) || "", servicio: (r.servicios && r.servicios.nombre) || cap(r.tipo || ""), perro: (r.perros && r.perros.nombre) || "Perro" };

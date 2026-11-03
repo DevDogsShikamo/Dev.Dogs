@@ -34,25 +34,27 @@ function mount(el, inputs, on) {
       supa.from("profiles").select("negocio_id").eq("id", uid).single().then(function (pr) {
         var neg = pr.data && pr.data.negocio_id;
         if (!neg) return;
-        supa.from("grupos")
-          .select("id,nombre,hora,color,grupo_membresias(perro_id,perros(id,nombre,foto_url))")
-          .eq("negocio_id", neg).eq("activo", true).eq("grupo_membresias.activo", true).order("hora")
-          .then(function (res) {
+        globalThis.__ddUtils.pageAll(function () {
+          return supa.from("grupos")
+            .select("id,nombre,hora,color,grupo_membresias(perro_id,perros(id,nombre,foto_at))")
+            .eq("negocio_id", neg).eq("activo", true).eq("grupo_membresias.activo", true).order("hora").order("id");
+        }).then(function (res) {
             if (res && res.error) return;
             grupos = (res.data || []).map(function (g) {
               return {
                 id: g.id, nombre: g.nombre, hora: g.hora, color: g.color || "purple",
                 perros: (g.grupo_membresias || []).map(function (m) {
                   var p = m.perros || {};
-                  return { id: p.id, nombre: p.nombre || "Perro", foto: p.foto_url || "" };
+                  return { id: p.id, nombre: p.nombre || "Perro", foto: globalThis.__ddUtils.perroFoto(p.id, p.foto_at) };
                 })
               };
             });
             var enGrupo = {};
             grupos.forEach(function (g) { g.perros.forEach(function (p) { enGrupo[p.id] = true; }); });
-            supa.from("perros").select("id,nombre,foto_url").eq("negocio_id", neg).eq("activo", true).order("nombre").then(function (pr) {
+            // Every active dog (past the 1000-row cap); the photos are the ones DataBootstrap already cached.
+            globalThis.__ddUtils.pageAll(function () { return supa.from("perros").select("id,nombre,foto_at").eq("negocio_id", neg).eq("activo", true).order("nombre").order("id"); }).then(function (pr) {
               sueltos = (pr.data || []).filter(function (p) { return !enGrupo[p.id]; })
-                .map(function (p) { return { id: p.id, nombre: p.nombre || "Perro", foto: p.foto_url || "" }; });
+                .map(function (p) { return { id: p.id, nombre: p.nombre || "Perro", foto: globalThis.__ddUtils.perroFoto(p.id, p.foto_at) }; });
               render();
             });
           });

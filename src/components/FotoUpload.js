@@ -3,12 +3,15 @@
 // al Worker de fotos con el token del usuario. Si la subida falla, la foto queda pendiente y se
 // reintenta con el mismo id. Entradas: inputs(tags: @fotoTags) = perros marcados (el valor devuelto
 // por mount es un updater: mantiene la lista al día). Eventos: on.uploaded(previewUrl).
+// Dog profile photo: inputs(perro: @id) instead of tags. No registration: PUT /p/{perro} (the Worker asks
+// perro_foto_autorizar), then "supa:refresh" so the bridges read the new perros.foto_at.
 function mount(el, inputs, on) {
   el.className = "dd-fotoup";
 
   var MAX_EDGE = 1600;       // lado mayor, px
   var MAX_BYTES = 1500000;   // por encima se recodifica a calidad 0.6
   var tags = ids(inputs);
+  var perro = (inputs && inputs.perro) || "";
   var pending = null;        // { id, blob, preview } tras un fallo reintentable
   var busy = false;
 
@@ -27,7 +30,7 @@ function mount(el, inputs, on) {
   function toast(m) { globalThis.__ddUtils.toast(m); }
   function paint() {
     btn.disabled = busy;
-    btn.textContent = busy ? "Subiendo…" : pending ? "↻ Reintentar subida" : "📷 Agregar foto";
+    btn.textContent = busy ? "Subiendo…" : pending ? "↻ Reintentar subida" : perro ? "📷 Cambiar foto" : "📷 Agregar foto";
   }
   function setBusy(v) { busy = v; paint(); }
 
@@ -58,21 +61,22 @@ function mount(el, inputs, on) {
   }
 
   // Resuelve con el estado HTTP (0 = sin red); nunca rechaza.
-  function put(id, blob) {
+  function put(id, blob, p) {
     return globalThis.__supa.auth.getSession().then(function (r) {
       var t = r && r.data && r.data.session && r.data.session.access_token;
       if (!t) return 401;
-      return fetch(globalThis.__ddFotos + "/f/" + id, { method: "PUT", headers: { authorization: "Bearer " + t, "content-type": "image/jpeg" }, body: blob })
+      return fetch(globalThis.__ddFotos + (p.perro ? "/p/" : "/f/") + id, { method: "PUT", headers: { authorization: "Bearer " + t, "content-type": "image/jpeg" }, body: blob })
         .then(function (res) { return res.status; });
     }).catch(function () { return 0; });
   }
 
   function send(p) {
     setBusy(true);
-    return put(p.id, p.blob).then(function (status) {
+    return put(p.id, p.blob, p).then(function (status) {
       setBusy(false);
       if (status === 201) {
         pending = null; paint();
+        if (p.perro) { toast("Foto del perro actualizada"); globalThis.dispatchEvent(new CustomEvent("supa:refresh")); }
         if (on.uploaded) on.uploaded(p.preview);
         return;
       }
@@ -97,16 +101,17 @@ function mount(el, inputs, on) {
     var file = input.files && input.files[0];
     input.value = "";
     if (!file) return;
-    if (!tags.length) { toast("Marca al menos un perro en la foto"); return; }
+    if (!perro && !tags.length) { toast("Marca al menos un perro en la foto"); return; }
+    var dog = perro;
     setBusy(true);
     encode(file)
       .then(function (blob) {
         if (!blob) throw "No se pudo preparar la foto";
-        return registrar().then(function (id) { return { id: id, blob: blob, preview: URL.createObjectURL(blob) }; });
+        return (dog ? Promise.resolve(dog) : registrar()).then(function (id) { return { id: id, perro: !!dog, blob: blob, preview: URL.createObjectURL(blob) }; });
       })
       .then(function (p) { setBusy(false); return send(p); })
       .catch(function (e) { setBusy(false); toast(typeof e === "string" ? e : "No se pudo preparar la foto"); });
   });
 
-  return function (next) { tags = ids(next); };
+  return function (next) { tags = ids(next); perro = (next && next.perro) || ""; paint(); };
 }

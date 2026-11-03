@@ -3,8 +3,9 @@
 // reproduce sola al volver la conexión (evento "online" + al cargar). El store ya
 // mostró el cambio optimista (y persiste), así que la UI no espera a la red.
 //
-// Hoy encola RPCs (modo paseo: paseo_marcar / paseo_no_salio). Extender a inserts/
-// updates es sumar tipos de op acá.
+// Hoy encola RPCs (modo paseo: paseo_marcar / paseo_no_salio, incidente_reportar). Extender a inserts/
+// updates es sumar tipos de op acá. A replayed op must be idempotent on the server (incidente_reportar carries a
+// client-generated p_id), because a reply lost to the network leaves the op queued after it was applied.
 import { currentUid, supa, toast } from "./authActions";
 import { classify, opsFor } from "./localData.js";
 
@@ -39,6 +40,20 @@ function refresh(): void {
     window.dispatchEvent(new CustomEvent("supa:refresh"));
   } catch {
     /* noop */
+  }
+}
+
+// What to do once an RPC was applied, online at once or replayed from the queue (e.g. copy an incident's photos).
+type Synced = (params: Record<string, unknown>, data: unknown) => void;
+const synced: Record<string, Synced> = {};
+export function onSynced(name: string, fn: Synced): void {
+  synced[name] = fn;
+}
+function applied(name: string, params: Record<string, unknown>, data: unknown): void {
+  try {
+    if (synced[name]) synced[name](params, data);
+  } catch {
+    /* a follow-up never blocks the queue */
   }
 }
 
@@ -83,9 +98,12 @@ export function flush(): void {
     const op = mine[i];
     supa
       .rpc(op.name, op.params)
-      .then((r: { error?: unknown; status?: number }) => {
+      .then((r: { error?: unknown; status?: number; data?: unknown }) => {
         const c = classify(r as never);
-        if (c === "ok") return step(i + 1);
+        if (c === "ok") {
+          applied(op.name, op.params, r.data);
+          return step(i + 1);
+        }
         if (c === "rejected") {
           rejected++;
           return step(i + 1);
@@ -106,9 +124,10 @@ export function rpcOrQueue(name: string, params: Record<string, unknown>): void 
   }
   supa
     .rpc(name, params)
-    .then((r: { error?: unknown; status?: number }) => {
+    .then((r: { error?: unknown; status?: number; data?: unknown }) => {
       const c = classify(r as never);
-      if (c === "network") enqueue(name, params); // postgrest-js reports a dead network as an error, not a throw
+      if (c === "ok") applied(name, params, r.data);
+      else if (c === "network") enqueue(name, params); // postgrest-js reports a dead network as an error, not a throw
       else if (c === "auth") toast("Sesión vencida — inicia sesión de nuevo");
       else if (c === "rejected") {
         toast("No se pudo guardar");

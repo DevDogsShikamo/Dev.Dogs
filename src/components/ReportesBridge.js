@@ -14,6 +14,8 @@ function mount(el, inputs, on) {
   // Date helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
   var U = globalThis.__ddUtils;
   var p = U.pad, iso = U.iso;
+  // Totals need every row: U.pageAll reads past the 1000-row cap (orders end in prestacion_id / id).
+  var todas = U.pageAll;
   function shiftDays(n) { return U.addDays(new Date(), n); }
 
   // Los importes viven en `cobros` (RLS: dueño u oficina con el permiso de finanzas). Sin permiso no se
@@ -49,16 +51,18 @@ function mount(el, inputs, on) {
   }
 
   // Realizado = finished chargeable services of the month (a monthly charge is one); cobrado = marked paid.
-  // ponytail: one PostgREST page (1000 rows a month); aggregate in SQL if a business outgrows it.
+  // ponytail: summed in the browser over every row of the month (paged); an SQL aggregate if a month gets huge.
   function cargarMes() {
     if (!listo || !on.mesServicios) return;
     var mes = mesSel, y = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7));
     var hasta = mes + "-" + p(new Date(y, m, 0).getDate());
-    listo.supa.from("cobros")
-      .select("precio_aplicado,cobrado,prestaciones!inner(fecha,estado,tipo,detalle,servicios(nombre))")
-      .eq("negocio_id", listo.neg).eq("cobrable", true).eq("prestaciones.estado", "finalizado")
-      .gte("prestaciones.fecha", mes + "-01").lte("prestaciones.fecha", hasta)
-      .then(function (res) {
+    var db = listo.supa, neg = listo.neg;
+    todas(function () {
+      return db.from("cobros")
+        .select("precio_aplicado,cobrado,prestaciones!inner(fecha,estado,tipo,detalle,servicios(nombre))")
+        .eq("negocio_id", neg).eq("cobrable", true).eq("prestaciones.estado", "finalizado")
+        .gte("prestaciones.fecha", mes + "-01").lte("prestaciones.fecha", hasta).order("prestacion_id");
+    }).then(function (res) {
         if ((res && res.error) || mes !== mesSel) return;
         var por = {};
         (res.data || []).forEach(function (c) {
@@ -77,16 +81,17 @@ function mount(el, inputs, on) {
 
       // Dueño de cada perro (solo el nombre) para rotular los cobros pendientes.
       var duenos = {};
-      var duenosP = supa.rpc("perro_duenos_nombres").then(function (dr) {
+      var duenosP = todas(function () { return supa.rpc("perro_duenos_nombres").order("perro_id").order("nombre"); }).then(function (dr) {
         if (!(dr && dr.error)) (dr.data || []).forEach(function (d) { duenos[d.perro_id] = d.nombre || ""; });
       });
 
       // Pendientes de cobro: paseos realizados (finalizados), cobrables y aún no cobrados.
       if (on.pendientes) {
-        supa.from("cobros")
-          .select("prestacion_id,precio_aplicado,prestaciones!inner(fecha,estado,perro_id,detalle,perros(nombre),servicios(nombre))")
-          .eq("negocio_id", neg).eq("cobrable", true).eq("cobrado", false).eq("prestaciones.estado", "finalizado")
-          .then(function (pr) {
+        todas(function () {
+          return supa.from("cobros")
+            .select("prestacion_id,precio_aplicado,prestaciones!inner(fecha,estado,perro_id,detalle,perros(nombre),servicios(nombre))")
+            .eq("negocio_id", neg).eq("cobrable", true).eq("cobrado", false).eq("prestaciones.estado", "finalizado").order("prestacion_id");
+        }).then(function (pr) {
             if (pr && pr.error) return;
             duenosP.then(function () {
               var rows = (pr.data || []).map(function (r) {
@@ -102,13 +107,14 @@ function mount(el, inputs, on) {
 
       // Mapa id→nombre de paseadores (para agrupar por paseador con nombre).
       var nombres = {};
-      supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").then(function (pr) {
+      todas(function () { return supa.from("profiles").select("id,nombre").eq("negocio_id", neg).eq("rol", "paseador").order("id"); }).then(function (pr) {
         if (!(pr && pr.error)) (pr.data || []).forEach(function (r) { nombres[r.id] = r.nombre || "Paseador"; });
 
-        supa.from("cobros")
-          .select("precio_aplicado,cobrable,cobrado,prestaciones!inner(fecha,cuidador_id,servicios(nombre))")
-          .eq("negocio_id", neg).gte("prestaciones.fecha", desde).lte("prestaciones.fecha", hasta)
-          .then(function (res) {
+        todas(function () {
+          return supa.from("cobros")
+            .select("precio_aplicado,cobrable,cobrado,prestaciones!inner(fecha,cuidador_id,servicios(nombre))")
+            .eq("negocio_id", neg).gte("prestaciones.fecha", desde).lte("prestaciones.fecha", hasta).order("prestacion_id");
+        }).then(function (res) {
             if (res && res.error) return;
             var rows = res.data || [];
             var porSvc = {}, porCuid = {}, porDia = {};

@@ -3,7 +3,7 @@
 // The consent pages pass it to provision_negocio / redeem_invite, the policy pages show it, and the
 // migration seeds the same string into `politicas` (tests/security/consent.test.mjs fails if they drift).
 // DRAFT: pending legal review. Bump the version (and add a `politicas` row) whenever the text changes.
-export const POLITICA_VERSION = "2026-10-29-borrador";
+export const POLITICA_VERSION = "2026-10-30-borrador";
 
 // Current versions of the role notice (clients) and of the Términos para negocios (business owners), the
 // acceptances the /aceptar-condiciones gate records in `aceptaciones`. Mirrors public.version_vigente()
