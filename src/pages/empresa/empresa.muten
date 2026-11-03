@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir, notificacionLeer, notificacionesLeerTodas, notificacionesVerMas from "~/lib/data.ts"
 use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
@@ -39,6 +39,8 @@ entity PolEdit { clave text  titulo text  texto text  req bool }
 # Reportes by month (ReportesBridge): the months to pick and the summary of the picked one per service.
 entity MesOpcion { id text  mes text  label text }
 entity MesServicio { servicio text  realizado number  cobrado number  pendiente number }
+# A notification of the business (NotificacionesBridge): label and destino (the section that handles it) by tipo.
+entity Notif { id text  tipo text  label text  resumen text  cuando text  leida bool  destino text }
 
 # Portal EMPRESA — panel a nivel negocio: agrega sobre muchos paseadores y clientes.
 # Reutiliza la estética .dd-* del panel del paseador. Datos: EmpresaBridge (una vez
@@ -121,6 +123,11 @@ state {
   # Agenda: weeks from today (0 = today and the next 6 days) and the range the bridge shows.
   semana   = 0 : number
   rango    = "" : text
+  # Notificaciones (bell on Inicio).
+  notifs       = [] : list<Notif>
+  notifMas     = false : bool
+  notifSinLeer = 0 : number
+  notifOpen    = false : bool
 }
 action go(s: text) mutates section, conf { section.set(s)  conf.set("") }
 # ---- Confirm before a destructive action: conf = what is being removed (servicio, perro, salida, miembro, co, inv),
@@ -298,6 +305,27 @@ action rechazoAbrir(id: text) mutates rechazoId { rechazoId.set(id) }
 action rechazoCerrar mutates rechazoId { rechazoId.set("") }
 action rechazar(id: text, motivo: text) mutates rechazoId { empresa.resenaSet(id, "rechazada")  resenaModerar(id, "rechazada", motivo)  rechazoId.set("") }
 
+# ---- Notificaciones: client bookings, cancellations, purchases, reviews, dogs and photo reports (NotificacionesBridge) ----
+action notifSet(rows: list<Notif>) mutates notifs { notifs.set(rows) }
+action notifMasSet(v: bool) mutates notifMas { notifMas.set(v) }
+action notifCount(n: number) mutates notifSinLeer { notifSinLeer.set(n) }
+action notifAbrir mutates notifOpen { notifOpen.set(true) }
+action notifCerrar mutates notifOpen { notifOpen.set(false) }
+# Tapping one marks it read (here at once, then on the server) and opens the section where it is handled; a
+# purchase opens Reportes only for who sees finances.
+action notifIr(nid: text, leida: bool, destino: text) mutates notifs, notifSinLeer, notifOpen, section, conf {
+  if not leida {
+    notifs.patch where id == nid with { leida: true }
+    notifSinLeer.set(notifSinLeer - 1)
+    notificacionLeer(nid)
+  }
+  notifOpen.set(false)
+  conf.set("")
+  if destino == "reportes" and not auth.verFinanzas { section.set("dashboard") } else { section.set(destino) }
+}
+action notifTodas mutates notifs, notifSinLeer { notifs.patch where leida == false with { leida: true }  notifSinLeer.set(0)  notificacionesLeerTodas() }
+action notifVerMas { notificacionesVerMas() }
+
 Stack class("dd-app") {
 
   # Puente de datos del negocio (montado una vez).
@@ -308,6 +336,7 @@ Stack class("dd-app") {
   Custom PlanesBridge on(planes: planes.setPlanes)
   Custom SalidasBridge on(salidas: empresa.setSalidas, miembros: empresa.setMiembros)
   Custom IncidentesBridge on(items: incidentes.setItems, mas: incidentes.setMas)
+  Custom NotificacionesBridge on(items: notifSet, mas: notifMasSet, sinLeer: notifCount)
   # Agenda semanal multi-paseador (#5).
   Custom AgendaEmpresaBridge inputs(semana: @semana) on(rango: rangoSet, agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda, sinAsignar: empresa.setSinAsignar)
   # Vigía de red (O4): alimenta el aviso offline del shell.
@@ -368,6 +397,10 @@ Stack class("dd-app") {
             Stack class("dd-greet") {
               Span "{initial(auth.userName)}" class("dd-ga")
               Stack { Span "Buen día 👋" class("dd-gm")  Span "{auth.userName}" class("dd-gn") }
+            }
+            Button -> notifAbrir class("dd-bell dd-bell-count") aria(label: "Notificaciones") {
+              Icon "lucide:bell"
+              when notifSinLeer > 0 { Span "{notifSinLeer}" class("dd-bell-badge") }
             }
           }
           # Ley 1480 art. 53: without the legal identity of the business its clients cannot book or buy.
@@ -1125,6 +1158,45 @@ Stack class("dd-app") {
           Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
           when auth.isGestion { SalirNegocio(abierto: salirNeg, onPedir: salirNegPedir, onSi: salirNegSi, onNo: salirNegNo) }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
+        }
+      }
+
+      # ---- Panel: notificaciones del negocio (newest first; unread marked) ----
+      when notifOpen {
+        Stack class("dd-cal-scrim") {
+          Stack class("dd-cal-scrimbg") on(click: notifCerrar)
+          Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+            Stack class("dd-cat-formhead") {
+              Title "Notificaciones" h3
+              Button -> notifCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+            }
+            when notifSinLeer > 0 { Button "Marcar todas como leídas" -> notifTodas class("dd-gchip dd-notif-todas") }
+            when notifs.length == 0 {
+              Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:bell" }  Text "Sin notificaciones por ahora." }
+            }
+            Stack class("dd-cat-list") {
+              each notifs as n {
+                Button -> notifIr(n.id, n.leida, n.destino) class("dd-notif") class("dd-notif-nueva" when not n.leida) {
+                  Stack class("dd-notif-ic") {
+                    match n.tipo {
+                      reserva      -> Icon "lucide:calendar-plus"
+                      compra       -> Icon "lucide:shopping-bag"
+                      cancelacion  -> Icon "lucide:calendar-x"
+                      resena       -> Icon "lucide:star"
+                      perro_nuevo  -> Icon "lucide:dog"
+                      foto_reporte -> Icon "lucide:image-off"
+                    }
+                  }
+                  Stack class("dd-cat-info") {
+                    Span "{n.label}" class("nm")
+                    Span "{n.resumen}" class("meta")
+                    Span "{n.cuando}" class("meta")
+                  }
+                }
+              }
+            }
+            when notifMas { Button "Ver más" -> notifVerMas class("dd-cat-add dd-ver-mas") }
+          }
         }
       }
 

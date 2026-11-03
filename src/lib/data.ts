@@ -593,6 +593,26 @@ export function fotoReportar(id: string, motivo: string): void {
     .then(done("No se pudo reportar la foto", function () { toast("Foto reportada: ya no se muestra."); refresh(); }));
 }
 
+// ---- In-app notifications of the business (owner and office; NotificacionesBridge reads them) ----------
+// A read mark is per user. The page marks it read at once; after the RPC, ok or not, the bridge re-reads the
+// count and the list, which also undoes the optimistic mark when it failed.
+function notifRefresh(msg: string) {
+  return function (res?: unknown): void {
+    done(msg)(res);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("notificaciones:refresh"));
+  };
+}
+export function notificacionLeer(id: string): void {
+  if (!id) return;
+  supa.rpc("notificacion_leer", { p_id: id }).then(notifRefresh("No se pudo marcar la notificación"));
+}
+export function notificacionesLeerTodas(): void {
+  supa.rpc("notificaciones_leer_todas").then(notifRefresh("No se pudieron marcar las notificaciones"));
+}
+export function notificacionesVerMas(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("notificaciones:mas"));
+}
+
 // ---- Compra de PRODUCTO (comida / snack), solo el dueño principal del perro ----
 // RPC comprar_producto: el server cobra precio del catálogo × cantidad (1..20) y la registra
 // como prestación finalizada de hoy, así entra directo al estado de cuenta/reportes/cobros.
