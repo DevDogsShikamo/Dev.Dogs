@@ -45,6 +45,13 @@ shell {
         Span "Sincronizando {net.pending} cambio(s)…"
       }
     }
+    each net.fallidos as f {
+      Stack class("dd-netbar dd-netbar-off dd-netbar-fallo") aria(role: "alert") {
+        Span "Este incidente no se pudo enviar ({date(f.at)}). {f.motivo} Avísale a tu negocio:"
+        Text "{f.texto}" class("dd-netbar-texto")
+        Button "Descartar" -> net.descartar(f.id) class("dd-netbar-x")
+      }
+    }
     slot
   }
 }

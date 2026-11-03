@@ -112,6 +112,18 @@ test('ID-4: without p_id an incident is stored as before (new server id each cal
   assert.notEqual(a.data, b.data)
 })
 
+test('ID-5: the walker window is 7 days: a report on a walk of day -7 is accepted, on day -8 refused', async () => {
+  const seven = await walk({ fecha: day(-7), estado: 'finalizado' })
+  const id = crypto.randomUUID()
+  created.incidentes.push(id)
+  ok(await reportar('WALKER_CO', { p_prestacion: seven, p_id: id }), 'day -7')
+  assert.equal(await count(id), 1)
+  const eight = await walk({ fecha: day(-8), estado: 'finalizado' })
+  const late = crypto.randomUUID()
+  denied(await reportar('WALKER_CO', { p_prestacion: eight, p_id: late }), 'day -8')
+  assert.equal(await count(late), 0)
+})
+
 // ---- dog profile photo ----------------------------------------------------------------------------------------
 const autorizar = async (actor, perro) => (await as(actor)).rpc('perro_foto_autorizar', { p_perro: perro })
 const confirmar = async (actor, perro, bytes = 1234) => (await as(actor)).rpc('perro_foto_confirmar', { p_perro: perro, p_bytes: bytes })
@@ -154,6 +166,48 @@ test('PF-3: a removed dog takes no photo; a bad size is refused; the helper is n
   for (const bytes of [0, 2097153, null]) fails(await confirmar('OWNER', live, bytes), 'foto_invalida', String(bytes))
   assert.equal(await fotoAt(live), null)
   denied(await (await as('OWNER')).rpc('perro_foto_negocio', { p_perro: live }), 'helper')
+})
+
+const quitar = async (actor, perro) => (await as(actor)).rpc('perro_foto_quitar', { p_perro: perro })
+
+test('PF-4: whoever may upload clears the photo mark, also when there is none; nobody else does', async () => {
+  const perro = await dog()
+  for (const actor of ['OWNER', 'OFFICE', 'OFFICE_FIN', 'CLIENT', 'COOWNER']) {
+    ok(await confirmar('OWNER', perro), 'mark')
+    ok(await quitar(actor, perro), actor)
+    assert.equal(await fotoAt(perro), null, actor)
+    ok(await quitar(actor, perro), `${actor}, no photo`)
+  }
+  ok(await confirmar('OWNER', perro), 'mark')
+  for (const actor of ['WALKER_CO', 'WALKER_CO2', 'CLIENT2', 'OTHER', 'CLIENT_I', 'NOPROFILE', 'ANON']) denied(await quitar(actor, perro), actor)
+  await exOwner(perro, async (db) => denied(await db.rpc('perro_foto_quitar', { p_perro: perro }), 'inactive link'))
+  denied(await quitar('OWNER', ids.perros.dB), 'a dog of another tenant')
+  denied(await quitar('OWNER', crypto.randomUUID()), 'unknown dog')
+  assert.ok(await fotoAt(perro), 'still marked')
+})
+
+test('PF-5: a dog with a photo cannot stop being registered until the photo is removed', async () => {
+  const perro = await dog()
+  const activo = async () => (await admin().from('perros').select('activo').eq('id', perro).single()).data.activo
+  ok(await confirmar('OWNER', perro), 'mark')
+  const owner = await as('OWNER')
+  fails(await owner.rpc('perro_eliminar', { p_id: perro }), 'perro_con_foto', 'perro_eliminar')
+  fails(await owner.from('perros').update({ activo: false }).eq('id', perro), 'perro_con_foto', 'direct soft delete')
+  fails(await admin().from('perros').delete().eq('id', perro), 'perro_con_foto', 'hard delete (service role, also a cascade)')
+  assert.equal(await activo(), true)
+  ok(await quitar('OWNER', perro), 'remove the photo')
+  ok(await owner.rpc('perro_eliminar', { p_id: perro }), 'perro_eliminar')
+  assert.equal(await activo(), false)
+  denied(await quitar('OWNER', perro), 'a removed dog')
+})
+
+test('PF-6: the photo mark changes only through the functions, never directly', async () => {
+  const perro = await dog()
+  ok(await confirmar('OWNER', perro), 'mark')
+  const at = await fotoAt(perro)
+  denied(await (await as('OWNER')).from('perros').update({ foto_at: null }).eq('id', perro), 'clear')
+  denied(await (await as('OWNER')).from('perros').update({ foto_at: '2020-01-01T00:00:00Z' }).eq('id', perro), 'set')
+  assert.equal(await fotoAt(perro), at)
 })
 
 // ---- the client edits its own dog ------------------------------------------------------------------------------
@@ -202,7 +256,7 @@ test('ME-3: validation is the one of crear_mi_perro (perro_invalido)', async () 
 
 // ---- catalog ----------------------------------------------------------------------------------------------------
 test('catalog: the new functions are definer, pinned, closed to anon; the helper is closed to everyone', () => {
-  const names = ['incidente_reportar', 'mi_perro_actualizar', 'perro_foto_autorizar', 'perro_foto_confirmar', 'perro_foto_negocio']
+  const names = ['incidente_reportar', 'mi_perro_actualizar', 'perro_foto_autorizar', 'perro_foto_confirmar', 'perro_foto_negocio', 'perro_foto_quitar']
   const fns = sql(`select proname, pg_get_function_identity_arguments(oid) as args, prosecdef, coalesce(proconfig @> array['search_path=""'], false) as pinned,
       has_function_privilege('anon', oid, 'execute') as anon, has_function_privilege('authenticated', oid, 'execute') as auth
     from pg_proc where pronamespace = 'public'::regnamespace and proname = any(array[${names.map((n) => `'${n}'`)}]) order by 1`)
@@ -231,4 +285,27 @@ test('PF-W: the Worker stores a dog photo for its owner and serves it to whoever
     assert.equal(new Uint8Array(await res.arrayBuffer()).length, CLEAN.length, actor)
   }
   for (const actor of ['CLIENT2', 'OTHER', 'CLIENT_I', 'WALKER_CO']) assert.equal((await worker('GET', perro, actor)).status, 404, actor)
+  const gone = await worker('DELETE', perro, 'OWNER')
+  assert.equal(gone.status, 204, await gone.text())
+})
+
+test('PF-W2: DELETE removes the object for whoever may upload, refuses anyone else, and a dog is removed only after it', live, async () => {
+  const perro = await dog()
+  const CLEAN = jpeg({ parts: [APP0, COMMENT], size: 2000 })
+  assert.equal((await worker('DELETE', perro, 'CLIENT')).status, 204, 'no photo yet is a success')
+  assert.equal((await worker('PUT', perro, 'CLIENT', CLEAN)).status, 201)
+  try {
+    for (const actor of ['WALKER_CO', 'CLIENT2', 'OTHER']) assert.equal((await worker('DELETE', perro, actor)).status, 403, actor)
+    assert.equal((await worker('GET', perro, 'OWNER')).status, 200, 'still there')
+    fails(await (await as('OWNER')).rpc('perro_eliminar', { p_id: perro }), 'perro_con_foto')
+    assert.equal((await worker('DELETE', perro, 'COOWNER')).status, 204)
+    assert.equal(await fotoAt(perro), null)
+    // The object itself is gone: with the mark forced back, GET still finds nothing.
+    ok(await confirmar('OWNER', perro), 'mark again')
+    assert.equal((await worker('GET', perro, 'OWNER')).status, 404, 'object deleted')
+  } finally {
+    await worker('DELETE', perro, 'OWNER')
+  }
+  ok(await (await as('OWNER')).rpc('perro_eliminar', { p_id: perro }), 'perro_eliminar')
+  assert.equal((await worker('PUT', perro, 'OWNER', CLEAN)).status, 403, 'a removed dog takes no photo')
 })

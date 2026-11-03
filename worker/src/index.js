@@ -6,6 +6,7 @@
 //   POST /retener/{incidente_id}   foto_retencion_autorizar -> copy each f/ key to r/ (the rule only expires f/)
 //   PUT /p/{perro_id}  dog profile photo: perro_foto_autorizar -> validate -> BUCKET.put (replaces) -> perro_foto_confirmar
 //   GET /p/{perro_id}  perros row with foto_at visible to the caller? -> BUCKET.get p/{negocio}/{perro}.jpg
+//   DELETE /p/{perro_id}  perro_foto_autorizar -> BUCKET.delete -> perro_foto_quitar (no photo is a success)
 // Vars: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (public), ALLOWED_ORIGINS (comma list), ALLOW_LOCALHOST ("1" in staging).
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const MAX_BYTES = 2 * 1024 * 1024
@@ -56,7 +57,7 @@ export async function handle(request, env, fetchImpl = fetch) {
   const base = { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', vary: 'Origin' }
   if (origin && allowed) {
     Object.assign(base, {
-      'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, PUT, POST, OPTIONS',
+      'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, PUT, POST, DELETE, OPTIONS',
       'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '600',
     })
   }
@@ -69,7 +70,7 @@ export async function handle(request, env, fetchImpl = fetch) {
   const [, ruta, raw] = new RegExp(`^/(f|p|retener)/(${UUID})$`, 'i').exec(new URL(request.url).pathname) ?? []
   const id = raw?.toLowerCase()
   if (!id) return fail(404, 'no_encontrado')
-  if (!(ruta === 'retener' ? ['POST'] : ['GET', 'PUT']).includes(request.method)) return fail(405, 'metodo_no_permitido')
+  if (!{ retener: ['POST'], f: ['GET', 'PUT'], p: ['GET', 'PUT', 'DELETE'] }[ruta].includes(request.method)) return fail(405, 'metodo_no_permitido')
   const token = /^Bearer (\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1]
   if (!token) return fail(401, 'no_autenticado')
 
@@ -114,6 +115,12 @@ export async function handle(request, env, fetchImpl = fetch) {
   if (!auth.ok) return refused(auth)
   const key = await auth.json()
   if (typeof key !== 'string' || !new RegExp(`^${ruta}/${UUID}/${id}\\.jpg$`).test(key)) return fail(502, 'proveedor_no_disponible')
+  if (request.method === 'DELETE') {
+    // Object first: a failed clear leaves a mark without object (GET 404, the caller retries), never the reverse.
+    await env.BUCKET.delete(key)
+    const cleared = await rpc('perro_foto_quitar', { p_perro: id })
+    return cleared.ok ? reply(204) : refused(cleared)
+  }
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'image/jpeg') return fail(415, 'tipo_no_permitido')
   if (Number(request.headers.get('content-length')) > MAX_BYTES) return fail(413, 'demasiado_grande')
   const bytes = await readCapped(request.body, MAX_BYTES)
@@ -125,8 +132,9 @@ export async function handle(request, env, fetchImpl = fetch) {
   const done = await rpc(perro ? 'perro_foto_confirmar' : 'foto_confirmar', perro ? { p_perro: id, p_bytes: bytes.length } : { p_id: id, p_bytes: bytes.length })
   if (!done.ok) {
     // Never leave a walk photo the database does not know about. A dog photo already replaced the previous object of
-    // its key, so it stays; it is served only while perros.foto_at is set.
-    if (!perro) await env.BUCKET.delete(key)
+    // its key, so an upstream fault keeps it (served only while perros.foto_at is set); a 403 means the dog was removed
+    // during the upload, and nothing would ever delete the object.
+    if (!perro || done.status === 403) await env.BUCKET.delete(key)
     return refused(done)
   }
   return reply(201, JSON.stringify({ id, bytes: bytes.length }), { 'content-type': 'application/json' })

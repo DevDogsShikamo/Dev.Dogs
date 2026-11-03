@@ -17,9 +17,20 @@ function mount(el, inputs, on) {
     }
   }
 
+  // Incident reports the server refused (outbox.ts), of the current user.
+  function fallidos() {
+    try {
+      var uid = globalThis.__ddUid ? globalThis.__ddUid() : "";
+      return JSON.parse(localStorage.getItem("dd:incidentes-fallidos") || "[]").filter(function (f) { return uid && f && f.uid === uid; });
+    } catch (e) {
+      return [];
+    }
+  }
+
   function report() {
     if (on.online) on.online(navigator.onLine !== false);
     if (on.pending) on.pending(pend());
+    if (on.fallidos) on.fallidos(fallidos());
   }
 
   report();

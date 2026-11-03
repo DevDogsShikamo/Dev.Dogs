@@ -1,9 +1,20 @@
 // S6: pure rules behind the end-of-session purge and the offline outbox (design section 7).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classify, opsFor, pageAll, purgeKeys, shouldPurge } from '../../src/lib/localData.js'
+import { classify, incidenteFallido, opsFor, pageAll, purgeKeys, shouldPurge } from '../../src/lib/localData.js'
 
 const base = { event: 'INITIAL_SESSION', session: null, online: true, hasToken: false, loggedIn: true }
+
+test('incidenteFallido keeps the text of a refused report and says in plain words what failed', () => {
+  const params = { p_id: 'i-1', p_descripcion: 'Se perdió en el parque.' }
+  const row = (error) => incidenteFallido(params, error, 'u-1', '2026-10-30T10:00:00Z')
+  assert.deepEqual(row({ code: '42501', message: 'no_autorizado' }), {
+    id: 'i-1', uid: 'u-1', texto: 'Se perdió en el parque.', motivo: 'El paseo ya no está asignado a ti o pasaron más de 7 días.', at: '2026-10-30T10:00:00Z',
+  })
+  assert.match(row({ code: 'P0001', message: 'incidente_invalido' }).motivo, /no son válidos/)
+  assert.match(row({ code: 'XX000', message: 'boom' }).motivo, /rechazó/)
+  assert.doesNotMatch(row({ code: 'XX000', message: 'boom' }).motivo, /boom/, 'no raw server text')
+})
 
 test('shouldPurge: SIGNED_OUT always purges, INITIAL_SESSION only when it is a definitive logout', () => {
   const table = [

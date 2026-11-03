@@ -1,5 +1,5 @@
-// Incidents (Ley 2480 de 2025 arts. 15 and 16): incidente_reportar (assigned walker on a walk of today or
-// yesterday, or the owner/office of the dog's business), who reads `incidentes`, and the evidence it keeps:
+// Incidents (Ley 2480 de 2025 arts. 15 and 16): incidente_reportar (assigned walker on a walk of the last
+// 7 days, or the owner/office of the dog's business), who reads `incidentes`, and the evidence it keeps:
 // the photos of that walk where the dog is tagged are retained (paseo_fotos.retener) past the 30-day purge,
 // still visible to the dog's owners and the uploader, never to the business owner (same audience as before).
 import { after, before, test } from 'node:test'
@@ -73,7 +73,7 @@ const sees = async (actor, table, id) => {
 }
 
 // ---- who may report ---------------------------------------------------------------------------------
-test('the assigned walker reports on his walk of today or yesterday; the owner and office of the business on any dog of it', async () => {
+test('the assigned walker reports on his walk of the last 7 days; the owner and office of the business on any dog of it', async () => {
   const today = await walk(d.d1)
   const yesterday = await walk(d.d1, { estado: 'finalizado', fecha: hoy(-1) })
   await reporta('WALKER_CO', d.d1, today)
@@ -91,7 +91,7 @@ test('nobody else reports: another walker, an old walk, a client, another tenant
   denied(await reportar('WALKER_CO2', d.d1, mine), 'another walker of the business')
   denied(await reportar('WALKER_CO', d.d1, null), 'a walker without his walk')
   denied(await reportar('WALKER_CO', d.d3, mine), 'a walker naming another dog')
-  denied(await reportar('WALKER_CO', d.d1, await walk(d.d1, { estado: 'finalizado', fecha: hoy(-2) })), 'two days ago')
+  denied(await reportar('WALKER_CO', d.d1, await walk(d.d1, { estado: 'finalizado', fecha: hoy(-8) })), 'eight days ago')
   denied(await reportar('WALKER_CO', d.d1, await walk(d.d1, { estado: 'programado', fecha: hoy(1) })), 'tomorrow')
   denied(await reportar('WALKER_CO', d.d1, await walk(d.d1, { cuidador_id: u.WALKER_CO2 })), 'a walk of another walker')
   for (const actor of ['CLIENT', 'COOWNER', 'CLIENT2', 'OTHER', 'WALKER_IND', 'CLIENT_I', 'NOPROFILE', 'ANON']) denied(await reportar(actor, d.d1, null), actor)

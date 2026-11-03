@@ -47,6 +47,14 @@ export function classify(res) {
   return 'rejected'
 }
 
+// What the device keeps of an incident report the server refused: its text and, in plain words, what failed.
+export function incidenteFallido(params, error, uid, at) {
+  const motivo = error?.code === '42501' ? 'El paseo ya no está asignado a ti o pasaron más de 7 días.'
+    : /incidente_invalido/.test(error?.message || '') ? 'El tipo o la descripción no son válidos.'
+    : 'El servidor lo rechazó.'
+  return { id: params.p_id || at, uid, texto: params.p_descripcion, motivo, at }
+}
+
 // Reads a whole PostgREST list past the server's row cap (1000 on Supabase), one .range() page at a time.
 // `build` returns a FRESH query (a builder runs once) whose order ends in a unique column, so pages neither
 // overlap nor skip rows. An error on any page is returned as the error: never a silently partial list.
