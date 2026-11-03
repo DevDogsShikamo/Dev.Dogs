@@ -27,6 +27,7 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("prestacion_no_asignable") >= 0) return "Ese servicio ya no se puede asignar: empezó, terminó o fue cancelado.";
   if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
   if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
+  if (m.indexOf("plan_existente") >= 0) return "Ese perro ya tiene un plan mensual activo de ese servicio.";
   if (m.indexOf("incidente_invalido") >= 0) return "Elige el tipo de incidente y descríbelo con al menos 10 caracteres (máximo 2000).";
   return msg;
 }
@@ -386,6 +387,20 @@ export function grupoAsignar(grupoId: string, cuidadorId: string): void {
 export function cobroMarcar(id: string): void {
   if (!id) return;
   supa.rpc("cobro_marcar", { p_prestacion: id }).then(done("No se pudo marcar cobrado"));
+}
+
+// ---- Monthly plans (owner or finance office; RPCs in 20261029110001_mensualidades.sql) -----------------
+// Activating charges the current month at once (fixed monthly charge), so the reads are refreshed.
+export function planMensualActivar(perro: string, servicio: string): void {
+  if (!perro || !servicio) return;
+  supa.rpc("plan_mensual_activar", { p_perro: perro, p_servicio: servicio })
+    .then(done("No se pudo activar el plan mensual", () => { toast("Plan mensual activado: el mes en curso quedó cobrado"); refresh(); }));
+}
+// The plan ends at the end of the current month (the server's default).
+export function planMensualCancelar(plan: string): void {
+  if (!plan) return;
+  supa.rpc("plan_mensual_cancelar", { p_plan: plan })
+    .then(done("No se pudo cancelar el plan mensual", () => { toast("Plan cancelado: termina al final del mes"); refresh(); }));
 }
 
 // ---- El CLIENTE registra su propio perro (RPC crear_mi_perro, SECURITY DEFINER)

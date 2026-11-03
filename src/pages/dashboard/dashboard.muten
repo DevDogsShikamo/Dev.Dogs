@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -118,6 +118,11 @@ state {
   pol      = [] : list<PolEdit>
   polVer   = "" : text
   polFecha = "" : text
+  # Monthly plans of his business (owner only): the activation form and the plan whose cancellation is being asked.
+  planForm   = false : bool
+  planPerro  = "" : text
+  planSvc    = "" : text
+  planCancel = "" : text
 }
 action go(s: text) mutates section { section.set(s) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
@@ -132,9 +137,18 @@ action copLink(c: text) { copiarLink(c) }
 # para no filtrar datos del usuario anterior en dispositivos compartidos.
 action salir mutates salirConfirma {
   if net.pending > 0 and not salirConfirma { salirConfirma.set(true) }
-  else { salirConfirma.set(false)  empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  incidentes.limpiar()  auth.logout() }
+  else { salirConfirma.set(false)  empresa.limpiar()  catalogo.limpiar()  servicios.limpiar()  grupos.limpiar()  incidentes.limpiar()  planes.limpiar()  auth.logout() }
 }
 action salirCancelar mutates salirConfirma { salirConfirma.set(false) }
+# ---- Monthly plans (same as the empresa portal): activate (dog + monthly service), cancel with a confirmation ----
+action planAbrir mutates planForm, planPerro, planSvc { planPerro.set("")  planSvc.set("")  planForm.set(true) }
+action planCerrar mutates planForm { planForm.set(false) }
+action planPickPerro(id: text) mutates planPerro { planPerro.set(id) }
+action planPickSvc(id: text) mutates planSvc { planSvc.set(id) }
+action planGuardar mutates planForm { planMensualActivar(planPerro, planSvc)  planForm.set(false) }
+action planCancelPedir(id: text) mutates planCancel { planCancel.set(id) }
+action planCancelNo mutates planCancel { planCancel.set("") }
+action planCancelSi mutates planCancel { planMensualCancelar(planCancel)  planCancel.set("") }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
 # Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
 # A dog from "Sin grupo" dropped with "Siempre" joins the group every day (grupo_agregar_perro); "Solo hoy" books that day.
@@ -305,6 +319,8 @@ Stack class("dd-app") {
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
   Custom HorarioBridge on(dias: hsetDias, franjas: hsetFranjas)
   Custom IncidentesBridge on(items: incidentes.setItems)
+  # Monthly plans of his business (only the owner reads them; a company walker fetches nothing).
+  Custom PlanesBridge on(planes: planes.setPlanes)
   # Toast de avisos (errores de escritura optimista).
   Custom Toast
   # Vigía de red (O4): alimenta el aviso offline del shell.
@@ -889,6 +905,7 @@ Stack class("dd-app") {
               Button -> go("legales") class("dd-pf-opt") { Icon "lucide:building-2"  Span "Datos legales del negocio"  Icon "lucide:chevron-right" class("chev") }
               Button -> go("politicas") class("dd-pf-opt") { Icon "lucide:scroll-text"  Span "Políticas de tu negocio"  Icon "lucide:chevron-right" class("chev") }
               Button -> go("incidentes") class("dd-pf-opt") { Icon "lucide:triangle-alert"  Span "Incidentes"  Icon "lucide:chevron-right" class("chev") }
+              Button -> go("planes") class("dd-pf-opt") { Icon "lucide:calendar-check"  Span "Planes mensuales"  Icon "lucide:chevron-right" class("chev") }
             }
             Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
@@ -1006,6 +1023,50 @@ Stack class("dd-app") {
           }
           Stack class("dd-cat-list") {
             each incidentes.items as i { IncidenteItem(i: i) }
+          }
+        }
+      }
+
+      # ==== PLANES MENSUALES (the independent walker owns his business): a fixed monthly charge per dog ====
+      when section == "planes" and auth.isOwner {
+        Stack class("dd-sec") {
+          Stack class("dd-hor-head") {
+            Button -> go("perfil") class("dd-hor-back") aria(label: "Volver") { Icon "lucide:chevron-left" }
+            Title "Planes mensuales" h2
+            Button -> planAbrir class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "Activar plan mensual" }
+          }
+          Text "Cobro fijo mensual por perro: se genera el día 1 de cada mes, aunque el perro falte a algún paseo. Al activarlo se cobra el mes en curso completo; al cancelarlo termina al final del mes." class("dd-rel-hint")
+          when planes.nPlanes == 0 { Text "Ningún perro tiene un plan mensual." class("dd-cli-empty") }
+          Stack class("dd-cat-list") {
+            each planes.planes as pl {
+              PlanItem(pl: pl, cancelId: planCancel, onPedir: planCancelPedir, onSi: planCancelSi, onNo: planCancelNo)
+            }
+          }
+          when planForm {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: planCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true) {
+                Stack class("dd-cat-formhead") {
+                  Title "Activar plan mensual" h3
+                  Button -> planCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Stack class("dd-gform") {
+                  Span "Perro" class("dd-hor-lbl")
+                  Stack class("dd-gsvc") {
+                    each catalogo.perros as p { Button "{p.nombre}" -> planPickPerro(p.id) class("dd-gchip") class("on" when planPerro == p.id) }
+                  }
+                  Span "Servicio mensual" class("dd-hor-lbl")
+                  when (servicios.servicios.count where modelo == "mensual") == 0 { Text "Primero crea en Servicios un servicio con cobro mensual." class("dd-rel-hint") }
+                  Stack class("dd-gsvc") {
+                    each servicios.servicios as sv where sv.modelo == "mensual" {
+                      Button "{sv.nombre} · {cop(sv.precio)}" -> planPickSvc(sv.id) class("dd-gchip") class("on" when planSvc == sv.id)
+                    }
+                  }
+                  Text "Se cobra ahora el mes en curso completo." class("dd-rel-hint")
+                  Button "Activar plan" -> planGuardar class("dd-cat-add dd-hor-save") disabled when planPerro == "" or planSvc == ""
+                }
+              }
+            }
           }
         }
       }

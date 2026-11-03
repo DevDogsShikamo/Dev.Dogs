@@ -141,6 +141,7 @@ part DocumentosLegales(version: text) {
         Title "2.2 Precios" h3
         List {
           Text "Los precios los fija el negocio, en pesos colombianos (COP), por uso o por mensualidad."
+          Text "Un plan mensual es un cobro fijo mensual por perro por un servicio del negocio, al precio mensual que ese negocio fija. Lo activa el negocio; el dueño ve en la aplicación los planes de sus perros."
           Text "El precio de cada servicio o compra lo asigna el servidor a partir del catálogo vigente del negocio en el momento de registrarlo; no se puede alterar desde el navegador."
           Text "El negocio es responsable de informar el precio total, impuestos incluidos, antes de que el dueño reserve o compre. [COMPLETAR: si los precios del catálogo incluyen IVA u otros impuestos.]"
         }
@@ -151,6 +152,7 @@ part DocumentosLegales(version: text) {
         List {
           Text "DevDogs no recibe, retiene ni transfiere dinero y no tiene pasarela de pagos. El pago se hace directamente entre el dueño y el negocio, por los medios que el negocio indique."
           Text "Solo se cobran servicios finalizados. Un paseo al que el perro no asistió no aparece en el saldo."
+          Text "Un plan mensual genera el día 1 de cada mes un cobro fijo por el mes completo, independiente de la asistencia: se debe aunque el perro no asista a algún paseo, y los paseos incluidos en el plan no se cobran aparte. Si el plan se activa a mitad de mes, se cobra ese mes completo en el momento de activarlo. Si se cancela, la cancelación surte efecto al final del mes en curso: ese mes queda cobrado y desde el mes siguiente no se genera ningún cobro."
           Text "El jefe del negocio, o el personal de gestión con permiso de finanzas, marca cada cobro como pagado; el servidor registra quién lo marcó y cuándo."
           Text "El dueño ve su saldo pendiente y el estado de cuenta de cada perro, y puede descargarlo en CSV o Excel. Este documento no es una factura electrónica. Si el negocio está obligado a expedir documentos electrónicos ante la DIAN, debe hacerlo por sus propios medios."
         }

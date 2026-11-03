@@ -47,6 +47,7 @@ function mount(el, inputs, on) {
         supa.from("prestaciones")
           .select("id,estado,tipo,fecha,detalle,cuidador_id,servicios(nombre)")
           .eq("negocio_id", neg).gte("fecha", start).lte("fecha", end)
+          .is("detalle->>mensualidad", null)   // a monthly charge of a plan is no outing
           .then(function (res) {
             if (res && res.error) return;
             var groups = {}, order = [];

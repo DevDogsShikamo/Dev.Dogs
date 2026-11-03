@@ -1,0 +1,25 @@
+# One monthly plan in a list (empresa Reportes and the independent walker's Planes mensuales): dog, service,
+# monthly price and since when; "Cancelar plan" asks first in the page (cancelId = the plan being asked).
+# `when` renders its first child only, so each branch wraps its siblings in one Stack.
+part PlanItem(pl: PlanMensual, cancelId: text, onPedir: action, onSi: action, onNo: action) {
+  Stack class("dd-cli-paseo") {
+    Stack class("dd-cat-item") {
+      Stack class("dd-sv-ic") { Icon "lucide:calendar-check" }
+      Stack class("dd-cat-info") {
+        Stack class("nmline") { Span "{$pl.perro}" class("nm")  Span "{$pl.servicio}" class("cd") }
+        when $pl.activo { Span "{cop($pl.precio)} al mes · desde {$pl.desde}" class("meta") }
+        when not $pl.activo { Span "{cop($pl.precio)} al mes · termina el {$pl.fin}" class("meta") }
+      }
+      when $pl.activo { Button "Cancelar plan" -> $onPedir($pl.id) class("dd-cat-add") }
+    }
+    when $cancelId == $pl.id {
+      Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la cancelación del plan") {
+        Text "¿Cancelar el plan mensual de {$pl.perro}? El mes en curso ya está cobrado; desde el mes siguiente no se cobra." class("dd-cli-hint")
+        Stack class("acts") {
+          Button "Sí, cancelar plan" -> $onSi class("dd-cat-add dd-danger")
+          Button "No" -> $onNo class("dd-cat-add")
+        }
+      }
+    }
+  }
+}

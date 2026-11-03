@@ -1,8 +1,8 @@
 # Estado del portal CLIENTE (dueño del perro). Datos in: ClienteBridge.
 # Sus perros (perro_duenos → perros), sus paseos (prestaciones), y las salidas
 # disponibles del negocio para reservar (grupos).
-entity PerroMio  { id text  nombre text  raza text  tamano text  foto text  celo bool  contagio bool  certificado text }
-entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool  producto bool  cancelable bool }
+entity PerroMio  { id text  nombre text  raza text  tamano text  foto text  celo bool  contagio bool  certificado text  plan text }
+entity PaseoMio  { id text  fecha text  hora text  servicio text  estado text  perro text  perroId text  precio number  facturable number  cobrable bool  cobrado bool  cuidador text  futuro bool  producto bool  mensual bool  cancelable bool }
 entity SalidaDisp { id text  zona text  hora text  servicio text  servicioId text  tipo text }
 # Servicio del catálogo del negocio (para pedir baño/guardería/corte/etc.).
 entity ServicioCat { id text  nombre text  tipo text  precio number  modelo text }
@@ -35,9 +35,9 @@ get nPerros    = misPerros.length
 get proximos   = misPaseos.count where futuro
 get nNovedades = novedades.length
 # Reseñar exige al menos un servicio finalizado; una compra de producto no cuenta (el servidor lo vuelve a exigir).
-get puedeResenar = (misPaseos.count where estado == "finalizado" and not producto) > 0
+get puedeResenar = (misPaseos.count where estado == "finalizado" and not producto and not mensual) > 0
 # Saldo pendiente = paseos realizados y cobrables aún no cobrados (facturable ya trae
-# 0 en los no-finalizados/no-cobrables). Estado de cuenta del cliente.
+# 0 en los no-finalizados/no-cobrables), monthly charges of a plan (mensual) included. Estado de cuenta del cliente.
 get paseosImpagos  = misPaseos where not cobrado
 get saldoPendiente = paseosImpagos.sum by facturable
 # Servicios que no son paseo (baño/guardería/corte/…) — para la sección Reservar.

@@ -13,7 +13,7 @@ const SECCIONES = [
   { clave: "cancelaciones", titulo: "Cancelaciones y reprogramaciones", req: false,
     ejemplo: "Puedes cancelar o reprogramar sin costo si nos avisas con al menos 12 horas de anticipación. Si cancelamos nosotros, reprogramamos el servicio o no lo cobramos." },
   { clave: "pagos", titulo: "Precios y pagos", req: false,
-    ejemplo: "Los precios son los del catálogo de la aplicación. Pagas por transferencia o en efectivo al final de cada mes, solo por los servicios realizados." },
+    ejemplo: "Los precios son los del catálogo de la aplicación. Pagas por transferencia o en efectivo al final de cada mes, solo por los servicios realizados. Si tu perro tiene un plan mensual, pagas el precio fijo del mes aunque falte a algún paseo; si lo cancelas, termina al final del mes en curso." },
   { clave: "requisitos", titulo: "Requisitos para tu perro", req: true,
     ejemplo: "Tu perro debe tener al día el carné de vacunación, la desparasitación y el certificado de salud expedido por un médico veterinario. Cuéntanos su estado de salud, cómo se comporta con otros perros y con las personas, y cualquier cuidado especial que necesite. Una hembra en celo no sale a paseo ni a guardería." },
   { clave: "responsabilidad", titulo: "Responsabilidad, incidentes y emergencias", req: true,

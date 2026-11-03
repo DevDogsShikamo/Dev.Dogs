@@ -62,6 +62,27 @@ test('eligibility: no finished service, wrong role, other tenant or no session a
   }
 })
 
+test('a monthly plan charge is not a service: a client whose only finished row is a mensualidad is denied', async () => {
+  const db = admin()
+  const svc = (await db.from('servicios').insert({ negocio_id: A, tipo: 'paseo', nombre: 'Plan mensual', modelo_cobro: 'mensual' }).select('id').single()).data.id
+  ok(await db.from('tarifas').insert({ servicio_id: svc, negocio_id: A, precio: 0, precio_mensual: 300000 }), 'tarifa')
+  try {
+    ok(await (await as('OWNER')).rpc('plan_mensual_activar', { p_perro: ids.perros.d3, p_servicio: svc }), 'plan for d3')
+    const { data: fin } = await db.from('prestaciones').select('detalle').in('perro_id', [ids.perros.d3, ids.perros.d4]).eq('estado', 'finalizado')
+    assert.equal(fin.length, 1, 'precondition: the month charge is the only finished row')
+    assert.ok(fin[0].detalle?.mensualidad, 'precondition: it is a mensualidad')
+    const res = await save('CLIENT2')
+    denied(res)
+    assert.match(res.error.message, /sin_servicio_finalizado/)
+    assert.deepEqual(await stored(), [])
+  } finally {
+    await clean()
+    await db.from('prestaciones').delete().eq('servicio_id', svc)
+    await db.from('suscripciones').delete().eq('servicio_id', svc)
+    await db.from('servicios').delete().eq('id', svc)
+  }
+})
+
 test('a product purchase is not a service: a client whose only finished row is a comprar_producto purchase is denied; a finished bath makes them eligible', async () => {
   const db = admin()
   const prod = (await db.from('servicios').insert({ negocio_id: A, tipo: 'comida', nombre: 'Snack' }).select('id').single()).data.id

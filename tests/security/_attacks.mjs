@@ -7,6 +7,28 @@ export const FAR_DAY = '2099-01-01'
 const hora = async () => (await admin().from('grupos').select('hora').eq('id', ids.grupos.g1).single()).data.hora
 const resetHora = () => admin().from('grupos').update({ hora: '08:00' }).eq('id', ids.grupos.g1)
 
+// A monthly service of tenant A and an active plan of d4 for the plan RPCs (fixed ids; dropPlanFixtures removes them).
+const PLAN = { servicio: '0d0d0d05-0000-4000-8000-000000000090', id: '0d0d0d07-0000-4000-8000-000000000001' }
+export async function planFixtures() {
+  const db = admin()
+  await dropPlanFixtures()
+  for (const [what, q] of [
+    ['servicio', db.from('servicios').insert({ id: PLAN.servicio, negocio_id: ids.negocios.A, tipo: 'paseo', nombre: 'Plan guard', modelo_cobro: 'mensual', activo: true })],
+    ['tarifa', db.from('tarifas').insert({ servicio_id: PLAN.servicio, negocio_id: ids.negocios.A, precio: 0, precio_mensual: 400000 })],
+    ['plan', db.from('suscripciones').insert({ id: PLAN.id, negocio_id: ids.negocios.A, perro_id: ids.perros.d4, servicio_id: PLAN.servicio })],
+  ]) {
+    const { error } = await q
+    if (error) throw new Error(`planFixtures ${what}: ${error.message}`)
+  }
+}
+export async function dropPlanFixtures() {
+  const db = admin()
+  await db.from('prestaciones').delete().eq('servicio_id', PLAN.servicio)
+  await db.from('suscripciones').delete().eq('servicio_id', PLAN.servicio)
+  await db.from('tarifas').delete().eq('servicio_id', PLAN.servicio)
+  await db.from('servicios').delete().eq('id', PLAN.servicio)
+}
+
 // The three group RPCs of C3/N2. `damage()` returns a description of the
 // unauthorised change (or null); `undo()` reverts it.
 export const GUARDED_RPCS = [
@@ -73,6 +95,28 @@ export const GUARDED_RPCS = [
     args: { p_id: ids.prestaciones.nonWalk, p_cuidador: ids.users.WALKER_CO },
     damage: async () => ((await admin().from('prestaciones').select('cuidador_id').eq('id', ids.prestaciones.nonWalk).single()).data.cuidador_id ? 'nonWalk assigned' : null),
     undo: () => admin().from('prestaciones').update({ cuidador_id: null }).eq('id', ids.prestaciones.nonWalk),
+  },
+  // F4 monthly plans: money, so the owner or the office WITH the finance permission (`allowed`). planFixtures()
+  // must run first: a monthly service of tenant A and an active plan of d4.
+  {
+    name: 'plan_mensual_activar',
+    allowed: ['OWNER', 'OFFICE_FIN'],
+    args: { p_perro: ids.perros.d2, p_servicio: PLAN.servicio },
+    damage: async () => {
+      const { data } = await admin().from('suscripciones').select('id').eq('perro_id', ids.perros.d2).eq('servicio_id', PLAN.servicio)
+      return data.length ? 'a plan of d2 was activated' : null
+    },
+    undo: async () => {
+      await admin().from('prestaciones').delete().eq('perro_id', ids.perros.d2).eq('servicio_id', PLAN.servicio)
+      await admin().from('suscripciones').delete().eq('perro_id', ids.perros.d2).eq('servicio_id', PLAN.servicio)
+    },
+  },
+  {
+    name: 'plan_mensual_cancelar',
+    allowed: ['OWNER', 'OFFICE_FIN'],
+    args: { p_plan: PLAN.id },
+    damage: async () => ((await admin().from('suscripciones').select('estado').eq('id', PLAN.id).maybeSingle()).data?.estado === 'cancelada' ? 'the plan of d4 was cancelled' : null),
+    undo: () => admin().from('suscripciones').update({ estado: 'activa', fin: null }).eq('id', PLAN.id),
   },
 ]
 

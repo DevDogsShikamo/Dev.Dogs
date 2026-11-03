@@ -268,7 +268,7 @@ for (const [table, key, id, patch] of [
 test('money: a negative monthly price in suscripciones violates a CHECK', async () => {
   const id = randomUUID()
   try {
-    const res = await db().from('suscripciones').insert({ id, negocio_id: A, precio_mensual: -1 })
+    const res = await db().from('suscripciones').insert({ id, negocio_id: A, perro_id: d1, servicio_id: paseoA, precio_mensual: -1 })
     assert.equal(res.error?.code, '23514', `expected check_violation, got ${res.error?.code ?? 'no error'}`)
   } finally {
     await db().from('suscripciones').delete().eq('id', id)
