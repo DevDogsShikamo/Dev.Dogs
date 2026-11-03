@@ -4,6 +4,7 @@ use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoLabel from "~/lib/estados.js"
 use estadoCertificado, certificadoVigente from "~/lib/kiara.js"
 use mapaCentrar, mapaPreparar, comoLlegar from "~/lib/mapa.ts"
 
@@ -94,6 +95,7 @@ state {
   gnombre = "" : text
   gzona   = "" : text
   ghora   = 8  : number
+  gmin    = 0  : number
   gdur    = 60 : number
   gservicio = "" : text
   gcolor  = "purple" : text
@@ -247,7 +249,9 @@ action hsetFranjas(fs: list<Franja>) mutates hf1d, hf1h, hf2on, hf2d, hf2h {
 }
 action htoggleDia(d: text) mutates hdias, hsaved { hdias.toggle(d)  hsaved.set(false) }
 action htoggleF2 mutates hf2on, hsaved { hf2on.toggle()  hsaved.set(false) }
-action hguardar mutates hsaved { horarioGuardar(hdias, hf1d, hf1h, hf2on, hf2d, hf2h)  hsaved.set(true) }
+# Each slot ends after it starts; the second starts once the first is over.
+get hValido = hf1d < hf1h and (not hf2on or (hf2d < hf2h and hf2d >= hf1h))
+action hguardar mutates hsaved { if hValido { horarioGuardar(hdias, hf1d, hf1h, hf2on, hf2d, hf2h)  hsaved.set(true) } }
 
 # Inicializa el ancla del calendario en HOY la primera vez (persist recuerda luego).
 effect { calendario.init() }
@@ -303,12 +307,12 @@ action servicioGuardar(s: ServicioDraft) mutates sform {
 action servicioBorrar mutates conf { servicios.servicioDel(confId)  servicioEliminar(confId)  conf.set("") }
 
 # ---- ABM de grupos (salidas) ----
-action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
-  gnombre.set("")  gzona.set("")  ghora.set(8)  gdur.set(60)  gservicio.set("")  gcolor.set("purple")
+action grupoNuevo mutates gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set("")  gzona.set("")  ghora.set(8)  gmin.set(0)  gdur.set(60)  gservicio.set("")  gcolor.set("purple")
   gedit.set("")  gform.set(true)
 }
-action grupoEditar(id: text, nombre: text, zona: text, hora: number, dur: number, servicio: text, color: text) mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
-  gnombre.set(nombre)  gzona.set(zona)  ghora.set(hora)  gdur.set(dur)  gservicio.set(servicio)  gcolor.set(color)
+action grupoEditar(id: text, nombre: text, zona: text, hora: number, minuto: number, dur: number, servicio: text, color: text) mutates gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set(nombre)  gzona.set(zona)  ghora.set(hora)  gmin.set(minuto)  gdur.set(dur)  gservicio.set(servicio)  gcolor.set(color)
   gedit.set(id)  gform.set(true)
 }
 action gpickServicio(id: text, dur: number) mutates gservicio, gdur { gservicio.set(id)  gdur.set(dur) }
@@ -324,8 +328,8 @@ action vacaDel mutates conf { calendario.vacaDelLocal(confId)  vacacionQuitar(co
 action gpickColor(c: text) mutates gcolor { gcolor.set(c) }
 action grupoCerrar mutates gform { gform.set(false) }
 action grupoGuardar mutates gform {
-  if gedit == "" { grupoCrear(gnombre, gzona, ghora, gdur, gservicio, gcolor) }
-  else { grupoActualizar(gedit, gnombre, gzona, ghora, gdur, gservicio, gcolor) }
+  if gedit == "" { grupoCrear(gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor) }
+  else { grupoActualizar(gedit, gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor) }
   gform.set(false)
 }
 action grupoBorrar mutates conf { grupos.grupoDel(confId)  grupoEliminar(confId)  conf.set("") }
@@ -699,7 +703,7 @@ Stack class("dd-app") {
                   }
                   Stack class("dd-cal-sheet-meta") {
                     Span "{e.count} {i18n.d.ficha.perros}" class("dd-cal-chip")
-                    Span "{e.estado}" class("dd-cal-chip est")
+                    Span "{estadoLabel(e.estado)}" class("dd-cal-chip est")
                   }
                 }
                 Span "{i18n.d.ficha.perrosGrupo}" class("dd-cal-sheet-lbl")
@@ -1053,6 +1057,7 @@ Stack class("dd-app") {
             InviteCode(code: empresa.codigoNuevo, email: empresa.codigoEmail, onCopyCode: copCod, onCopyLink: copLink, onClose: empresa.codigoCerrar)
           }
           Span "Invitaciones pendientes" class("dd-hor-lbl")
+          when empresa.invitaciones.length == 0 { Text "No tienes invitaciones pendientes." class("dd-rel-hint") }
           each empresa.invitaciones as iv {
             InviteItem(iv: iv, confId: confInv, onPedir: invPedir, onSi: invBorrar, onNo: confNo)
           }
@@ -1239,7 +1244,8 @@ Stack class("dd-app") {
             }
           }
 
-          Button "{i18n.d.ho.guardar}" -> hguardar class("dd-cat-add dd-hor-save")
+          when not hValido { Text "{i18n.d.ho.err}" class("dd-hor-err") aria(live: "polite") }
+          Button "{i18n.d.ho.guardar}" -> hguardar class("dd-cat-add dd-hor-save") disabled when not hValido
           when hsaved { Text "{i18n.d.ho.ok}" class("dd-hor-ok") }
         }
       }
@@ -1358,7 +1364,7 @@ Stack class("dd-app") {
                   }
                   when auth.isOwner {
                     Stack class("acts") {
-                      Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                      Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.minNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
                       Button -> pedir("salida", g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
                     }
                   }
@@ -1389,6 +1395,7 @@ Stack class("dd-app") {
                   }
                   Stack class("dd-grow") {
                     Stack class("dd-gcol") { Span "{i18n.d.gp.hora}" class("dd-hor-lbl")  Number bind(ghora) min(5) max(21) }
+                    Stack class("dd-gcol") { Span "{i18n.d.gp.minuto}" class("dd-hor-lbl")  Number bind(gmin) min(0) max(59) }
                     Stack class("dd-gcol") { Span "{i18n.d.gp.duracion}" class("dd-hor-lbl")  Number bind(gdur) min(15) max(240) }
                   }
                   Span "{i18n.d.gp.servicio}" class("dd-hor-lbl")
@@ -1405,7 +1412,7 @@ Stack class("dd-app") {
                     Button -> gpickColor("green") class("dd-gcolor dd-gc-green") class("on" when gcolor == "green") { Span "" class("sw") }
                     Button -> gpickColor("yellow") class("dd-gcolor dd-gc-yellow") class("on" when gcolor == "yellow") { Span "" class("sw") }
                   }
-                  Button "{i18n.d.gp.guardar}" -> grupoGuardar class("dd-cat-add dd-hor-save")
+                  Button "{i18n.d.gp.guardar}" -> grupoGuardar class("dd-cat-add dd-hor-save") disabled when gnombre.length == 0
                 }
               }
             }

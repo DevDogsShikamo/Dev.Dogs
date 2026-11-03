@@ -668,7 +668,7 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
   background-size:cover; background-position:center; }
 
 /* rotating medal — dead center of the hero */
-.dc-medal{ position:absolute; left:calc(50% - 46px); top:calc(50% - 46px); width:92px; height:92px; z-index:9; }
+.dc-medal{ display:block; position:absolute; left:calc(50% - 46px); top:calc(50% - 46px); width:92px; height:92px; z-index:9; }
 .dc-medal-ring{ width:92px; height:92px; animation:dc-spin 16s linear infinite; }
 @keyframes dc-spin{ to{ transform:rotate(360deg); } }
 @media (prefers-reduced-motion:reduce){ .dc-medal-ring{ animation:none; } }
@@ -1167,8 +1167,8 @@ select.gfield-input option{ color:var(--color-ink); background:#fff; }
 .dd-pi svg{width:28px;height:28px}
 .dd-ph h2{color:var(--ink);font-size:1.35rem;margin:4px 0 0}
 
-.dd-tabbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:row;align-items:center;gap:6px;padding:9px;border-radius:30px;background:var(--nav);box-shadow:0 18px 40px -12px rgba(15,10,35,.55);z-index:30}
-.dd-tabbar button{width:52px;height:52px;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#8b8a99;transition:.18s}
+.dd-tabbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:row;align-items:center;gap:6px;padding:9px;border-radius:30px;background:var(--nav);box-shadow:0 18px 40px -12px rgba(15,10,35,.55);z-index:30;max-width:calc(100vw - 16px);overflow-x:auto;scrollbar-width:none}
+.dd-tabbar button{flex:0 0 auto;width:52px;height:52px;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#8b8a99;transition:.18s}
 .dd-tabbar button svg{width:23px;height:23px}
 .dd-tabbar button:hover{color:#cfcedd}
 .dd-tabbar button.dd-on{background:var(--purple);color:#fff;box-shadow:0 8px 18px -6px var(--purple)}
@@ -1642,6 +1642,7 @@ body.dd-org-grabbing{cursor:grabbing}
 .dd-app .dd-hor-check.on svg{width:0.9rem;height:0.9rem;stroke:#fff;stroke-width:3.5}
 .dd-app .dd-hor-save{margin-top:1.4rem}
 .dd-app .dd-hor-ok{color:#2f9e5f;font-weight:800;margin-top:0.6rem}
+.dd-app .dd-hor-err{color:var(--color-danger,#d44);font-weight:700;font-size:13px;margin-top:0.6rem}
 
 /* Franja no disponible (fuera del horario laboral) sobre el calendario */
 .dd-app .dd-cal-off{position:absolute;left:0;right:0;top:var(--top);height:var(--alto);pointer-events:none;z-index:0;background-image:repeating-linear-gradient(45deg,rgba(111,106,124,.09) 0,rgba(111,106,124,.09) 0.4rem,transparent 0.4rem,transparent 0.85rem)}

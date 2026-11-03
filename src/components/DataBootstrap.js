@@ -154,7 +154,7 @@ function mount(el, inputs, on) {
             miembros = miembros.concat(globalThis.__ddUtils.miembros(r.id, r.grupo_membresias));
             return {
               id: r.id, nombre: r.nombre || "", zona: r.zona || "", hora: r.hora || "08:00",
-              horaNum: parseInt(String(r.hora || "8"), 10) || 8, duracion: r.duracion_min || 60,
+              horaNum: parseInt(String(r.hora || "8"), 10) || 8, minNum: parseInt(String(r.hora || "").slice(3, 5), 10) || 0, duracion: r.duracion_min || 60,
               servicio: r.servicio_id || "", color: r.color || "purple"
             };
           });

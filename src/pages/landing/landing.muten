@@ -69,7 +69,8 @@ Page class("lp2") {
       }
 
       # ---- medalla giratoria (centro exacto del hero) ----
-      Stack class("dc-medal") {
+      # The arrow looks like a button, so it does what the hero CTA does.
+      Link "" -> "/signup" class("dc-medal") aria(label: "Empezar gratis") {
         Image "/dc-medal.svg" alt("") class("dc-medal-ring")
         Stack class("dc-medal-mid") {
           Stack class("dc-medal-btn") { Icon "lucide:arrow-right" }

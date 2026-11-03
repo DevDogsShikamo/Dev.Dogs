@@ -31,7 +31,7 @@ function mount(el, inputs, on) {
             var rows = (res.data || []).map(function (g) {
               return {
                 id: g.id, nombre: g.nombre || "", zona: g.zona || "", hora: g.hora || "08:00",
-                horaNum: parseInt(String(g.hora || "8"), 10) || 8, duracion: g.duracion_min || 60,
+                horaNum: parseInt(String(g.hora || "8"), 10) || 8, minNum: parseInt(String(g.hora || "").slice(3, 5), 10) || 0, duracion: g.duracion_min || 60,
                 color: g.color || "purple", servicioId: g.servicio_id || "",
                 servicio: (g.servicios && g.servicios.nombre) || "",
                 cuidadorId: g.cuidador_id || "", cuidadorNombre: (g.cuidador_id && nombres[g.cuidador_id]) || ""

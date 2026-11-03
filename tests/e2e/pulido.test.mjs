@@ -13,6 +13,7 @@ const PORTAL = { OWNER: 'empresa', WALKER_CO: 'app', CLIENT: 'cliente' }
 const SVC = 'Svc Pulido E2E'
 const SNACK = 'Snack Pulido E2E'
 const ZONA = 'Zona Pulido E2E'
+const MIN_GRUPO = 'Minutos Pulido E2E'
 const made = { prestaciones: [], grupos: [], servicios: [] }
 let app
 
@@ -20,6 +21,7 @@ async function cleanup() {
   const db = admin()
   if (made.prestaciones.length) await db.from('prestaciones').delete().in('id', made.prestaciones)
   if (made.grupos.length) await db.from('grupos').delete().in('id', made.grupos)
+  await db.from('grupos').delete().eq('negocio_id', A).eq('nombre', MIN_GRUPO)
   for (const s of (await db.from('servicios').select('id').eq('negocio_id', A).in('nombre', [SVC, SNACK])).data) {
     await db.from('prestaciones').delete().eq('servicio_id', s.id)
     await db.from('tarifas').delete().eq('servicio_id', s.id)
@@ -157,5 +159,54 @@ test('the business agenda shows the times and moves to the next and previous wee
   assert.ok(await shown(next), 'next week again')
   await page.getByRole('button', { name: 'Hoy', exact: true }).click()
   assert.ok(await shown(hoy), '"Hoy" goes back to this week')
+  await page.close()
+})
+
+test('P3b: state codes read as Spanish labels for the client and the business', async () => {
+  const cli = await loginAs('CLIENT')
+  await go(cli, 'Agenda')
+  const item = cli.locator('.dd-cat-item', { hasText: '23:57' })
+  assert.ok(await shown(item.getByText('Finalizado', { exact: true })), 'the client reads "Finalizado"')
+  assert.equal(await item.getByText('finalizado', { exact: true }).count(), 0, 'no raw code')
+  await cli.close()
+  const own = await loginAs('OWNER')
+  await go(own, 'Agenda')
+  const hoy = own.locator('.dd-agrp-item', { hasText: '23:57' })
+  assert.ok(await shown(hoy.getByText('Finalizado', { exact: true })), 'the business agenda reads "Finalizado"')
+  await own.close()
+})
+
+test('P3b: the schedule editor blocks a slot that ends before it starts', async () => {
+  const page = await loginAs('WALKER_CO')
+  await go(page, 'Perfil')
+  await page.getByRole('button', { name: 'Mi horario', exact: true }).click()
+  const [desde, hasta] = await page.locator('.dd-hor-franja input').all()
+  const save = page.getByRole('button', { name: 'Guardar horario', exact: true })
+  await desde.fill('12')
+  await hasta.fill('9')
+  assert.ok(await shown(page.getByText(/^Revisa las horas/)), 'a clear message')
+  assert.equal(await save.isDisabled(), true, 'saving is blocked')
+  await hasta.fill('14')
+  assert.ok(await gone(page.getByText(/^Revisa las horas/)), 'the message goes away')
+  assert.equal(await save.isDisabled(), false, 'saving is allowed again')
+  await page.close()
+})
+
+test('P3b: an outing can start at any minute and needs a name; the owner has Perros in the mobile bar', async () => {
+  const page = await loginAs('OWNER')
+  await go(page, 'Salidas')
+  await page.getByRole('button', { name: 'Agregar', exact: true }).filter({ visible: true }).first().click()
+  const save = page.getByRole('button', { name: 'Guardar salida', exact: true })
+  assert.equal(await save.isDisabled(), true, 'no name, no save')
+  await page.getByPlaceholder('Salida Chapinero').fill(MIN_GRUPO)
+  const [hora, minuto] = await page.locator('.dd-grow input').all()
+  await hora.fill('21')
+  await minuto.fill('40')
+  await save.click()
+  const stored = async () => (await admin().from('grupos').select('id,hora').eq('negocio_id', A).eq('nombre', MIN_GRUPO).maybeSingle()).data
+  assert.ok(await until(async () => (await stored())?.hora === '21:40'), 'stored with its minutes')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.ok(await shown(page.locator('.dd-tabbar').getByRole('button', { name: 'Perros', exact: true })), 'Perros in the tab bar')
   await page.close()
 })

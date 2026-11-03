@@ -5,6 +5,7 @@ use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoLabel from "~/lib/estados.js"
 use estadoCertificado from "~/lib/kiara.js"
 
 # Draft del servicio (alta/edición) — el Form de Muten necesita page-state.
@@ -86,6 +87,7 @@ state {
   gnombre  = "" : text
   gzona    = "" : text
   ghora    = 8  : number
+  gmin     = 0  : number
   gdur     = 60 : number
   gservicio = "" : text
   gcolor   = "purple" : text
@@ -212,19 +214,19 @@ action salirNegNo mutates salirNeg { salirNeg.set(false) }
 action salirNegSi mutates salirNeg { miembroSalir()  salirNeg.set(false) }
 
 # ---- Salidas / grupos (ABM del jefe) ----
-action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
-  gnombre.set("")  gzona.set("")  ghora.set(8)  gdur.set(60)  gservicio.set("")  gcolor.set("purple")  gedit.set("")  gform.set(true)
+action grupoNuevo mutates gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set("")  gzona.set("")  ghora.set(8)  gmin.set(0)  gdur.set(60)  gservicio.set("")  gcolor.set("purple")  gedit.set("")  gform.set(true)
 }
-action grupoEditar(id: text, nombre: text, zona: text, hora: number, dur: number, servicio: text, color: text) mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
-  gnombre.set(nombre)  gzona.set(zona)  ghora.set(hora)  gdur.set(dur)  gservicio.set(servicio)  gcolor.set(color)  gedit.set(id)  gform.set(true)
+action grupoEditar(id: text, nombre: text, zona: text, hora: number, minuto: number, dur: number, servicio: text, color: text) mutates gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor, gedit, gform {
+  gnombre.set(nombre)  gzona.set(zona)  ghora.set(hora)  gmin.set(minuto)  gdur.set(dur)  gservicio.set(servicio)  gcolor.set(color)  gedit.set(id)  gform.set(true)
 }
 action gpickServicio(id: text, dur: number) mutates gservicio, gdur { gservicio.set(id)  gdur.set(dur) }
 action gpickZona(z: text) mutates gzona { gzona.set(z) }
 action gpickColor(c: text) mutates gcolor { gcolor.set(c) }
 action grupoCerrar mutates gform { gform.set(false) }
 action grupoGuardar mutates gform {
-  if gedit == "" { grupoCrear(gnombre, gzona, ghora, gdur, gservicio, gcolor) }
-  else { grupoActualizar(gedit, gnombre, gzona, ghora, gdur, gservicio, gcolor) }
+  if gedit == "" { grupoCrear(gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor) }
+  else { grupoActualizar(gedit, gnombre, gzona, ghora, gmin, gdur, gservicio, gcolor) }
   gform.set(false)
 }
 action grupoBorrar mutates conf { empresa.salidaDel(confId)  grupoEliminar(confId)  conf.set("") }
@@ -582,7 +584,7 @@ Stack class("dd-app") {
                   Stack class("acts") {
                     Button -> asigAbrir(s.id, s.nombre) class("dd-cat-icon") aria(label: "Asignar paseador a {s.nombre}") { Icon "lucide:user-cog" }
                     when auth.isOwner {
-                      Button -> grupoEditar(s.id, s.nombre, s.zona, s.horaNum, s.duracion, s.servicioId, s.color) class("dd-cat-icon") aria(label: "Editar salida") { Icon "lucide:pencil" }
+                      Button -> grupoEditar(s.id, s.nombre, s.zona, s.horaNum, s.minNum, s.duracion, s.servicioId, s.color) class("dd-cat-icon") aria(label: "Editar salida") { Icon "lucide:pencil" }
                     }
                     when auth.isOwner {
                       Button -> pedir("salida", s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar salida") { Icon "lucide:trash-2" }
@@ -616,6 +618,7 @@ Stack class("dd-app") {
                   }
                   Stack class("dd-grow") {
                     Stack class("dd-gcol") { Span "Hora" class("dd-hor-lbl")  Number bind(ghora) min(5) max(21) }
+                    Stack class("dd-gcol") { Span "Minuto" class("dd-hor-lbl")  Number bind(gmin) min(0) max(59) }
                     Stack class("dd-gcol") { Span "Duración (min)" class("dd-hor-lbl")  Number bind(gdur) min(15) max(240) }
                   }
                   Span "Servicio" class("dd-hor-lbl")
@@ -632,7 +635,7 @@ Stack class("dd-app") {
                     Button -> gpickColor("green") class("dd-gcolor dd-gc-green") class("on" when gcolor == "green") { Span "" class("sw") }
                     Button -> gpickColor("yellow") class("dd-gcolor dd-gc-yellow") class("on" when gcolor == "yellow") { Span "" class("sw") }
                   }
-                  Button "Guardar salida" -> grupoGuardar class("dd-cat-add dd-hor-save")
+                  Button "Guardar salida" -> grupoGuardar class("dd-cat-add dd-hor-save") disabled when gnombre.length == 0
                 }
               }
             }
@@ -745,7 +748,7 @@ Stack class("dd-app") {
                     when e.recibido { Span "Recibido {e.recibido}" class("meta") }
                     when e.entrega { Span "Entregado {e.entrega}" class("meta") }
                   }
-                  Span "{e.estado}" class("dd-agrp-badge b-{e.estado}")
+                  Span "{estadoLabel(e.estado)}" class("dd-agrp-badge b-{e.estado}")
                 }
               }
             }
@@ -879,7 +882,7 @@ Stack class("dd-app") {
                 Stack class("dd-cat-item") {
                   Stack class("dd-sv-ic") { Icon "lucide:star" }
                   Stack class("dd-cat-info") {
-                    Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{r.estado}" class("cd") }
+                    Stack class("nmline") { Span "{r.autor} · {r.rating} de 5" class("nm")  Span "{estadoLabel(r.estado)}" class("cd") }
                     Span "{r.texto}" class("dd-rs-txt")
                     when not r.publicar { Span "Sin permiso para publicar su nombre" class("obs") }
                   }
@@ -1334,6 +1337,9 @@ Stack class("dd-app") {
     Button -> go("agenda")     class("dd-on" when section == "agenda")     aria(label: "Agenda") { Icon "lucide:calendar" }
     when auth.isOwner {
       Button -> go("servicios") class("dd-on" when section == "servicios") aria(label: "Servicios") { Icon "lucide:tag" }
+    }
+    when auth.isOwner {
+      Button -> go("perros") class("dd-on" when section == "perros") aria(label: "Perros") { Icon "lucide:dog" }
     }
     when auth.isOwner {
       Button -> go("resenas") class("dd-on" when section == "resenas") aria(label: "Reseñas") { Icon "lucide:star" }

@@ -4,6 +4,7 @@
 // El separador es ";" porque en Colombia la coma es decimal (Excel lo parsea bien).
 import { mesLabel, resolveSesion, supa, toast } from "./authActions";
 import { pageAll } from "./localData.js";
+import { estadoLabel } from "./estados.js";
 
 type Fila = { fecha: string; servicio: string; estado: string; precio: number; cobrable: boolean; cobrado: boolean };
 
@@ -63,7 +64,7 @@ const CABECERA = ["Fecha", "Servicio", "Estado", "Precio", "Cobrado"];
 const LEYENDA = "Este documento no es una factura electrónica.";
 
 function valores(f: Fila): (string | number)[] {
-  return [f.fecha, f.servicio, f.estado, f.cobrable ? f.precio : 0, f.cobrado ? "Sí" : "No"];
+  return [f.fecha, f.servicio, estadoLabel(f.estado), f.cobrable ? f.precio : 0, f.cobrado ? "Sí" : "No"];
 }
 
 // Total = solo paseos realizados (finalizados) y cobrables — es lo que se cobra.
