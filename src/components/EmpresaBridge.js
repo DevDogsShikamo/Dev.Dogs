@@ -122,11 +122,13 @@ function mount(el, inputs, on) {
         });
       }
 
-      // Zonas del negocio (para el picker de zona al crear/editar una salida/grupo).
-      if (on.zonas) {
-        supa.from("negocios").select("zonas").eq("id", neg).single().then(function (nr) {
+      // Zonas del negocio (para el picker de zona al crear/editar una salida/grupo) and its stored name (a rename shows
+      // without a new login).
+      if (on.zonas || on.negocio) {
+        supa.from("negocios").select("zonas,nombre").eq("id", neg).single().then(function (nr) {
           if (nr && nr.error) return;
-          on.zonas((nr.data && nr.data.zonas) || []);
+          if (on.zonas) on.zonas((nr.data && nr.data.zonas) || []);
+          if (on.negocio && nr.data && nr.data.nombre) on.negocio(nr.data.nombre);
         });
       }
 

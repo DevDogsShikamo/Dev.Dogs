@@ -71,7 +71,7 @@ function mount(el, inputs, on) {
       if (!s.uid) return;
 
       // Mis perros (perro_duenos activos → perros).
-      supa.from("perro_duenos").select("perro_id,perros(id,nombre,raza,tamano,conducta,tips,sociabilidad,foto_at,activo,en_celo,enfermedad_contagiosa,certificado_salud)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
+      supa.from("perro_duenos").select("perro_id,rol,perros(id,nombre,raza,tamano,conducta,tips,sociabilidad,foto_at,activo,en_celo,enfermedad_contagiosa,certificado_salud)").eq("dueno_id", s.uid).eq("estado", "activo").then(function (res) {
         if (res && res.error) return;
         var rows = res.data || [];
         var perros = [], ids = [], vivos = [], planes = {};
@@ -80,7 +80,7 @@ function mount(el, inputs, on) {
           if (!d.id || d.activo === false) return;   // un perro dado de baja por el negocio ya no se lista
           ids.push(d.id);
           vivos.push(d);
-          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", conducta: d.conducta || "", tips: d.tips || "", sociabilidad: d.sociabilidad || "", foto: "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "", plan: "" });
+          perros.push({ id: d.id, nombre: d.nombre || "", raza: d.raza || "", tamano: d.tamano || "", conducta: d.conducta || "", tips: d.tips || "", sociabilidad: d.sociabilidad || "", foto: "", celo: !!d.en_celo, contagio: !!d.enfermedad_contagiosa, certificado: d.certificado_salud || "", plan: "", principal: r.rol === "principal" });
         });
         // The profile photo (cached blob: URL, "" = the fallback) and the monthly plan are filled in on each emit.
         function emitPerros() {
@@ -156,6 +156,13 @@ function mount(el, inputs, on) {
             return { id: g.id, zona: g.zona || "", hora: g.hora || "08:00", servicio: svc.nombre || "", servicioId: g.servicio_id || "", tipo: svc.tipo || "paseo" };
           });
           on.salidas(sal);
+        });
+      }
+
+      // The name of my business as stored now (a rename by its owner shows without a new login).
+      if (on.negocio && s.negocioId) {
+        supa.from("negocios").select("nombre").eq("id", s.negocioId).maybeSingle().then(function (nr) {
+          if (nr && !nr.error && nr.data && nr.data.nombre) on.negocio(nr.data.nombre);
         });
       }
 

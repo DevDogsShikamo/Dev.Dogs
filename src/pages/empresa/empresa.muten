@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir, notificacionLeer, notificacionesLeerTodas, notificacionesVerMas from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, perroFotoQuitar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, incidentesVerMas, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir, paseadorVerificar, negocioRenombrar, notificacionLeer, notificacionesLeerTodas, notificacionesVerMas from "~/lib/data.ts"
 use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
@@ -128,6 +128,9 @@ state {
   notifMas     = false : bool
   notifSinLeer = 0 : number
   notifOpen    = false : bool
+  # Rename of the business (owner, Perfil): the draft and whether the editor is open.
+  renNombre = "" : text
+  renForm   = false : bool
 }
 action go(s: text) mutates section, conf { section.set(s)  conf.set("") }
 # ---- Confirm before a destructive action: conf = what is being removed (servicio, perro, salida, miembro, co, inv),
@@ -242,6 +245,15 @@ action invBorrar mutates conf { empresa.invitaDel(confId)  invitacionQuitar(conf
 action copCod(c: text) { copiarCodigo(c) }
 action copLink(c: text) { copiarLink(c) }
 
+# ---- Walker badge "Verificado por el negocio" (owner only; optimistic + RPC), confirmed in the row: conf = "ver" marks it,
+# "nover" removes it ----
+action verSi mutates conf { empresa.verificadoSet(confId, conf == "ver")  paseadorVerificar(confId, conf == "ver")  conf.set("") }
+
+# ---- Rename the business (owner only; the RPC trims and checks 1..100 characters) ----
+action renAbrir mutates renNombre, renForm { renNombre.set(auth.negocioNombre)  renForm.set(true) }
+action renCerrar mutates renForm { renForm.set(false) }
+action renGuardar mutates renForm { negocioRenombrar(renNombre)  renForm.set(false) }
+
 # ---- Asignar paseador a una salida (optimista) ----
 action asigAbrir(id: text, nombre: text) mutates asigSalida, asigNombre, asigForm { asigSalida.set(id)  asigNombre.set(nombre)  asigForm.set(true) }
 action asigCerrar mutates asigForm { asigForm.set(false) }
@@ -331,7 +343,7 @@ Stack class("dd-app") {
   # Puente de datos del negocio (montado una vez).
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
   Custom Toast
-  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, loaded: empresa.setLoaded)
+  Custom EmpresaBridge on(paseadores: empresa.setPaseadores, clientes: empresa.setClientes, gestion: empresa.setGestion, perros: catalogo.setPerros, perrosTot: empresa.setPerrosTot, duenos: empresa.setDuenos, stats: empresa.setStats, invitaciones: empresa.setInvitaciones, resenas: empresa.setResenas, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, servicios: servicios.setServicios, zonas: servicios.setZonas, negocio: auth.setNegocioNombre, loaded: empresa.setLoaded)
   Custom ReportesBridge inputs(mes: @repMes) on(meses: mesesCargar, mesServicios: mesServSet, ingresosDia: empresa.setIngresosDia, topServicios: empresa.setTopServicios, porPaseador: empresa.setPorPaseador, pendientes: empresa.setPendientes, permiso: auth.setFinanzas)
   Custom PlanesBridge on(planes: planes.setPlanes)
   Custom SalidasBridge on(salidas: empresa.setSalidas, miembros: empresa.setMiembros)
@@ -452,7 +464,15 @@ Stack class("dd-app") {
             }
           }
           when empresa.nPaseadores == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:users" }  Title "Sin paseadores" h2  Text "Invita a tu primer paseador con el botón de arriba." }
+            Stack class("dd-ph") {
+              Stack class("dd-pi") { Icon "lucide:users" }
+              Title "Sin paseadores" h2
+              when auth.isOwner { Text "Invita a tu primer paseador con el botón de arriba." }
+              when auth.isGestion { Text "Aún no hay paseadores en el negocio." }
+            }
+          }
+          when (empresa.paseadores.count where verificado) > 0 {
+            Text "Verificado por el negocio: el negocio revisó en persona el documento de identidad del paseador." class("dd-rel-hint")
           }
           Stack class("dd-cat-list") {
             each empresa.paseadores as p {
@@ -462,7 +482,7 @@ Stack class("dd-app") {
                   Stack class("dd-cat-info") {
                     Stack class("nmline") {
                       Span "{p.nombre}" class("nm")
-                      when p.verificado { Span "✓" class("dd-emp-ver") }
+                      when p.verificado { Span "Verificado por el negocio" class("dd-emp-ver") }
                     }
                     when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
                     when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
@@ -471,11 +491,15 @@ Stack class("dd-app") {
                   when auth.isOwner {
                     Stack class("acts") {
                       Button -> salAbrir(p.id, p.nombre, p.salario) class("dd-cat-icon") aria(label: "Editar salario de {p.nombre}") { Icon "lucide:pencil" }
+                      when not p.verificado { Button -> pedir("ver", p.id) class("dd-cat-icon") aria(label: "Marcar como verificado por el negocio") { Icon "lucide:badge-check" } }
+                      when p.verificado { Button -> pedir("nover", p.id) class("dd-cat-icon") aria(label: "Quitar la verificación") { Icon "lucide:badge-x" } }
                       Button -> bajaPedir(p.id) class("dd-cat-icon dd-danger") aria(label: "Dar de baja") { Icon "lucide:user-x" }
                     }
                   }
                 }
                 when bajaId == p.id { BajaConfirm(nombre: p.nombre, onSi: bajaSi, onNo: bajaNo) }
+                when conf == "ver" and confId == p.id { Confirmar(texto: "¿Revisaste en persona el documento de identidad de este paseador? Tu equipo verá «Verificado por el negocio».", si: "Sí, verificar", onSi: verSi, onNo: confNo) }
+                when conf == "nover" and confId == p.id { Confirmar(texto: "¿Quitar «Verificado por el negocio» de este paseador?", si: "Sí, quitar", onSi: verSi, onNo: confNo) }
               }
             }
           }
@@ -493,8 +517,14 @@ Stack class("dd-app") {
             InviteItem(iv: iv, confId: confInv, onPedir: invPedir, onSi: invBorrar, onNo: confNo)
           }
           when empresa.nClientes == 0 {
-            Stack class("dd-ph") { Stack class("dd-pi") { Icon "lucide:user-round" }  Title "Sin clientes" h2  Text "Invita a tu primer cliente con el botón de arriba." }
+            Stack class("dd-ph") {
+              Stack class("dd-pi") { Icon "lucide:user-round" }
+              Title "Sin clientes" h2
+              when auth.isOwner { Text "Invita a tu primer cliente con el botón de arriba." }
+              when auth.isGestion { Text "Aún no hay clientes en el negocio." }
+            }
           }
+          when auth.isGestion and empresa.nClientes > 0 { Text "Ves el nombre de cada cliente; sus datos de contacto los ve solo el jefe del negocio." class("dd-rel-hint") }
           Stack class("dd-cat-list") {
             each empresa.clientes as c {
               Stack class("dd-cli-paseo") {
@@ -1077,6 +1107,29 @@ Stack class("dd-app") {
             Stack class("dd-pf-stat") { Span "{empresa.nPaseadores}" class("v")  Span "Paseadores" class("l") }
             when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.nClientes}" class("v")  Span "Clientes" class("l") } }
             when auth.isOwner { Stack class("dd-pf-stat") { Span "{empresa.perrosTot}" class("v")  Span "Perros" class("l") } }
+          }
+
+          # ---- Nombre del negocio — only the owner renames it; its clients see it in their portal ----
+          when auth.isOwner {
+            Stack class("dd-pf-team") {
+              Title "Nombre del negocio" h2
+              Text "Tus clientes lo ven en su portal." class("dd-rel-hint")
+              when not renForm {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-cat-info") { Span "{auth.negocioNombre}" class("nm") }
+                  Button "Cambiar nombre" -> renAbrir class("dd-cat-add")
+                }
+              }
+              when renForm {
+                Stack class("dd-gform") {
+                  SearchField bind(renNombre) "Nombre del negocio"
+                  Stack class("acts") {
+                    Button "Guardar nombre" -> renGuardar class("dd-cat-add") disabled when renNombre.length == 0 or renNombre.length > 100
+                    Button "Cancelar" -> renCerrar class("dd-cat-add")
+                  }
+                }
+              }
+            }
           }
 
           # ---- Equipo de gestión (la oficina) — solo el jefe invita y ve ----

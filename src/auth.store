@@ -75,6 +75,8 @@ action setPolitica(v: text) mutates politicaPendiente { politicaPendiente.set(v)
 # /mis-datos reports the stored name, so a correction shows in the portals without a new login.
 action setUserName(n: text) mutates userName { userName.set(n) }
 action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }
+# The business name as stored (EmpresaBridge / ClienteBridge on every load): a rename shows without a new login.
+action setNegocioNombre(n: text) mutates negocioNombre { negocioNombre.set(n) }
 
 action logout mutates loggedIn, userId, userName, rol, negocioId, isOwner, politicaPendiente, sinPerfil, baja, aceptacionPendiente, negocioNombre, authError, finanzas {
   finanzas.set(false)

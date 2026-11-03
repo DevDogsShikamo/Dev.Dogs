@@ -1,5 +1,5 @@
 screen cliente
-use perroFotoQuitar, reservarPaseo, reservarServicio, venderProducto, crearMiPerro, miPerroActualizar, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
+use perroFotoQuitar, reservarPaseo, reservarServicio, venderProducto, crearMiPerro, miPerroActualizar, resenaGuardar, resenaBorrar, reservaCancelar, reservaReprogramar, fotoReportar, miembroSalir, miPerroEliminar from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -65,14 +65,24 @@ state {
   repFoto      = "" : text
   # Dog whose profile photo is about to be removed (in-page confirmation step).
   fotoConf     = "" : text
+  # The scheduled service being moved to another day (in-page date step) and its new date.
+  rpgId        = "" : text
+  rpgFecha     = "" : text
+  # Deleting my review, and the dog being removed (in-page confirmation steps).
+  rsBorrar     = false : bool
+  perroBorrar  = "" : text
 }
 action fotoPedir mutates fotoConf { fotoConf.set(pedit) }
 action fotoNo mutates fotoConf { fotoConf.set("") }
 action fotoQuitar mutates fotoConf { perroFotoQuitar(fotoConf)  fotoConf.set("") }
 # Cancel a scheduled service of my dog: ask first, then the RPC (any fee is the business's own policy).
-action cancelPedir(id: text) mutates cancelId { cancelId.set(id) }
+action cancelPedir(id: text) mutates cancelId, rpgId { cancelId.set(id)  rpgId.set("") }
 action cancelNo mutates cancelId { cancelId.set("") }
 action cancelConfirmar mutates cancelId { reservaCancelar(cancelId)  cancelId.set("") }
+# Move a scheduled service to another day (RPC reserva_reprogramar: the cutoff of a cancellation, the rules of a booking).
+action rpgPedir(id: text) mutates rpgId, rpgFecha, cancelId { rpgId.set(id)  rpgFecha.set("")  cancelId.set("") }
+action rpgNo mutates rpgId { rpgId.set("") }
+action rpgConfirmar mutates rpgId { reservaReprogramar(rpgId, rpgFecha)  rpgId.set("") }
 action repAbrir(id: text) mutates repFoto { repFoto.set(id) }
 action repCerrar mutates repFoto { repFoto.set("") }
 action repEnviar(motivo: text) mutates repFoto { fotoReportar(repFoto, motivo)  repFoto.set("") }
@@ -84,6 +94,9 @@ action rsEditar(rating: number, texto: text, publicar: bool) mutates rsRating, r
 action rsPick(n: number) mutates rsRating { rsRating.set(n) }
 action rsCerrar mutates rsForm { rsForm.set(false) }
 action rsEnviar mutates rsForm { resenaGuardar(rsRating, rsTexto, rsPublicar)  rsForm.set(false) }
+action rsBorrarPedir mutates rsBorrar { rsBorrar.set(true) }
+action rsBorrarNo mutates rsBorrar { rsBorrar.set(false) }
+action rsBorrarSi mutates rsBorrar { resenaBorrar()  rsBorrar.set(false) }
 # The business that provides the service (auth.negocioNombre, reported at login); a session stored before
 # the name was reported shows a generic label until the next login.
 get prestador = auth.negocioNombre != "" ? auth.negocioNombre : "tu negocio"
@@ -111,6 +124,13 @@ action miPerroGuardar(p: PerroDraft) mutates pform {
   pform.set(false)
 }
 get perroTitulo = pedit == "" ? "Registrar perro" : "Editar perro"
+# Removing a dog from the app: only its principal owner, only while it never had a service (registered by mistake);
+# otherwise the business removes it.
+get pedPrincipal = (cliente.misPerros.count where id == pedit and principal) > 0
+get pedHistorial = (cliente.misPaseos.count where perroId == pedit) > 0
+action perroBorrarPedir mutates perroBorrar { perroBorrar.set(pedit) }
+action perroBorrarNo mutates perroBorrar { perroBorrar.set("") }
+action perroBorrarSi mutates perroBorrar, pform { miPerroEliminar(perroBorrar)  perroBorrar.set("")  pform.set(false) }
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
 action salir { cliente.limpiar()  incidentes.limpiar()  auth.logout() }
 # Leave the business (confirmed in the page): the client loses its access and its links to the dogs; the session ends.
@@ -139,7 +159,7 @@ action facXLS { descargarEstadoCuentaExcel(cliente.facturaPerro, cliente.factura
 
 Stack class("dd-app") {
 
-  Custom ClienteBridge on(misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
+  Custom ClienteBridge on(negocio: auth.setNegocioNombre, misPerros: cliente.setMisPerros, misPaseos: cliente.setMisPaseos, misFotos: cliente.setMisFotos, novedades: cliente.setNovedades, salidas: cliente.setSalidas, servicios: cliente.setServicios, miResena: cliente.setMiResena, identidad: cliente.setIdentidad, loaded: cliente.setLoaded)
   Custom PoliticaBridge on(secciones: polSecs, meta: polMeta)
   Custom IncidentesBridge on(items: incidentes.setItems, mas: incidentes.setMas)
   Custom Toast
@@ -292,7 +312,12 @@ Stack class("dd-app") {
                     Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
                     Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
                   }
-                  when p.cancelable { Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add") }
+                  when p.cancelable {
+                    Stack class("acts") {
+                      Button "Reprogramar" -> rpgPedir(p.id) class("dd-cat-add")
+                      Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add")
+                    }
+                  }
                 }
                 when cancelId == p.id {
                   Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la cancelación") {
@@ -300,6 +325,16 @@ Stack class("dd-app") {
                     Stack class("acts") {
                       Button "Sí, cancelar" -> cancelConfirmar class("dd-cat-add dd-danger")
                       Button "No" -> cancelNo class("dd-cat-add")
+                    }
+                  }
+                }
+                when rpgId == p.id {
+                  Stack class("dd-cat-item") aria(role: "group", label: "Reprogramar la reserva") {
+                    Text "Elige la nueva fecha. Las condiciones para cambiarla las fija tu negocio." class("dd-cli-hint")
+                    Date bind(rpgFecha)
+                    Stack class("acts") {
+                      Button "Guardar nueva fecha" -> rpgConfirmar class("dd-cat-add") disabled when rpgFecha == ""
+                      Button "No" -> rpgNo class("dd-cat-add")
                     }
                   }
                 }
@@ -368,6 +403,13 @@ Stack class("dd-app") {
                   }
                 }
                 when pedit != "" { Text "El celo, la enfermedad contagiosa y el certificado de salud los registra tu negocio." class("dd-rel-hint") }
+                when pedit != "" and pedPrincipal and not pedHistorial {
+                  Stack class("dd-cat-list") {
+                    Button "Eliminar perro" -> perroBorrarPedir class("dd-cat-add dd-danger")
+                    when perroBorrar == pedit { Confirmar(texto: "¿Eliminar este perro? Úsalo si lo registraste por error: deja de aparecer en tu cuenta y en tu negocio, y su foto se elimina.", si: "Sí, eliminar", onSi: perroBorrarSi, onNo: perroBorrarNo) }
+                  }
+                }
+                when pedit != "" and pedPrincipal and pedHistorial { Text "Para dar de baja a este perro, pídeselo al negocio." class("dd-rel-hint") }
               }
             }
           }
@@ -478,7 +520,12 @@ Stack class("dd-app") {
                     when p.recibido { Span "Recibido {p.recibido}" class("meta") }
                     when p.entrega { Span "Entregado {p.entrega}" class("meta") }
                   }
-                  when p.cancelable { Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add") }
+                  when p.cancelable {
+                    Stack class("acts") {
+                      Button "Reprogramar" -> rpgPedir(p.id) class("dd-cat-add")
+                      Button "Cancelar" -> cancelPedir(p.id) class("dd-cat-add")
+                    }
+                  }
                 }
                 when cancelId == p.id {
                   Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la cancelación") {
@@ -486,6 +533,16 @@ Stack class("dd-app") {
                     Stack class("acts") {
                       Button "Sí, cancelar" -> cancelConfirmar class("dd-cat-add dd-danger")
                       Button "No" -> cancelNo class("dd-cat-add")
+                    }
+                  }
+                }
+                when rpgId == p.id {
+                  Stack class("dd-cat-item") aria(role: "group", label: "Reprogramar la reserva") {
+                    Text "Elige la nueva fecha. Las condiciones para cambiarla las fija tu negocio." class("dd-cli-hint")
+                    Date bind(rpgFecha)
+                    Stack class("acts") {
+                      Button "Guardar nueva fecha" -> rpgConfirmar class("dd-cat-add") disabled when rpgFecha == ""
+                      Button "No" -> rpgNo class("dd-cat-add")
                     }
                   }
                 }
@@ -542,9 +599,13 @@ Stack class("dd-app") {
                     Span "{r.texto}" class("dd-rs-txt")
                     when not r.publicar { Span "No se publica: elegiste no mostrar tu nombre." class("obs") }
                   }
-                  Stack class("acts") { Button "Editar" -> rsEditar(r.rating, r.texto, r.publicar) class("dd-cat-add") }
+                  Stack class("acts") {
+                    Button "Editar" -> rsEditar(r.rating, r.texto, r.publicar) class("dd-cat-add")
+                    Button "Eliminar" -> rsBorrarPedir class("dd-cat-add")
+                  }
                 }
               }
+              when rsBorrar and cliente.miResena.length > 0 { Confirmar(texto: "¿Eliminar tu reseña? El negocio ya no la verá ni la publicará.", si: "Sí, eliminar", onSi: rsBorrarSi, onNo: rsBorrarNo) }
               when cliente.miResena.length == 0 { Button -> rsNueva class("dd-cat-add") { Icon "lucide:star"  Span "Dejar una reseña" } }
             }
           }
