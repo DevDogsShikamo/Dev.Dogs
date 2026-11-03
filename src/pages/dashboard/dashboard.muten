@@ -5,6 +5,7 @@ use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
 use estadoCertificado, certificadoVigente from "~/lib/kiara.js"
+use mapaCentrar, mapaPreparar, comoLlegar from "~/lib/mapa.ts"
 
 # Panel del paseador — portado FIEL del artifact "Panel DevDogs".
 # Navegación responsive (píldora en móvil, sidebar en escritorio) con cambio de sección.
@@ -104,6 +105,9 @@ state {
   vnota   = "" : text
   vform   = false : bool
   invEmail = "" : text
+  # Map of today's pickups (M2): the sheet and the offline status the MapaPaseo Custom reports.
+  mapaOpen   = false : bool
+  mapaEstado = "" : text
   # Legal identity editor (owner only; not persisted).
   lrazon  = "" : text
   ltipo   = "NIT" : text
@@ -185,6 +189,15 @@ action moverPerroGrupo(m: MovePayload) {
 action moverGrupoHora(m: GrupoHoraPayload) { grupoSetHora(m.grupo, m.hora, m.fecha) }
 # Drag sobre el calendario: reprogramar una ocurrencia (día/hora).
 action reprogramarBloqueAction(m: ReprogPayload) { reprogramarBloque(m.grupo, m.fechaOld, m.fechaNew, m.hora, m.modo) }
+
+# ---- Map of today's pickups (M2): the MapaPaseo Custom draws the points; the buttons reach it through mapa.ts ----
+get mapaPuntos = grupos.paradas where tiene
+action mapaAbrir mutates mapaOpen, mapaEstado { mapaEstado.set("")  mapaOpen.set(true) }
+action mapaCerrar mutates mapaOpen { mapaOpen.set(false) }
+action mapaEstadoSet(t: text) mutates mapaEstado { mapaEstado.set(t) }
+action mapaPrepararA { mapaPreparar() }
+action mapaCentrarA { mapaCentrar() }
+action llegar(lat: number, lng: number) { comoLlegar(lat, lng) }
 
 # ---- Modo paseo: el paseador ejecuta el paseo (store optimista + data.ts persiste) ----
 # Abre el modo paseo limpiando la galería y las marcas de perro de la sesión anterior (todos marcados).
@@ -341,7 +354,7 @@ Stack class("dd-app") {
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, clientes: empresa.setClientes, duenos: empresa.setDuenos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, contacto: contactoSet, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, paradas: grupos.setParadas, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, clientes: empresa.setClientes, duenos: empresa.setDuenos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, contacto: contactoSet, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -454,6 +467,11 @@ Stack class("dd-app") {
               }
             }
 
+            # The map of today's pickups opens over this sheet.
+            when grupos.paradas.length > 0 {
+              Button -> mapaAbrir class("dd-paseo-nosal dd-mapa-ver-paseo") { Icon "lucide:map"  Span "Ver mapa" }
+            }
+
             # Acción primaria según el estado del paseo.
             when grupos.modoEstado == "programado" {
               Button "Iniciar paseo" -> pIniciar class("dd-cat-add dd-hor-save")
@@ -463,6 +481,38 @@ Stack class("dd-app") {
             }
             when grupos.modoEstado == "finalizado" {
               Stack class("dd-paseo-done") { Icon "lucide:check-circle"  Span "Paseo finalizado" }
+            }
+          }
+        }
+      }
+
+      # ==== MAP OF TODAY'S PICKUPS (M2): full-screen sheet, from Inicio or the modo paseo ====
+      when mapaOpen {
+        Stack class("dd-cal-scrim dd-mapa-scrim") {
+          Stack class("dd-cal-sheet dd-mapa-sheet") aria(role: "dialog", modal: true, label: "Mapa de recogidas de hoy") {
+            Stack class("dd-cat-formhead") {
+              Title "Recogidas de hoy" h3
+              Button -> mapaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar mapa") { Icon "lucide:x" }
+            }
+            Custom MapaPaseo inputs(puntos: @mapaPuntos) on(estado: mapaEstadoSet)
+            Stack class("dd-mapa-bar") {
+              Span "{mapaEstado}" class("dd-mapa-estado") aria(live: "polite")
+              Stack class("dd-mapa-acciones") {
+                Button -> mapaCentrarA class("dd-gchip") { Icon "lucide:locate-fixed"  Span "Centrar en mí" }
+                Button -> mapaPrepararA class("dd-gchip") { Icon "lucide:download"  Span "Preparar mapa sin conexión" }
+              }
+            }
+            List class("dd-mapa-paradas") aria(label: "Paradas de hoy") {
+              each grupos.paradas as p {
+                Stack class("dd-mapa-parada") {
+                  Stack class("txt") {
+                    Span "{p.hora} · {p.nombre}" class("nm")
+                    when p.tiene and p.nota != "" { Span "{p.nota}" class("sub") }
+                    when not p.tiene { Span "Sin punto de recogida" class("sub") }
+                  }
+                  when p.tiene { Button "Cómo llegar" -> llegar(p.lat, p.lng) class("dd-paseo-nosal") }
+                }
+              }
             }
           }
         }
@@ -534,6 +584,10 @@ Stack class("dd-app") {
               }
               when grupos.perrosHoy.length == 0 { Span "{i18n.d.dash.sinHoy}" class("dd-dt-empty") }
             }
+          }
+
+          when grupos.paradas.length > 0 {
+            Button -> mapaAbrir class("dd-mapa-ver") aria(label: "Ver mapa de recogidas de hoy") { Icon "lucide:map"  Span "Ver mapa" }
           }
 
           Stack class("dd-next") {

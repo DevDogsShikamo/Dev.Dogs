@@ -68,3 +68,16 @@ export function pageAll(build, size = 1000) {
   })
   return step(0)
 }
+
+// IndexedDB databases that hold user data on the device (the offline walker map). Deleted at the end of a session.
+export const OFFLINE_DBS = ['dd-mapa']
+
+// Deletes OFFLINE_DBS. A page still holding a connection closes it on versionchange (mapa.ts), so the delete is not
+// blocked; resolves once every request settled. No IndexedDB: nothing to do.
+export function purgeDbs(idb) {
+  if (!idb) return Promise.resolve()
+  return Promise.all(OFFLINE_DBS.map((name) => new Promise((done) => {
+    const req = idb.deleteDatabase(name)
+    req.onsuccess = req.onerror = req.onblocked = () => done()
+  })))
+}

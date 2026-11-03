@@ -7,6 +7,8 @@
 //   PUT /p/{perro_id}  dog profile photo: perro_foto_autorizar -> validate -> BUCKET.put (replaces) -> perro_foto_confirmar
 //   GET /p/{perro_id}  perros row with foto_at visible to the caller? -> BUCKET.get p/{negocio}/{perro}.jpg
 //   DELETE /p/{perro_id}  perro_foto_autorizar -> BUCKET.delete -> perro_foto_quitar (no photo is a success)
+//   GET|HEAD /m/{name}.pmtiles  offline basemap for the walker's map: any active member (my_negocio not null) reads
+//                      the archive m/{name}.pmtiles with single byte ranges (206), as the pmtiles client asks for them
 // Vars: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (public), ALLOWED_ORIGINS (comma list), ALLOW_LOCALHOST ("1" in staging).
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const MAX_BYTES = 2 * 1024 * 1024
@@ -51,14 +53,54 @@ async function readCapped(stream, max) {
   return out
 }
 
+// Single range "bytes=a-b" | "bytes=a-" | "bytes=-n" against an object of `size` bytes: { offset, length },
+// 'unsatisfiable', or null to serve the whole object (no Range, or one this Worker does not honour, e.g. multi-range).
+export function parseRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header ?? '')
+  if (!m || (m[1] === '' && m[2] === '')) return null
+  if (m[1] === '') {
+    const n = Math.min(Number(m[2]), size)
+    return n > 0 ? { offset: size - n, length: n } : 'unsatisfiable'
+  }
+  const start = Number(m[1])
+  const end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1)
+  if (start >= size) return 'unsatisfiable'
+  return end < start ? null : { offset: start, length: end - start + 1 }
+}
+
+// ponytail: one my_negocio round trip per request (each tile range); cache the verdict per token if it shows in latency.
+async function serveMap(request, env, fetchImpl, key, reply, fail) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'metodo_no_permitido')
+  const token = /^Bearer (\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1]
+  if (!token) return fail(401, 'no_autenticado')
+  const up = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/rpc/my_negocio`, {
+    method: 'POST', body: '{}', headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+  })
+  if (up.status === 401 || up.status === 403) return fail(up.status, up.status === 401 ? 'no_autenticado' : 'no_autorizado')
+  if (!up.ok) return fail(502, 'proveedor_no_disponible')
+  if (!(await up.json())) return fail(403, 'no_autorizado') // removed walker or no profile: not a member
+  const head = await env.BUCKET.head(key)
+  if (!head) return fail(404, 'no_encontrado')
+  const meta = { 'accept-ranges': 'bytes', etag: head.httpEtag, 'content-type': head.httpMetadata?.contentType || 'application/octet-stream' }
+  const range = parseRange(request.headers.get('range'), head.size)
+  if (range === 'unsatisfiable') return reply(416, null, { ...meta, 'content-range': `bytes */${head.size}` })
+  if (request.method === 'HEAD') return reply(200, null, { ...meta, 'content-length': String(head.size) })
+  const object = await env.BUCKET.get(key, range ? { range } : {})
+  if (!object) return fail(404, 'no_encontrado')
+  if (!range) return reply(200, object.body, { ...meta, 'content-length': String(head.size) })
+  const last = range.offset + range.length - 1
+  return reply(206, object.body, { ...meta, 'content-length': String(range.length), 'content-range': `bytes ${range.offset}-${last}/${head.size}` })
+}
+
 export async function handle(request, env, fetchImpl = fetch) {
   const origin = request.headers.get('origin')
   const allowed = !origin || env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()).includes(origin) || (env.ALLOW_LOCALHOST === '1' && LOCALHOST.test(origin))
   const base = { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', vary: 'Origin' }
   if (origin && allowed) {
     Object.assign(base, {
-      'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, PUT, POST, DELETE, OPTIONS',
-      'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '600',
+      'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, HEAD, PUT, POST, DELETE, OPTIONS',
+      'access-control-allow-headers': 'authorization, content-type, range', 'access-control-max-age': '600',
+      'access-control-expose-headers': 'content-range, content-length, accept-ranges, etag',
     })
   }
   const reply = (status, body = null, extra = {}) => new Response(body, { status, headers: { ...base, ...extra } })
@@ -67,6 +109,8 @@ export async function handle(request, env, fetchImpl = fetch) {
   if (!env.BUCKET || !env.SUPABASE_URL) return fail(500, 'mal_configurado')
   if (!allowed) return fail(403, 'origen_no_permitido')
   if (request.method === 'OPTIONS') return reply(204)
+  const mapa = /^\/m\/([a-z0-9][a-z0-9-]{0,63}\.pmtiles)$/.exec(new URL(request.url).pathname)?.[1]
+  if (mapa) return serveMap(request, env, fetchImpl, `m/${mapa}`, reply, fail)
   const [, ruta, raw] = new RegExp(`^/(f|p|retener)/(${UUID})$`, 'i').exec(new URL(request.url).pathname) ?? []
   const id = raw?.toLowerCase()
   if (!id) return fail(404, 'no_encontrado')

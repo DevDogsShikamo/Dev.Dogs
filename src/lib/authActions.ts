@@ -2,7 +2,7 @@
 // so we expose the client on globalThis for the headless Custom auth bridges to read.
 // The publishable key is public by design; RLS on the DB is what protects data.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { pageAll, purgeKeys, shouldPurge } from "./localData.js";
+import { pageAll, purgeDbs, purgeKeys, shouldPurge } from "./localData.js";
 
 // Test hook: the E2E harness sets window.__DD_CFG = { url, key, fotos } to point the app at
 // STAGING (Supabase and the photo Worker). It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
@@ -126,6 +126,8 @@ function purge(): void {
   // Nothing caches photos today (the service worker never touches the photo Worker); this keeps it so
   // if a photo cache ever appears: no photo survives the end of a session.
   if (typeof caches !== "undefined") caches.keys().then((ks) => ks.filter((k) => /^fotos/i.test(k)).forEach((k) => caches.delete(k)));
+  // The offline walker map (tiles of the day's pickup area) goes too.
+  if (typeof indexedDB !== "undefined") purgeDbs(indexedDB);
   supa.removeAllChannels();
   sesionMemo = null;
   // A hard reload is what clears the in-memory stores (TypeScript cannot call store actions).

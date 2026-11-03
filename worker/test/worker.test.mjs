@@ -29,6 +29,7 @@ function supabase({ confirm = 204, keys = [KEY], pkey = PKEY, quitar = 204 } = {
     if (u.pathname.endsWith('/perro_foto_autorizar')) return token === 'stranger' ? json(403, { code: '42501' }) : json(200, pkey)
     if (u.pathname.endsWith('/perro_foto_confirmar')) return confirm === 204 ? new Response(null, { status: 204 }) : json(confirm, { code: '42501' })
     if (u.pathname.endsWith('/perro_foto_quitar')) return quitar === 204 ? new Response(null, { status: 204 }) : json(quitar, {})
+    if (u.pathname.endsWith('/my_negocio')) return json(200, token === 'removed' ? null : NEG)
     if (u.pathname === '/rest/v1/perros') return json(200, token === 'stranger' ? [] : [{ id: ID, negocio_id: NEG, foto_at: token === 'nofoto' ? null : '2026-10-30T10:00:00+00:00' }])
     return json(404, {})
   }
@@ -301,4 +302,91 @@ test('DELETE is only for /p: walk photos and retener answer 405; the preflight l
   for (const path of [`/f/${ID}`, `/retener/${INC}`]) assert.equal((await call('DELETE', path)).res.status, 405, path)
   const ok = await call('OPTIONS', `/p/${ID}`, { token: null, origin: 'https://app.example' })
   assert.match(ok.res.headers.get('access-control-allow-methods'), /DELETE/)
+})
+
+// ---- offline basemap: GET/HEAD /m/{file}.pmtiles, any active member, byte ranges -------------------
+const MAP = 'm/colombia-20261102.pmtiles'
+const TILES = Uint8Array.from({ length: 100 }, (_, i) => i)
+// R2 stub with head() and ranged get(), like the real binding (size is the whole object, range the slice served).
+function mapBucket() {
+  const meta = { size: TILES.length, httpEtag: '"abc123"', httpMetadata: { contentType: 'application/vnd.pmtiles' } }
+  return {
+    head: async (key) => (key === MAP ? meta : null),
+    get: async (key, opts = {}) => {
+      if (key !== MAP) return null
+      const { offset = 0, length = TILES.length - offset } = opts.range ?? {}
+      return { ...meta, range: { offset, length }, body: new Blob([TILES.slice(offset, offset + length)]).stream() }
+    },
+  }
+}
+async function getMap(path, { range, method = 'GET', token = 'good', origin } = {}) {
+  const headers = {}
+  if (token) headers.authorization = `Bearer ${token}`
+  if (range) headers.range = range
+  if (origin) headers.origin = origin
+  const sb = supabase()
+  const env = { SUPABASE_URL: SUPABASE, SUPABASE_PUBLISHABLE_KEY: 'pub-key', ALLOWED_ORIGINS: 'https://app.example', BUCKET: mapBucket() }
+  return { res: await handle(new Request(`https://fotos.test${path}`, { method, headers }), env, sb.fetchImpl), sb }
+}
+
+test('map: a byte range is served as 206 with Content-Range, Accept-Ranges and the ETag', async () => {
+  const { res, sb } = await getMap(`/${MAP}`, { range: 'bytes=10-19' })
+  assert.equal(res.status, 206)
+  assert.equal(res.headers.get('content-range'), 'bytes 10-19/100')
+  assert.equal(res.headers.get('content-length'), '10')
+  assert.equal(res.headers.get('accept-ranges'), 'bytes')
+  assert.equal(res.headers.get('etag'), '"abc123"')
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), TILES.slice(10, 20))
+  assert.equal(sb.calls.length, 1)
+  assert.match(sb.calls[0].path, /\/rest\/v1\/rpc\/my_negocio$/)
+  assert.equal(sb.calls[0].token, 'good', 'membership is asked with the caller token')
+})
+test('map: open, suffix and past-the-end ranges are clamped; no Range is the whole file (200)', async () => {
+  const open = (await getMap(`/${MAP}`, { range: 'bytes=95-' })).res
+  assert.deepEqual([open.status, open.headers.get('content-range')], [206, 'bytes 95-99/100'])
+  const suffix = (await getMap(`/${MAP}`, { range: 'bytes=-5' })).res
+  assert.deepEqual([suffix.status, suffix.headers.get('content-range')], [206, 'bytes 95-99/100'])
+  assert.deepEqual(new Uint8Array(await suffix.arrayBuffer()), TILES.slice(95))
+  const past = (await getMap(`/${MAP}`, { range: 'bytes=90-500' })).res
+  assert.deepEqual([past.status, past.headers.get('content-range')], [206, 'bytes 90-99/100'])
+  const whole = (await getMap(`/${MAP}`)).res
+  assert.deepEqual([whole.status, whole.headers.get('content-length'), whole.headers.get('accept-ranges')], [200, '100', 'bytes'])
+  assert.deepEqual(new Uint8Array(await whole.arrayBuffer()), TILES)
+})
+test('map: a range starting past the end is 416 with the size', async () => {
+  const { res } = await getMap(`/${MAP}`, { range: 'bytes=100-120' })
+  assert.equal(res.status, 416)
+  assert.equal(res.headers.get('content-range'), 'bytes */100')
+})
+test('map: HEAD answers the size and ETag without a body', async () => {
+  const { res } = await getMap(`/${MAP}`, { method: 'HEAD' })
+  assert.equal(res.status, 200)
+  assert.equal(res.headers.get('content-length'), '100')
+  assert.equal(res.headers.get('etag'), '"abc123"')
+  assert.equal(res.body, null)
+})
+test('map: no token or a rejected token is 401, a removed member is 403, nothing is served', async () => {
+  const none = await getMap(`/${MAP}`, { token: null })
+  assert.equal(none.res.status, 401)
+  assert.equal(none.sb.calls.length, 0, 'a missing token must not reach Supabase')
+  assert.equal((await getMap(`/${MAP}`, { token: 'expired' })).res.status, 401)
+  assert.equal((await getMap(`/${MAP}`, { token: 'removed' })).res.status, 403)
+})
+test('map: a bad file name or a missing archive is 404; other methods are 405', async () => {
+  for (const path of ['/m/', '/m/x.jpg', '/m/../f/x.pmtiles', '/m/a/b.pmtiles', '/m/.pmtiles', '/m/%2e%2e.pmtiles']) {
+    const { res, sb } = await getMap(path)
+    assert.equal(res.status, 404, path)
+    assert.equal(sb.calls.length, 0, path)
+  }
+  assert.equal((await getMap('/m/otra.pmtiles')).res.status, 404)
+  for (const method of ['PUT', 'POST', 'DELETE']) assert.equal((await getMap(`/${MAP}`, { method })).res.status, 405, method)
+})
+test('map: the preflight allows Range and HEAD, and the ranged headers are exposed to the page', async () => {
+  const pre = (await getMap(`/${MAP}`, { method: 'OPTIONS', token: null, origin: 'https://app.example' })).res
+  assert.equal(pre.status, 204)
+  assert.match(pre.headers.get('access-control-allow-headers'), /range/i)
+  assert.match(pre.headers.get('access-control-allow-methods'), /HEAD/)
+  const got = (await getMap(`/${MAP}`, { range: 'bytes=0-9', origin: 'https://app.example' })).res
+  assert.match(got.headers.get('access-control-expose-headers'), /content-range/i)
+  assert.match(got.headers.get('access-control-expose-headers'), /etag/i)
 })
