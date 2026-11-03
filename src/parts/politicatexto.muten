@@ -67,6 +67,7 @@ part PoliticaTexto(version: text) {
         Text "La ubicación del teléfono del paseador se usa solo en el teléfono para mostrarle el mapa de los puntos de recogida: nunca se envía ni se guarda. La aplicación no rastrea la ubicación de nadie."
         Text "Incidentes: el perro, el paseo en que ocurrió (si aplica), el tipo, la descripción, quién lo reportó y la fecha y hora registradas por el servidor."
         Text "Reportes de fotos: la foto reportada, el motivo (aparece una persona, aparece un menor de edad u otro), quién la reportó y la fecha y hora registradas por el servidor. El reporte se conserva aunque la foto se borre."
+        Text "Notificaciones del negocio: un resumen corto del aviso (nombre del perro, servicio y fecha; calificación de una reseña; motivo de un reporte de foto) y si cada persona del negocio ya lo leyó."
         Text "Aceptación de esta política: el registro de la aceptación guarda solo el identificador de usuario, la versión aceptada y la fecha y hora registradas por el servidor."
         Text "Registros técnicos de acceso: los proveedores de alojamiento y de autenticación (Supabase, en sus registros de auditoría de acceso, y Cloudflare) guardan registros técnicos que pueden incluir la dirección IP y el navegador, con fines de seguridad, durante [COMPLETAR: plazo]."
         Text "Aceptación del aviso sobre quién presta el servicio (clientes) y de los Términos para negocios (jefe del negocio): identificador de usuario, documento aceptado, negocio al que se refiere, versión y fecha y hora registradas por el servidor."
@@ -91,6 +92,7 @@ part PoliticaTexto(version: text) {
         Text "Foto de perfil del perro: quienes pueden ver el perro, es decir, el jefe y el personal de gestión del negocio, el paseador que lo pasea y sus dueños (principal y co-dueños). La suben o la quitan el jefe, el personal de gestión o sus dueños."
         Text "Punto de recogida del perro: el jefe y el personal de gestión del negocio, los dueños del perro (principal y co-dueños) y el paseador que tiene asignado un paseo de ese perro entre el día anterior y los siete días siguientes; un paseador que deja el negocio deja de verlo. Lo guardan o lo quitan los dueños, el jefe o el personal de gestión."
         Text "Reportes de fotos: quien lo hizo, el jefe y el personal de gestión del negocio."
+        Text "Notificaciones del negocio: el jefe y el personal de gestión; las de reseñas y perros nuevos, solo el jefe."
         Text "Personal de DevDogs: [COMPLETAR: quién tiene acceso administrativo a la base de datos y con qué controles]."
       }
     }
@@ -100,6 +102,7 @@ part PoliticaTexto(version: text) {
       List {
         Text "Foto de perfil del perro: se conserva mientras el perro esté registrado; una nueva foto reemplaza a la anterior. El archivo se elimina del almacenamiento cuando se quita la foto o cuando el perro se da de baja, aunque los demás datos del perro se conserven."
         Text "Punto de recogida del perro: se conserva mientras el perro esté registrado; se elimina cuando se quita o cuando el perro se da de baja."
+        Text "Notificaciones del negocio: 90 días; luego se eliminan automáticamente."
         Text "Fotos de los paseos: se conservan 30 días como máximo desde que se suben. Pasado ese plazo dejan de mostrarse y el archivo se elimina automáticamente del almacenamiento."
         Text "Fotos guardadas como evidencia de un incidente: las de ese paseo en las que sale el perro se conservan, junto con una copia del archivo, más allá de los 30 días durante [COMPLETAR: plazo de conservación de la evidencia]."
         Text "Una foto reportada que no es evidencia se borra de inmediato de la aplicación; su archivo se elimina del almacenamiento a los 30 días de haberse subido."
