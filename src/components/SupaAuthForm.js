@@ -1,4 +1,5 @@
-// Login/signup/re-consent/acceptance submitter AND session reporter. Lives on the login/signup/gate pages
+// Login/signup/re-consent/acceptance submitter AND session reporter; also the account flows (forgot/new/change
+// password, change email) and the live policy re-check ("watch"). Lives on the login/signup/gate pages
 // (Custom components in the shell do NOT mount in Muten, so the session bridge
 // must run from a page). On auth success it loads the profile and reports the
 // full session (rol + negocio) into the auth store via on(session).
@@ -9,6 +10,12 @@ function mount(el, inputs, on) {
 
   function mapRol(r) {
     return r === "EMPRESA" ? "empresa" : "paseador";
+  }
+
+  // The current policy version this user has not accepted ("" / null = up to date): the login check and the
+  // live re-check of an open session ("watch") ask the same RPC.
+  function pendingPolicy() {
+    return supa.rpc("consentimiento_pendiente");
   }
 
   // Load profile + negocio, then push the full session into the store ONLY once the role is known:
@@ -29,7 +36,7 @@ function mount(el, inputs, on) {
       // A current policy version the user has not accepted closes every portal guard (the chain ends at
       // /aceptar-politica); so does a pending role notice or business terms (aceptacion_pendiente, the chain
       // ends at /aceptar-condiciones). Fail closed: without both answers no session is reported.
-      Promise.all([supa.rpc("consentimiento_pendiente"), supa.rpc("aceptacion_pendiente")]).then(function (r) {
+      Promise.all([pendingPolicy(), supa.rpc("aceptacion_pendiente")]).then(function (r) {
         var cp = r[0], ap = r[1];
         if (cp.error) return on.failed("No pudimos verificar la política de datos. Intenta de nuevo.");
         if (ap.error) return on.failed("No pudimos verificar las condiciones del servicio. Intenta de nuevo.");
@@ -110,8 +117,70 @@ function mount(el, inputs, on) {
     }).catch(function () { on.failed("No pudimos validar la invitación."); });
   }
 
+  // Supabase Auth errors of the account flows, in Spanish; anything else gets the fallback of the flow.
+  function authMsg(e, fallback) {
+    var c = (e && e.code) || "", m = (e && e.message) || "";
+    if ((e && e.status === 429) || /rate.?limit/i.test(c + " " + m)) return "Hiciste demasiadas solicitudes. Espera unos minutos e intenta de nuevo.";
+    if (c === "same_password") return "La nueva contraseña debe ser distinta de la actual.";
+    if (c === "weak_password") return "La contraseña es muy débil: usa al menos 6 caracteres, una mayúscula y un número.";
+    if (c === "email_exists" || /already been registered/i.test(m)) return "Ese correo ya está en uso por otra cuenta.";
+    if (c === "email_address_invalid" || /invalid format/i.test(m)) return "Escribe un correo válido.";
+    if (c === "session_not_found" || c === "session_expired" || /session missing/i.test(m)) return "Tu sesión terminó. Vuelve a iniciar sesión.";
+    return fallback;
+  }
+
+  // "¿Olvidaste tu contraseña?" (/login) and an expired link (/nueva-clave): Supabase answers the same whether
+  // or not the account exists, and so does the page (no account enumeration). The link opens /nueva-clave.
+  function recover(inp) {
+    var fail = "No pudimos enviar el enlace. Intenta de nuevo.";
+    supa.auth.resetPasswordForEmail((inp.email || "").trim(), { redirectTo: location.origin + "/nueva-clave" }).then(function (r) {
+      if (r.error) return on.failed(authMsg(r.error, fail));
+      on.aviso("Si existe una cuenta con ese correo, te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de spam.");
+    }).catch(function () { on.failed(fail); });
+  }
+
+  // /nueva-clave: sets the password on the recovery session, then reports the session like a login, so the
+  // guard chain (policy, registration, removed from the business) applies as after any login.
+  function nuevaClave(inp) {
+    supa.auth.updateUser({ password: inp.pw }).then(function (r) {
+      if (r.error) return on.failed(authMsg(r.error, "No pudimos guardar la contraseña. Pide un nuevo enlace."));
+      reportSession(r.data.user);
+    }).catch(function () { on.failed("No pudimos guardar la contraseña. Intenta de nuevo."); });
+  }
+
+  // /mis-datos: the current password is checked by signing in with it again (a wrong one changes nothing),
+  // then the new one is set.
+  function cambiarClave(inp) {
+    var fail = "No pudimos cambiar la contraseña. Intenta de nuevo.";
+    supa.auth.getUser().then(function (g) {
+      var email = g.data && g.data.user && g.data.user.email;
+      if (!email) return on.failed("Tu sesión terminó. Vuelve a iniciar sesión.");
+      return supa.auth.signInWithPassword({ email: email, password: inp.actual || "" }).then(function (s) {
+        if (s.error) return on.failed(s.error.code === "invalid_credentials" || /invalid login credentials/i.test(s.error.message) ? "La contraseña actual no es correcta." : authMsg(s.error, fail));
+        return supa.auth.updateUser({ password: inp.pw }).then(function (u) {
+          if (u.error) return on.failed(authMsg(u.error, fail));
+          on.aviso("Tu contraseña cambió. Úsala la próxima vez que inicies sesión.");
+        });
+      });
+    }).catch(function () { on.failed(fail); });
+  }
+
+  // /mis-datos: Supabase mails a confirmation link (back to /login) and, with "secure email change", one to the
+  // current address too; the address changes only once confirmed. It lives only in auth.users (mis_datos_exportar
+  // reads it from there), so nothing else is updated here.
+  function cambiarCorreo(inp) {
+    var email = (inp.email || "").trim().toLowerCase(), fail = "No pudimos cambiar el correo. Intenta de nuevo.";
+    supa.auth.updateUser({ email: email }, { emailRedirectTo: location.origin + "/login" }).then(function (r) {
+      if (r.error) return on.failed(authMsg(r.error, fail));
+      on.aviso("Te enviamos un enlace de confirmación a " + email + ". Si también te llega un correo a tu dirección actual, confírmalo: el cambio se aplica cuando confirmes en ambas. Hasta entonces sigues entrando con tu correo actual.");
+    }).catch(function () { on.failed(fail); });
+  }
+
   function submit(inp) {
     if (!supa) return on.failed("Cliente no disponible.");
+    if (inp.olvido) return recover(inp);
+    if (inp.mode === "nueva") return nuevaClave(inp);
+    if (inp.mode === "cuenta") return inp.accion === "correo" ? cambiarCorreo(inp) : cambiarClave(inp);
     if (inp.mode === "condiciones") return acceptCondiciones(inp);
     // Signup and join need the accepted policy version (empty until the policy is accepted in the modal): without it
     // no account is created, so no profile-less user is left behind.
@@ -153,6 +222,36 @@ function mount(el, inputs, on) {
       var user = g.data && g.data.session && g.data.session.user;
       if (user) reportSession(user);
     });
+  }
+
+  // /nueva-clave opens its form only for a session that came from the recovery link in the URL (kept by
+  // authActions.ts as __ddAuthHash); a used or expired link (#error_code=otp_expired) or no link at all is refused.
+  if (supa && inputs.mode === "nueva") {
+    var h = new URLSearchParams(String(globalThis.__ddAuthHash || "").replace(/^#/, ""));
+    supa.auth.getSession().then(function (g) {
+      var s = g.data && g.data.session;
+      on.estado(h.get("type") === "recovery" && s && s.access_token === h.get("access_token") ? "listo" : "invalido");
+    });
+  }
+
+  // Live policy re-check (portals and /mis-datos): an open session whose accepted policy is no longer the current
+  // one (a deploy published a new version) reports it, which closes the portal guards and the chain lands on
+  // /aceptar-politica without logging out. One small RPC on focus, on visibility and every 5 minutes, only with a
+  // stored session; installed once per page load (a later mount only refreshes the callback).
+  if (supa && inputs.mode === "watch") {
+    var w = globalThis.__ddPoliticaWatch;
+    if (w) w.on = on;
+    else {
+      w = globalThis.__ddPoliticaWatch = { on: on, busy: false };
+      var check = function () {
+        if (w.busy || document.visibilityState === "hidden" || !(globalThis.__ddUid && globalThis.__ddUid())) return;
+        w.busy = true;
+        pendingPolicy().then(function (r) { w.busy = false; if (!r.error && r.data) w.on.politica(r.data); }, function () { w.busy = false; });
+      };
+      window.addEventListener("focus", check);
+      document.addEventListener("visibilitychange", check);
+      setInterval(check, 5 * 60 * 1000);
+    }
   }
 
   return function (next) {

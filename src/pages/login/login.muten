@@ -6,11 +6,17 @@ state {
   email = "" : text
   pw    = "" : text
   nonce = 0  : number
+  # "¿Olvidaste tu contraseña?": the same form asks only the email and sends the recovery link.
+  olvido = false : bool
+  aviso  = ""    : text
 }
 
 action clearEmail mutates email { email.set("") }
 action clearPw    mutates pw    { pw.set("") }
-action submit     mutates nonce { nonce.set(nonce + 1) }
+action submit     mutates nonce, aviso { aviso.set("") nonce.set(nonce + 1) }
+action abrirOlvido  mutates olvido, aviso { olvido.set(true) aviso.set("") auth.setError("") }
+action cerrarOlvido mutates olvido, aviso { olvido.set(false) aviso.set("") auth.setError("") }
+action setAviso(m: text) mutates aviso { aviso.set(m) auth.setError("") }
 # action social(p: text) { entrarCon(p) }
 
 Page class("glogin") {
@@ -45,6 +51,13 @@ Page class("glogin") {
 
 #       Stack class("gdiv") { Span "o con tu correo" }
 
+      when olvido {
+        Stack class("gform-intro") {
+          Title "Recupera tu contraseña" h2 class("pv-h1")
+          Text "Escribe el correo de tu cuenta y te enviaremos un enlace para crear una nueva contraseña." class("muted t-sm")
+        }
+      }
+
       Stack class("gfield") {
         Stack class("gfield-ic") { Icon "lucide:mail" }
         Stack class("gfield-body") {
@@ -54,18 +67,22 @@ Page class("glogin") {
         when email.length > 0 { Button -> clearEmail class("gfield-x") aria(label: "Borrar correo") { Icon "lucide:x" } }
       }
 
-      Stack class("gfield") {
-        Stack class("gfield-ic") { Icon "lucide:lock" }
-        Stack class("gfield-body") {
-          Text "Contraseña" class("gfield-label")
-          Password bind(pw) "••••••••" class("gfield-input")
+      when not olvido {
+        Stack class("gfield") {
+          Stack class("gfield-ic") { Icon "lucide:lock" }
+          Stack class("gfield-body") {
+            Text "Contraseña" class("gfield-label")
+            Password bind(pw) "••••••••" class("gfield-input")
+          }
+          when pw.length > 0 { Button -> clearPw class("gfield-x") aria(label: "Borrar contraseña") { Icon "lucide:x" } }
         }
-        when pw.length > 0 { Button -> clearPw class("gfield-x") aria(label: "Borrar contraseña") { Icon "lucide:x" } }
       }
 
       when auth.authError.length > 0 { Text "{auth.authError}" class("gerror") }
+      when aviso.length > 0 { Text "{aviso}" class("gok") }
 
-      Stack class("gforgot") { Span "¿Olvidaste tu contraseña?" }
+      when not olvido { Stack class("gforgot") { Button -> abrirOlvido { Span "¿Olvidaste tu contraseña?" } } }
+      when olvido { Stack class("gforgot") { Button -> cerrarOlvido { Span "Volver a iniciar sesión" } } }
 
       Stack class("gsignup") {
         Text "¿No tienes cuenta?" class("muted t-sm")
@@ -78,12 +95,20 @@ Page class("glogin") {
     }
 
     Stack class("gbar") {
-      Button -> submit class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
-        Span "Entrar"
-        Icon "lucide:arrow-right"
+      when not olvido {
+        Button -> submit class("gbar-cta") disabled when email.length < 3 or pw.length < 1 {
+          Span "Entrar"
+          Icon "lucide:arrow-right"
+        }
+      }
+      when olvido {
+        Button -> submit class("gbar-cta") disabled when email.length < 3 {
+          Span "Enviar enlace"
+          Icon "lucide:send"
+        }
       }
     }
 
-    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, nonce: @nonce) on(failed: auth.setError, session: auth.setSession)
+    Custom SupaAuthForm inputs(mode: "login", email: @email, pw: @pw, olvido: @olvido, nonce: @nonce) on(failed: auth.setError, session: auth.setSession, aviso: setAviso)
   }
 }

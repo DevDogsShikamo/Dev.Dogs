@@ -69,6 +69,9 @@ action setSession(s: Session) mutates loggedIn, userId, userName, rol, negocioId
 }
 
 action setError(msg: text) mutates authError { authError.set(msg) }
+# Live re-check (SupaAuthForm "watch" in the portals): a current policy version this open session has not
+# accepted closes the portal guards, and the chain lands on /aceptar-politica without logging out.
+action setPolitica(v: text) mutates politicaPendiente { politicaPendiente.set(v) }
 # /mis-datos reports the stored name, so a correction shows in the portals without a new login.
 action setUserName(n: text) mutates userName { userName.set(n) }
 action setFinanzas(on: bool) mutates finanzas { finanzas.set(on) }

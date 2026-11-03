@@ -294,6 +294,7 @@ Stack class("dd-app") {
   Custom AgendaEmpresaBridge on(agendaDias: empresa.setAgendaDias, agenda: empresa.setAgenda, sinAsignar: empresa.setSinAsignar)
   # Vigía de red (O4): alimenta el aviso offline del shell.
   Custom NetWatch on(online: net.setOnline, pending: net.setPending)
+  Custom SupaAuthForm inputs(mode: "watch") on(politica: auth.setPolitica)
 
   # ---------- SIDEBAR (escritorio) ----------
   Sidebar class("dd-side") {
