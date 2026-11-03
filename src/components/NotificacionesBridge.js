@@ -11,9 +11,9 @@ function mount(el, inputs, on) {
   if (w) { w.on = on; w.el = el; w.raw = []; w.load(); return; }
   w = globalThis.__ddNotif = { on: on, el: el, raw: [] };
 
-  var TIPOS = { reserva: "Nueva reserva", compra: "Nueva compra", cancelacion: "Reserva cancelada", resena: "Reseña por aprobar", perro_nuevo: "Perro registrado por un cliente", foto_reporte: "Foto del paseo reportada" };
+  var TIPOS = { reserva: "Nueva reserva", compra: "Nueva compra", cancelacion: "Reserva cancelada", reprogramacion: "Reserva reprogramada", resena: "Reseña por aprobar", perro_nuevo: "Perro registrado por un cliente", foto_reporte: "Foto del paseo reportada" };
   // The portal section where each one is handled (empresa.muten section names).
-  var DESTINO = { reserva: "agenda", cancelacion: "agenda", compra: "reportes", resena: "resenas", perro_nuevo: "perros", foto_reporte: "incidentes" };
+  var DESTINO = { reserva: "agenda", cancelacion: "agenda", reprogramacion: "agenda", compra: "reportes", resena: "resenas", perro_nuevo: "perros", foto_reporte: "incidentes" };
   var rtf = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
   function hace(iso) {
     var s = (Date.parse(iso) - Date.now()) / 1000;

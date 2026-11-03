@@ -113,6 +113,8 @@ action setDuenos(rows: list<Dueno>) mutates duenos { duenos.set(rows) }
 action finanzasSet(pid: text, on: bool) mutates gestion { gestion.patch where id == pid with { finanzas: on } }
 # Optimistas: el salario cambia al instante; la invitación desaparece al quitarla.
 action salarioSet(pid: text, sal: number) mutates paseadores { paseadores.patch where id == pid with { salario: sal } }
+# Optimistic: the badge "Verificado por el negocio" (paseador_verificar confirms it).
+action verificadoSet(pid: text, on: bool) mutates paseadores { paseadores.patch where id == pid with { verificado: on } }
 action invitaDel(pid: text) mutates invitaciones { invitaciones.remove where id == pid }
 # Reportes / cobros
 action setIngresosDia(rows: list<IngresoDia>) mutates ingresosDia { ingresosDia.set(rows) }

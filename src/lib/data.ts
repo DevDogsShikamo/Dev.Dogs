@@ -26,6 +26,9 @@ function errMsg(err: unknown, msg: string): string {
   if (m.indexOf("negocio_sin_identidad") >= 0) return "Tu negocio todavía no completó sus datos legales. Cuando lo haga podrás reservar y comprar.";
   if (m.indexOf("prestacion_no_asignable") >= 0) return "Ese servicio ya no se puede asignar: empezó, terminó o fue cancelado.";
   if (m.indexOf("reserva_no_cancelable") >= 0) return "Esta reserva ya no se puede cancelar desde la app: comunícate con tu negocio.";
+  if (m.indexOf("reserva_no_reprogramable") >= 0) return "Esta reserva ya no se puede reprogramar desde la app: comunícate con tu negocio.";
+  if (m.indexOf("fecha_ocupada") >= 0) return "Tu perro ya está en esa salida ese día: elige otra fecha.";
+  if (m.indexOf("perro_con_historial") >= 0) return "Para dar de baja a este perro, pídeselo al negocio.";
   if (m.indexOf("motivo_invalido") >= 0) return "Elige una de las causas de rechazo.";
   if (m.indexOf("plan_existente") >= 0) return "Ese perro ya tiene un plan mensual activo de ese servicio.";
   if (m.indexOf("dueno_no_puede_salir") >= 0) return "Eres el dueño del negocio: no puedes salir de él.";
@@ -446,6 +449,23 @@ export function invitarCrear(rol: string, email: string): void {
   });
 }
 
+// The owner records that the business checked the identity document of one of its walkers in person ("Verificado
+// por el negocio"). Optimistic: the store already shows it; a failure toasts and refreshes.
+export function paseadorVerificar(id: string, on: boolean): void {
+  if (!id) return;
+  supa.rpc("paseador_verificar", { p_paseador: id, p_verificado: !!on }).then(done("No se pudo cambiar la verificación"));
+}
+
+// The owner renames its business (1..100 characters, trimmed by the server). The refresh makes EmpresaBridge report
+// the stored name to auth.negocioNombre, so the portal shows it without a new login.
+export function negocioRenombrar(nombre: string): void {
+  // nombre_invalido is also raised by other RPCs, so its message is chosen here.
+  supa.rpc("negocio_renombrar", { p_nombre: nombre || "" }).then(function (res) {
+    if (/nombre_invalido/.test(res.error?.message || "")) { toast("El nombre del negocio debe tener entre 1 y 100 caracteres."); refresh(); return; }
+    done("No se pudo cambiar el nombre del negocio", avisar("Nombre del negocio actualizado"))(res);
+  });
+}
+
 // Revoca una invitación pendiente (el código deja de servir).
 export function invitacionQuitar(id: string): void {
   supa.rpc("invitacion_revocar", { p_id: id }).then(done("No se pudo revocar la invitación", refresh));
@@ -495,6 +515,16 @@ export function crearMiPerro(p: PerroInput): void {
   }).then(done("No se pudo registrar el perro", refresh));
 }
 
+// The principal owner removes a dog that never had a service (registered by mistake; RPC mi_perro_eliminar). Like
+// perroEliminar, the photo goes first: the database refuses to remove a dog marked with one.
+export function miPerroEliminar(id: string): void {
+  if (!id) return;
+  fotoBorrar(id).then(function (borrada) {
+    if (!borrada) { toast("No se pudo eliminar el perro"); refresh(); return; }
+    supa.rpc("mi_perro_eliminar", { p_perro: id }).then(done("No se pudo eliminar el perro", avisar("Perro eliminado")));
+  });
+}
+
 // The client edits its own dog (principal or co-owner; RPC mi_perro_actualizar): the same fields it sets when
 // registering one. Heat, contagious disease, certificate and relations stay with the business.
 export function miPerroActualizar(id: string, p: PerroInput): void {
@@ -536,6 +566,13 @@ export function resenaGuardar(rating: number, texto: string, publicar: boolean):
     });
   });
 }
+// The author deletes its review of the business (and the owner's pending notice of it).
+export function resenaBorrar(): void {
+  resolveSesion().then(function (s) {
+    if (!s.negocioId) return;
+    supa.rpc("resena_borrar", { p_negocio: s.negocioId }).then(done("No se pudo eliminar la reseña", avisar("Reseña eliminada")));
+  });
+}
 // El dueño aprueba o rechaza (optimista: la página ya cambió el estado; si falla, toast + refresh). Rechazar exige
 // una de las cuatro causas fijas (ofensiva | datos_personales | no_relacionada | falsa_o_spam), que el autor ve.
 export function resenaModerar(id: string, estado: string, motivo: string): void {
@@ -548,6 +585,17 @@ export function reservaCancelar(id: string): void {
   if (!id) return;
   supa.rpc("reserva_cancelar", { p_id: id })
     .then(done("No se pudo cancelar la reserva", function () { toast("Reserva cancelada. Las condiciones de cancelación las fija tu negocio."); refresh(); }));
+}
+
+// The client moves a booking of its dog to another day (RPC reserva_reprogramar: the cutoff of reserva_cancelar, the
+// rules of reservar). The old one is cancelled and a new one booked; the business is notified.
+export function reservaReprogramar(id: string, fecha: string): void {
+  if (!id || !fecha) { toast("Elige la nueva fecha"); return; }
+  // fecha_invalida is also raised by the group RPCs, so its message is chosen here.
+  supa.rpc("reserva_reprogramar", { p_prestacion: id, p_fecha: fecha }).then(function (res) {
+    if (/fecha_invalida/.test(res.error?.message || "")) { toast("Elige otra fecha: desde hoy, dentro del próximo año y antes de la hora de la salida."); refresh(); return; }
+    done("No se pudo reprogramar la reserva", avisar("Reserva reprogramada. Las condiciones para cambiarla las fija tu negocio."))(res);
+  });
 }
 
 // ---- Incidents (Ley 2480 de 2025 arts. 15 and 16) and photo reports (Ley 1581 art. 7) ----------------

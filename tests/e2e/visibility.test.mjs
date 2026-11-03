@@ -143,4 +143,5 @@ test('D5: the owner toggles the finance permission in the management team and th
   await box.click()
   assert.equal(await waitFlag(false), false, 'the revocation reached the database')
   await owner.close()
+  await admin().from('permisos').delete().eq('user_id', ids.users.OFFICE) // the revoke leaves a finanzas=false row that side-tables does not expect
 })
