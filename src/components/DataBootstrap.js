@@ -292,6 +292,8 @@ function mount(el, inputs, on) {
     if (!supa || !on.identidad) return;
     globalThis.__ddSesion().then(function (s) {
       if (!s.negocioId) return;
+      // Perfil > Ayuda: the contact of the business, which every member reads (a CC/CE/PAS shows its last 4 digits).
+      if (on.contacto) supa.rpc("negocio_identidad_publica").then(function (cr) { if (!(cr && cr.error)) on.contacto(cr.data || []); });
       supa.from("negocio_identidad").select("razon_social,doc_tipo,doc_numero,direccion,telefono,correo").eq("negocio_id", s.negocioId).maybeSingle().then(function (ir) {
         if (ir && ir.error) return;   // SWR: keep what is shown if the network failed
         on.identidad(ir.data ? [ir.data] : []);

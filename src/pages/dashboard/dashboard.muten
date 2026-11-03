@@ -126,14 +126,28 @@ state {
   # People: the client whose removal is being confirmed (owner), and the company walker leaving the business.
   bajaId   = "" : text
   salirNeg = false : bool
+  # Confirm before a destructive action: conf = what is being removed, confId = which one (the removal reads it).
+  conf     = "" : text
+  confId   = "" : text
+  # Perfil > Ayuda: the sheet with the contact of the business (negocio_identidad_publica).
+  ayuda    = false : bool
+  contacto = [] : list<NegocioLegal>
 }
-action go(s: text) mutates section { section.set(s) }
+action go(s: text) mutates section, conf { section.set(s)  conf.set("") }
+action pedir(k: text, id: text) mutates conf, confId { conf.set(k)  confId.set(id) }
+action confNo mutates conf { conf.set("") }
+get confInv = conf == "inv" ? confId : ""
+get confMiembro = grupos.miembros where id == confId
+action ayudaAbrir mutates ayuda { ayuda.set(true) }
+action ayudaCerrar mutates ayuda { ayuda.set(false) }
+action contactoSet(rows: list<NegocioLegal>) mutates contacto { contacto.set(rows) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
 get invValido = invEmail.length > 4
 # El Inicio sale del esqueleto con el catálogo cargado o, sin red, con la agenda del día guardada (el único dato que el paseador conserva offline).
 get inicioListo = catalogo.loaded or grupos.fecha != ""
 action invCrear mutates invEmail { invitarCrear("cliente", invEmail)  invEmail.set("") }
-action invBorrar(id: text) { empresa.invitaDel(id)  invitacionQuitar(id) }
+action invPedir(id: text) mutates conf, confId { conf.set("inv")  confId.set(id) }
+action invBorrar mutates conf { empresa.invitaDel(confId)  invitacionQuitar(confId)  conf.set("") }
 action copCod(c: text) { copiarCodigo(c) }
 action copLink(c: text) { copiarLink(c) }
 # Logout: limpia el cache persistido (in-memory + localStorage) y cierra sesión,
@@ -240,9 +254,9 @@ action perroGuardar(p: PerroDraft) mutates pform {
   pform.set(false)
 }
 # Borrado optimista: desaparece al instante; perroEliminar persiste + reconcilia.
-action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
+action perroBorrar mutates conf { catalogo.perroQuitar(confId)  perroEliminar(confId)  conf.set("") }
 # Ver ficha (modal linkeable) y buscador.
-action perroVer(id: text) mutates pdetail, relOpen { pdetail.set(id)  relOpen.set(false) }
+action perroVer(id: text) mutates pdetail, relOpen, conf { pdetail.set(id)  relOpen.set(false)  conf.set("") }
 action perroCerrarDetalle mutates pdetail, relOpen { pdetail.set("")  relOpen.set(false) }
 action pqClear mutates pquery { pquery.set("") }
 
@@ -254,7 +268,7 @@ action relPickPerro(id: text) mutates relPerro { relPerro.set(id) }
 action relPickNivel(n: text) mutates relNivel { relNivel.set(n) }
 action relPickMotivo(m: text) mutates relMotivo { if relMotivo == m { relMotivo.set("") } else { relMotivo.set(m) } }
 action relGuardar mutates relOpen { relacionSet(pdetail, relPerro, relNivel, relNota, relMotivo)  relOpen.set(false) }
-action relBorrar(otro: text) { relacionQuitar(pdetail, otro) }
+action relBorrar mutates conf { relacionQuitar(pdetail, confId)  conf.set("") }
 # Ver la ficha de un perro desde otra sección (ej. desde una alerta de Grupos).
 action verPerroEn(id: text) mutates section, pdetail, relOpen { section.set("perros")  pdetail.set(id)  relOpen.set(false) }
 
@@ -271,7 +285,7 @@ action servicioGuardar(s: ServicioDraft) mutates sform {
   else { servicios.servicioUpd(sedit, s.nombre, s.tipo, s.duracion, s.precio, s.modelo)  servicioActualizar(sedit, s) }
   sform.set(false)
 }
-action servicioBorrar(id: text) { servicios.servicioDel(id)  servicioEliminar(id) }
+action servicioBorrar mutates conf { servicios.servicioDel(confId)  servicioEliminar(confId)  conf.set("") }
 
 # ---- ABM de grupos (salidas) ----
 action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
@@ -286,12 +300,12 @@ action gpickServicio(id: text, dur: number) mutates gservicio, gdur { gservicio.
 action gpickZona(z: text) mutates gzona { gzona.set(z) }
 # Zonas de trabajo (Servicios)
 action zonaAdd mutates znueva { zonaAgregar(znueva)  znueva.set("") }
-action zonaDel(z: text) { zonaQuitar(z) }
+action zonaDel mutates conf { zonaQuitar(confId)  conf.set("") }
 # Vacaciones / descanso (bloque en el calendario)
 action vacaNueva mutates vdesde, vhasta, vnota, vform { vdesde.set("")  vhasta.set("")  vnota.set("")  vform.set(true) }
 action vacaCerrar mutates vform { vform.set(false) }
 action vacaAdd mutates vform { calendario.vacaAddLocal(vdesde, vhasta, vnota)  vacacionAgregar(vdesde, vhasta, vnota)  vform.set(false) }
-action vacaDel(desde: text) { calendario.vacaDelLocal(desde)  vacacionQuitar(desde) }
+action vacaDel mutates conf { calendario.vacaDelLocal(confId)  vacacionQuitar(confId)  conf.set("") }
 action gpickColor(c: text) mutates gcolor { gcolor.set(c) }
 action grupoCerrar mutates gform { gform.set(false) }
 action grupoGuardar mutates gform {
@@ -299,7 +313,7 @@ action grupoGuardar mutates gform {
   else { grupoActualizar(gedit, gnombre, gzona, ghora, gdur, gservicio, gcolor) }
   gform.set(false)
 }
-action grupoBorrar(id: text) { grupos.grupoDel(id)  grupoEliminar(id) }
+action grupoBorrar mutates conf { grupos.grupoDel(confId)  grupoEliminar(confId)  conf.set("") }
 
 # ---- Dogs of a group: add (with its days), change its days, remove (the owner; the RPCs validate) ----
 action agrAbrir(gid: text, nombre: text) mutates agrGrupo, agrNombre, agrPerro, agrEdit, ad1, ad2, ad3, ad4, ad5, ad6, ad7 {
@@ -315,7 +329,7 @@ action agrSemana mutates ad1, ad2, ad3, ad4, ad5, ad6, ad7 { ad1.set(true)  ad2.
 action agrPick(pid: text) mutates agrPerro { agrPerro.set(pid) }
 action agrCerrar mutates agrGrupo { agrGrupo.set("") }
 action agrGuardar mutates agrGrupo { grupoAgregarPerro(agrGrupo, agrPerro, ad1, ad2, ad3, ad4, ad5, ad6, ad7)  agrGrupo.set("") }
-action quitarPerro(key: text, gid: text, pid: text) { grupos.miembroDel(key)  grupoQuitarPerro(gid, pid) }
+action quitarPerro mutates conf { grupoQuitarPerro(confMiembro.at(0).grupoId, confMiembro.at(0).perroId)  grupos.miembroDel(confId)  conf.set("") }
 # A booking without a group (bath, daycare...) nobody runs yet: the independent walker takes it.
 action tomar(id: text) { grupos.sinAsignarDel(id)  prestacionTomar(id) }
 
@@ -325,7 +339,7 @@ Stack class("dd-app") {
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, clientes: empresa.setClientes, duenos: empresa.setDuenos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, clientes: empresa.setClientes, duenos: empresa.setDuenos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, contacto: contactoSet, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -352,8 +366,8 @@ Stack class("dd-app") {
     Button -> go("perros")    class("dd-lnk") class("dd-on" when section == "perros")    { Icon "lucide:dog"          Span "{i18n.d.nav.perros}" }
     Button -> go("perfil")    class("dd-lnk") class("dd-on" when section == "perfil")    { Icon "lucide:user"         Span "{i18n.d.nav.perfil}" }
     Stack class("dd-foot") {
-      Span "C" class("dd-ua")
-      Stack { Span "Carlos Ruiz" class("dd-un")  Span "{i18n.d.rol.paseador}" class("dd-ur") }
+      Span "{initial(auth.userName)}" class("dd-ua")
+      Stack { Span "{auth.userName}" class("dd-un")  Span "{i18n.d.rol.paseador}" class("dd-ur") }
     }
   }
 
@@ -476,10 +490,9 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-top") {
             Stack class("dd-greet") {
-              Span "C" class("dd-ga")
-              Stack { Span "{i18n.d.dash.saludo}" class("dd-gm")  Span "Carlos Ruiz" class("dd-gn") }
+              Span "{initial(auth.userName)}" class("dd-ga")
+              Stack { Span "{i18n.d.dash.saludo}" class("dd-gm")  Span "{auth.userName}" class("dd-gn") }
             }
-            Button class("dd-bell") aria(label: "Notificaciones") { Icon "lucide:bell" }
           }
           # Ley 1480 art. 53: without the legal identity of the business its clients cannot book or buy.
           when auth.isOwner and lcargado and not lhay {
@@ -599,10 +612,13 @@ Stack class("dd-app") {
                   Span "{i18n.d.va.actuales}" class("dd-hor-lbl")
                   Stack class("dd-va-list") {
                     each calendario.vacas as v {
-                      Stack class("dd-va-item") {
-                        Icon "lucide:palmtree"
-                        Stack class("info") { Span "{v.desde} → {v.hasta}" class("r")  when v.nota { Span "{v.nota}" class("n") } }
-                        Button -> vacaDel(v.desde) class("dd-cat-icon dd-danger") aria(label: "Quitar / Remove") { Icon "lucide:trash-2" }
+                      Stack class("dd-cli-paseo") {
+                        Stack class("dd-va-item") {
+                          Icon "lucide:palmtree"
+                          Stack class("info") { Span "{v.desde} → {v.hasta}" class("r")  when v.nota { Span "{v.nota}" class("n") } }
+                          Button -> pedir("vaca", v.desde) class("dd-cat-icon dd-danger") aria(label: "Quitar / Remove") { Icon "lucide:trash-2" }
+                        }
+                        when conf == "vaca" and confId == v.desde { Confirmar(texto: "¿Quitar este descanso? Vuelves a estar disponible esos días.", si: "Sí, quitar", onSi: vacaDel, onNo: confNo) }
                       }
                     }
                   }
@@ -690,7 +706,6 @@ Stack class("dd-app") {
               Stack class("dd-cal-allcal") {
                 Stack class("ic") { Icon "lucide:calendar-days" }
                 Stack class("t") { Span "{i18n.d.ag.titulo}" class("b")  Span "{auth.userName}" class("s") }
-                Icon "lucide:chevron-down" class("chev")
               }
 
               Stack class("dd-cal-mini") {
@@ -707,7 +722,7 @@ Stack class("dd-app") {
                 }
               }
 
-              Stack class("dd-cal-sched-head") { Span "{i18n.d.ag.misServicios}" class("b")  Icon "lucide:chevron-up" }
+              Stack class("dd-cal-sched-head") { Span "{i18n.d.ag.misServicios}" class("b") }
               Stack class("dd-cal-sched") {
                 Button -> calendario.toggleSvc("paseo") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-purple") class("on" when not (calendario.ocultos contains "paseo")) { Icon "lucide:check" }  Span "{i18n.d.svc.paseos}" }
                 Button -> calendario.toggleSvc("guarderia") class("dd-cal-sitem") { Stack class("dd-cal-sbox sb-blue") class("on" when not (calendario.ocultos contains "guarderia")) { Icon "lucide:check" }  Span "{i18n.d.svc.guarderia}" }
@@ -717,8 +732,8 @@ Stack class("dd-app") {
               }
 
               Span "{i18n.d.ag.categorias}" class("dd-cal-cat-head")
-              Stack class("dd-cal-cat") { Span "" class("cdot cd-purple")  Span "{i18n.d.svc.paseos}"  Span "12" class("cnt") }
-              Stack class("dd-cal-cat") { Span "" class("cdot cd-blue")  Span "{i18n.d.svc.guarderia}"  Span "3" class("cnt") }
+              Stack class("dd-cal-cat") { Span "" class("cdot cd-purple")  Span "{i18n.d.svc.paseos}"  Span "{calendario.eventos.count where svcKey == "paseo"}" class("cnt") }
+              Stack class("dd-cal-cat") { Span "" class("cdot cd-blue")  Span "{i18n.d.svc.guarderia}"  Span "{calendario.eventos.count where svcKey == "guarderia"}" class("cnt") }
             }
 
             # ---------- ÁREA PRINCIPAL ----------
@@ -874,6 +889,9 @@ Stack class("dd-app") {
                         Stack class("dd-gr-titwrap") {
                           Span "{g.titulo}" class("dd-gr-title")
                           Span "{g.desde} – {g.hasta} · {g.mins} min" class("dd-gr-window")
+                          # Pickup and drop-off times marked in modo paseo (paseo_marcar).
+                          when g.recibido { Span "Recibido {g.recibido}" class("dd-gr-window") }
+                          when g.entrega { Span "Entregado {g.entrega}" class("dd-gr-window") }
                         }
                         Stack class("dd-gr-right") {
                           when g.estado == "en_curso" { Span "En curso" class("dd-paseo-badge b-curso") }
@@ -925,9 +943,30 @@ Stack class("dd-app") {
             }
             Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") }
             Button -> go("horario") class("dd-pf-opt") { Icon "lucide:clock"  Span "{i18n.d.pf.miHorario}"  Icon "lucide:chevron-right" class("chev") }
-            Button class("dd-pf-opt") { Icon "lucide:pencil"  Span "{i18n.d.pf.editar}"  Icon "lucide:chevron-right" class("chev") }
-            Button class("dd-pf-opt") { Icon "lucide:bell"  Span "{i18n.d.pf.notif}"  Icon "lucide:chevron-right" class("chev") }
-            Button class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
+            Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:pencil"  Span "{i18n.d.pf.editar}"  Icon "lucide:chevron-right" class("chev") }
+            Button -> ayudaAbrir class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
+          }
+          # Ayuda: who to contact (the business) and the platform terms.
+          when ayuda {
+            Stack class("dd-cal-scrim") {
+              Stack class("dd-cal-scrimbg") on(click: ayudaCerrar)
+              Stack class("dd-cal-sheet") aria(role: "dialog", modal: true, label: "Ayuda") {
+                Stack class("dd-cat-formhead") {
+                  Title "Ayuda" h3
+                  Button -> ayudaCerrar class("dd-cal-sheet-x") aria(label: "Cerrar") { Icon "lucide:x" }
+                }
+                Text "Para dudas sobre tus paseos, horarios o pagos, contacta a tu negocio:" class("dd-rel-hint")
+                each contacto as n {
+                  Stack class("dd-perro-facts") {
+                    Stack class("dd-perro-fact") { Span "Negocio" class("k")  Span "{n.razon_social}" class("v") }
+                    Stack class("dd-perro-fact") { Span "Teléfono" class("k")  Span "{n.telefono}" class("v") }
+                    Stack class("dd-perro-fact") { Span "Correo" class("k")  Span "{n.correo}" class("v") }
+                  }
+                }
+                when contacto.length == 0 { Text "Tu negocio aún no registró sus datos de contacto." class("dd-rel-hint") }
+                Link "Términos y políticas de DevDogs" -> "/politicas" class("dd-cat-add")
+              }
+            }
           }
           when not auth.isOwner { SalirNegocio(abierto: salirNeg, onPedir: salirNegPedir, onSi: salirNegSi, onNo: salirNegNo) }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "{i18n.d.pf.salir}" }
@@ -959,7 +998,7 @@ Stack class("dd-app") {
           }
           Span "Invitaciones pendientes" class("dd-hor-lbl")
           each empresa.invitaciones as iv {
-            InviteItem(iv: iv, onDelete: invBorrar)
+            InviteItem(iv: iv, confId: confInv, onPedir: invPedir, onSi: invBorrar, onNo: confNo)
           }
           Span "Tus clientes" class("dd-hor-lbl")
           when empresa.nClientes == 0 { Text "Aún no tienes clientes." class("dd-rel-hint") }
@@ -1164,11 +1203,12 @@ Stack class("dd-app") {
             each servicios.zonas as z {
               Stack class("dd-zn-chip") {
                 Span "{z}"
-                when auth.isOwner { Button -> zonaDel(z) class("dd-zn-x") aria(label: "Quitar / Remove") { Icon "lucide:x" } }
+                when auth.isOwner { Button -> pedir("zona", z) class("dd-zn-x") aria(label: "Quitar / Remove") { Icon "lucide:x" } }
               }
             }
             when servicios.zonas.length == 0 { Span "{i18n.d.zn.sin}" class("dd-zn-empty") }
           }
+          when conf == "zona" { Confirmar(texto: "¿Quitar la zona {confId}? Las salidas que la usan la conservan.", si: "Sí, quitar", onSi: zonaDel, onNo: confNo) }
           when auth.isOwner {
             Stack class("dd-zn-add") {
               SearchField bind(znueva) "{i18n.d.zn.placeholder}" on(enter: zonaAdd)
@@ -1183,25 +1223,28 @@ Stack class("dd-app") {
 
           Stack class("dd-cat-list") {
             each servicios.servicios as s {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:tag" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") {
-                    Span "{s.nombre}" class("nm")
-                    Span "{tipoLabel(s.tipo)}" class("cd")
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-sv-ic") { Icon "lucide:tag" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") {
+                      Span "{s.nombre}" class("nm")
+                      Span "{tipoLabel(s.tipo)}" class("cd")
+                    }
+                    Span "{s.duracion} {i18n.d.sv.min}" class("meta")
                   }
-                  Span "{s.duracion} {i18n.d.sv.min}" class("meta")
-                }
-                Stack class("dd-sv-price") {
-                  Span "{cop(s.precio)}" class("amt")
-                  when s.modelo == "mensual" { Span "{i18n.d.sv.mensual}" class("per") }
-                }
-                when auth.isOwner {
-                  Stack class("acts") {
-                    Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
-                    Button -> servicioBorrar(s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                  Stack class("dd-sv-price") {
+                    Span "{cop(s.precio)}" class("amt")
+                    when s.modelo == "mensual" { Span "{i18n.d.sv.mensual}" class("per") }
+                  }
+                  when auth.isOwner {
+                    Stack class("acts") {
+                      Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                      Button -> pedir("servicio", s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                    }
                   }
                 }
+                when conf == "servicio" and confId == s.id { Confirmar(texto: "¿Eliminar el servicio {s.nombre}? Ya no se podrá reservar; lo ya reservado se conserva.", si: "Sí, eliminar", onSi: servicioBorrar, onNo: confNo) }
               }
             }
           }
@@ -1236,31 +1279,35 @@ Stack class("dd-app") {
 
           Stack class("dd-cat-list") {
             each grupos.todos as g {
-              Stack class("dd-cat-item") {
-                Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{g.nombre}" class("nm")  when g.zona { Span "{g.zona}" class("cd") } }
-                  Span "{g.hora} · {g.duracion} {i18n.d.gp.min}" class("meta")
-                  when auth.isOwner {
-                    Stack class("dd-mbr") {
-                      each grupos.miembros as m where m.grupoId == g.id {
-                        Stack class("dd-mbr-chip") {
-                          Span "{m.nombre}"
-                          Span "· {m.dias}" class("d")
-                          Button -> agrEditar(g.id, g.nombre, m.perroId, m.d1, m.d2, m.d3, m.d4, m.d5, m.d6, m.d7) aria(label: "Cambiar días") { Icon "lucide:calendar-days" }
-                          Button -> quitarPerro(m.id, g.id, m.perroId) aria(label: "Quitar") { Icon "lucide:x" }
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("dd-sv-ic") { Icon "lucide:map-pin" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{g.nombre}" class("nm")  when g.zona { Span "{g.zona}" class("cd") } }
+                    Span "{g.hora} · {g.duracion} {i18n.d.gp.min}" class("meta")
+                    when auth.isOwner {
+                      Stack class("dd-mbr") {
+                        each grupos.miembros as m where m.grupoId == g.id {
+                          Stack class("dd-mbr-chip") {
+                            Span "{m.nombre}"
+                            Span "· {m.dias}" class("d")
+                            Button -> agrEditar(g.id, g.nombre, m.perroId, m.d1, m.d2, m.d3, m.d4, m.d5, m.d6, m.d7) aria(label: "Cambiar días") { Icon "lucide:calendar-days" }
+                            Button -> pedir("miembro", m.id) aria(label: "Quitar") { Icon "lucide:x" }
+                          }
                         }
+                        Button "Agregar perro" -> agrAbrir(g.id, g.nombre) class("dd-gchip dd-mbr-add")
                       }
-                      Button "Agregar perro" -> agrAbrir(g.id, g.nombre) class("dd-gchip dd-mbr-add")
+                    }
+                  }
+                  when auth.isOwner {
+                    Stack class("acts") {
+                      Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                      Button -> pedir("salida", g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
                     }
                   }
                 }
-                when auth.isOwner {
-                  Stack class("acts") {
-                    Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
-                    Button -> grupoBorrar(g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
-                  }
-                }
+                when conf == "salida" and confId == g.id { Confirmar(texto: "¿Eliminar la salida {g.nombre}? Sus paseos futuros se borran; el historial se conserva.", si: "Sí, eliminar", onSi: grupoBorrar, onNo: confNo) }
+                when conf == "miembro" and confMiembro.at(0).grupoId == g.id { Confirmar(texto: "¿Quitar a {confMiembro.at(0).nombre} de esta salida? Sus paseos futuros en ella se borran.", si: "Sí, quitar", onSi: quitarPerro, onNo: confNo) }
               }
             }
           }
@@ -1373,37 +1420,40 @@ Stack class("dd-app") {
 
           Stack class("dd-cat-list") {
             each catalogo.perros as p where p.nombre contains pquery or p.raza contains pquery {
-              Stack class("dd-cat-item") {
-                Button -> perroVer(p.id) class("dd-cat-open") aria(label: "Ver ficha de {p.nombre}") {
-                  Stack class("av") {
-                    when p.foto { Image "{p.foto}" alt("Foto de {p.nombre}") }
-                    when p.foto == "" { Span "🐕" }
-                  }
-                  Stack class("dd-cat-info") {
-                    Stack class("nmline") {
-                      Span "{p.nombre}" class("nm")
-                      when p.conducta { Span "{p.conducta}" class("cd") }
-                      match p.sociabilidad {
-                        excelente -> Span "{i18n.d.soc.excelente}" class("dd-soc dd-soc-excelente")
-                        bueno     -> Span "{i18n.d.soc.bueno}" class("dd-soc dd-soc-bueno")
-                        cuidado   -> Span "{i18n.d.soc.cuidado}" class("dd-soc dd-soc-cuidado")
-                        selectivo -> Span "{i18n.d.soc.selectivo}" class("dd-soc dd-soc-selectivo")
-                      }
-                      when p.relN > 0 { Span "⚠ {p.relN}" class("dd-rel-badge dd-relb-{p.relWorst}") }
-                      when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") }
-                      when p.contagio { Span "Enfermedad contagiosa" class("dd-soc dd-soc-cuidado") }
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Button -> perroVer(p.id) class("dd-cat-open") aria(label: "Ver ficha de {p.nombre}") {
+                    Stack class("av") {
+                      when p.foto { Image "{p.foto}" alt("Foto de {p.nombre}") }
+                      when p.foto == "" { Span "🐕" }
                     }
-                    when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
-                    Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
-                    when p.tips { Span "{p.tips}" class("obs") }
+                    Stack class("dd-cat-info") {
+                      Stack class("nmline") {
+                        Span "{p.nombre}" class("nm")
+                        when p.conducta { Span "{p.conducta}" class("cd") }
+                        match p.sociabilidad {
+                          excelente -> Span "{i18n.d.soc.excelente}" class("dd-soc dd-soc-excelente")
+                          bueno     -> Span "{i18n.d.soc.bueno}" class("dd-soc dd-soc-bueno")
+                          cuidado   -> Span "{i18n.d.soc.cuidado}" class("dd-soc dd-soc-cuidado")
+                          selectivo -> Span "{i18n.d.soc.selectivo}" class("dd-soc dd-soc-selectivo")
+                        }
+                        when p.relN > 0 { Span "⚠ {p.relN}" class("dd-rel-badge dd-relb-{p.relWorst}") }
+                        when p.celo { Span "En celo" class("dd-soc dd-soc-cuidado") }
+                        when p.contagio { Span "Enfermedad contagiosa" class("dd-soc dd-soc-cuidado") }
+                      }
+                      when p.raza { Span "{p.raza} · {p.tamano}" class("meta") }
+                      Span "{estadoCertificado(p.certificado)}" class("meta dd-cert")
+                      when p.tips { Span "{p.tips}" class("obs") }
+                    }
+                  }
+                  when auth.isOwner {
+                    Stack class("acts") {
+                      Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
+                      Button -> pedir("perro", p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
+                    }
                   }
                 }
-                when auth.isOwner {
-                  Stack class("acts") {
-                    Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
-                    Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
-                  }
-                }
+                when conf == "perro" and confId == p.id { Confirmar(texto: "¿Eliminar a {p.nombre}? Sale de sus salidas y se borran sus servicios futuros. Su historial se conserva.", si: "Sí, eliminar", onSi: perroBorrar, onNo: confNo) }
               }
             }
           }
@@ -1447,38 +1497,41 @@ Stack class("dd-app") {
                   when p.relN == 0 { Span "{i18n.d.pr.sinRel}" class("dd-perro-empty") }
                   Stack class("dd-rel-list") {
                     each catalogo.relaciones as r where r.deId == pdetail {
-                      Stack class("dd-rel-item") {
-                        Button -> perroVer(r.aId) class("dd-rel-open") aria(label: "Ver ficha de {r.aNombre}") {
-                          Stack class("av") {
-                            when r.aFoto { Image "{r.aFoto}" alt("{r.aNombre}") }
-                            when r.aFoto == "" { Span "🐕" }
-                          }
-                          Stack class("nm-wrap") {
-                            Stack class("topline") {
-                              Span "{r.aNombre}" class("nm")
-                              match r.nivel {
-                                cuidado   -> Span "{i18n.d.rel.cuidado}" class("dd-rel-chip dd-rel-cuidado")
-                                tolera    -> Span "{i18n.d.rel.tolera}" class("dd-rel-chip dd-rel-tolera")
-                                no_tolera -> Span "{i18n.d.rel.no_tolera}" class("dd-rel-chip dd-rel-no_tolera")
-                              }
-                              match r.motivo {
-                                agresion    -> Span "{i18n.d.mot.agresion}" class("dd-mot-chip")
-                                reactividad -> Span "{i18n.d.mot.reactividad}" class("dd-mot-chip")
-                                tamano      -> Span "{i18n.d.mot.tamano}" class("dd-mot-chip")
-                                celos       -> Span "{i18n.d.mot.celos}" class("dd-mot-chip")
-                                celo        -> Span "{i18n.d.mot.celo}" class("dd-mot-chip")
-                              }
+                      Stack class("dd-cli-paseo") {
+                        Stack class("dd-rel-item") {
+                          Button -> perroVer(r.aId) class("dd-rel-open") aria(label: "Ver ficha de {r.aNombre}") {
+                            Stack class("av") {
+                              when r.aFoto { Image "{r.aFoto}" alt("{r.aNombre}") }
+                              when r.aFoto == "" { Span "🐕" }
                             }
-                            when r.nota { Span "{r.nota}" class("meta") }
+                            Stack class("nm-wrap") {
+                              Stack class("topline") {
+                                Span "{r.aNombre}" class("nm")
+                                match r.nivel {
+                                  cuidado   -> Span "{i18n.d.rel.cuidado}" class("dd-rel-chip dd-rel-cuidado")
+                                  tolera    -> Span "{i18n.d.rel.tolera}" class("dd-rel-chip dd-rel-tolera")
+                                  no_tolera -> Span "{i18n.d.rel.no_tolera}" class("dd-rel-chip dd-rel-no_tolera")
+                                }
+                                match r.motivo {
+                                  agresion    -> Span "{i18n.d.mot.agresion}" class("dd-mot-chip")
+                                  reactividad -> Span "{i18n.d.mot.reactividad}" class("dd-mot-chip")
+                                  tamano      -> Span "{i18n.d.mot.tamano}" class("dd-mot-chip")
+                                  celos       -> Span "{i18n.d.mot.celos}" class("dd-mot-chip")
+                                  celo        -> Span "{i18n.d.mot.celo}" class("dd-mot-chip")
+                                }
+                              }
+                              when r.nota { Span "{r.nota}" class("meta") }
+                            }
+                            Icon "lucide:chevron-right" class("chev")
                           }
-                          Icon "lucide:chevron-right" class("chev")
-                        }
-                        when auth.isOwner {
-                          Stack class("acts") {
-                            Button -> relEditar(r.aId, r.nivel, r.nota, r.motivo) class("dd-cat-icon") aria(label: "Editar relación / Edit") { Icon "lucide:pencil" }
-                            Button -> relBorrar(r.aId) class("dd-cat-icon dd-danger") aria(label: "Quitar relación / Remove") { Icon "lucide:trash-2" }
+                          when auth.isOwner {
+                            Stack class("acts") {
+                              Button -> relEditar(r.aId, r.nivel, r.nota, r.motivo) class("dd-cat-icon") aria(label: "Editar relación / Edit") { Icon "lucide:pencil" }
+                              Button -> pedir("rel", r.aId) class("dd-cat-icon dd-danger") aria(label: "Quitar relación / Remove") { Icon "lucide:trash-2" }
+                            }
                           }
                         }
+                        when conf == "rel" and confId == r.aId { Confirmar(texto: "¿Quitar la relación con {r.aNombre}? Se quita en los dos perros.", si: "Sí, quitar", onSi: relBorrar, onNo: confNo) }
                       }
                     }
                   }

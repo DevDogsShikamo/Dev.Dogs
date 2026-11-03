@@ -122,7 +122,9 @@ function mount(el, inputs, on) {
                 estado: estado, perro: (r.perros && r.perros.nombre) || "", perroId: r.perro_id || "",
                 precio: precio, facturable: (estado === "finalizado") ? precio : 0,
                 cobrable: cobrable, cobrado: !!cb.cobrado, cuidador: "", futuro: futuro,
-                producto: producto, mensual: mensual, cancelable: futuro && aTiempo && estado === "programado" && !producto
+                producto: producto, mensual: mensual, cancelable: futuro && aTiempo && estado === "programado" && !producto,
+                // Pickup and drop-off times the walker marked (paseo_marcar).
+                recibido: det.hora_recibido || "", entrega: det.hora_entrega || ""
               };
             });
             on.misPaseos(paseos);

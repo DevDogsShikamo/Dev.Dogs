@@ -1,7 +1,7 @@
-// Bridge de AGENDA del portal EMPRESA (multi-paseador). Lee las prestaciones del
-// negocio de los próximos 7 días y las agrupa por (día, hora, servicio, paseador) en
-// "salidas" con su paseador, cantidad de perros y estado. Monta 1 vez; recarga en
-// "supa:refresh". Lee __supa en cada llamada. Sin retorno (mount return = updater).
+// Bridge de AGENDA del portal EMPRESA (multi-paseador). Lee las prestaciones del negocio de 7 días
+// (inputs.semana = weeks from today: 0 = today and the next 6, 1 = the 7 after…) y las agrupa por
+// (día, hora, servicio, paseador) en "salidas" con su paseador, cantidad de perros y estado. Monta 1 vez; recarga en
+// "supa:refresh" and when the page moves the week (the updater returned by mount).
 function mount(el, inputs, on) {
   el.style.display = "none";
   // Date/color helpers: single source of truth on globalThis.__ddUtils (authActions.ts).
@@ -12,10 +12,12 @@ function mount(el, inputs, on) {
     DIASC: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
     MESC: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
   };
+  var semana = inputs.semana || 0;
+  function corto(d) { return d.getDate() + " " + ES.MESC[d.getMonth()]; }
   function dayLabel(d, i) {
     if (i === 0) return "Hoy";
     if (i === 1) return "Mañana";
-    return ES.DIASC[d.getDay()] + " " + d.getDate() + " " + ES.MESC[d.getMonth()];
+    return ES.DIASC[d.getDay()] + " " + corto(d);
   }
   // Estado agregado de la salida: en_curso > programado > finalizado (lo relevante arriba). Cancelled bookings
   // (the client cancelled them) do not count; a group with only cancelled bookings shows as cancelado.
@@ -33,11 +35,12 @@ function mount(el, inputs, on) {
     globalThis.__ddSesion().then(function (s) {
       var neg = s.negocioId;
       if (!neg) return;
-      var t0 = new Date(); var start = iso(t0), end = iso(addDays(t0, 6));
+      var t0 = addDays(new Date(), 7 * semana), sem = semana; var start = iso(t0), end = iso(addDays(t0, 6));
+      if (on.rango) on.rango(corto(t0) + " – " + corto(addDays(t0, 6)));
 
       // 7 días candidatos (con su etiqueta); el count se llena tras la query.
       var dias = [];
-      for (var i = 0; i < 7; i++) { var d = addDays(t0, i); dias.push({ fecha: iso(d), label: dayLabel(d, i), count: 0 }); }
+      for (var i = 0; i < 7; i++) { var d = addDays(t0, i); dias.push({ fecha: iso(d), label: dayLabel(d, i + 7 * semana), count: 0 }); }
 
       // Nombres de paseadores del negocio.
       var nombres = {};
@@ -49,7 +52,7 @@ function mount(el, inputs, on) {
           .eq("negocio_id", neg).gte("fecha", start).lte("fecha", end)
           .is("detalle->>mensualidad", null)   // a monthly charge of a plan is no outing
           .then(function (res) {
-            if (res && res.error) return;
+            if (res && res.error || sem !== semana) return;   // a newer week was asked meanwhile
             var groups = {}, order = [];
             (res.data || []).forEach(function (r) {
               var det = r.detalle || {}, svc = r.servicios || {};
@@ -59,17 +62,20 @@ function mount(el, inputs, on) {
                 groups[key] = {
                   fecha: r.fecha || "", hora: hora, tipo: tipo, servicio: svc.nombre || tipo,
                   cuidador: cid ? (nombres[cid] || "Paseador") : "Sin asignar",
-                  dogs: 0, cancelados: 0, estados: [],
+                  dogs: 0, cancelados: 0, estados: [], recibido: "", entrega: "",
                 };
                 order.push(key);
               }
               if (r.estado === "cancelado") { groups[key].cancelados += 1; return; }
               groups[key].dogs += 1;
+              // Pickup and drop-off times marked in modo paseo (paseo_marcar): the first of the outing.
+              if (det.hora_recibido && !groups[key].recibido) groups[key].recibido = det.hora_recibido;
+              if (det.hora_entrega && !groups[key].entrega) groups[key].entrega = det.hora_entrega;
               groups[key].estados.push(r.estado || "programado");
             });
             var rows = order.map(function (k) {
               var g = groups[k];
-              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, cancelados: g.cancelados, estado: rollup(g.estados), color: colorFor(g.tipo) };
+              return { fecha: g.fecha, hora: g.hora, tipo: g.tipo, servicio: g.servicio, cuidador: g.cuidador, dogs: g.dogs, cancelados: g.cancelados, estado: rollup(g.estados), color: colorFor(g.tipo), recibido: g.recibido, entrega: g.entrega };
             }).sort(function (a, b) { return (a.fecha + a.hora).localeCompare(b.fecha + b.hora); });
             // Contar salidas por día para mostrar solo los días con actividad.
             var cnt = {};
@@ -97,4 +103,8 @@ function mount(el, inputs, on) {
 
   load();
   window.addEventListener("supa:refresh", load);
+  return function (next) {
+    var n = (next && next.semana) || 0;
+    if (n !== semana) { semana = n; load(); }
+  };
 }

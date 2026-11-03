@@ -1,0 +1,11 @@
+# In-page confirmation of a destructive action (delete a dog, a service, an outing, a relation...), shown under
+# the item the user is about to remove. The page keeps which item is being asked and runs the removal on "Sí".
+part Confirmar(texto: text, si: text, onSi: action, onNo: action) {
+  Stack class("dd-cat-item") aria(role: "group", label: "Confirmar") {
+    Text "{$texto}" class("dd-cli-hint")
+    Stack class("acts") {
+      Button "{$si}" -> $onSi class("dd-cat-add dd-danger")
+      Button "Cancelar" -> $onNo class("dd-cat-add")
+    }
+  }
+}
