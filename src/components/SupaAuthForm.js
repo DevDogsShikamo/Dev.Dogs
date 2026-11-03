@@ -23,7 +23,9 @@ function mount(el, inputs, on) {
       var nid = (pr && pr.data && pr.data.negocio_id) || "";
       // A session without a profile (first Google login, failed provisioning) opens only /completar-registro:
       // sinPerfil closes every portal guard and the chain ends there, so no empty-rol state can cycle.
-      if (!rol) return on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false, politica: "", sinPerfil: true, aceptacion: "", negocioNombre: "" });
+      // A profile without a business (removed from it, or it left: miembro_dar_de_baja / miembro_salir) lands there
+      // too, with baja set: it can join a business again with a new invitation or open its own.
+      if (!rol || !nid) return on.session({ loggedIn: true, userId: user.id, userName: name, rol: "", negocioId: "", isOwner: false, politica: "", sinPerfil: true, aceptacion: "", negocioNombre: "", baja: !!rol });
       // A current policy version the user has not accepted closes every portal guard (the chain ends at
       // /aceptar-politica); so does a pending role notice or business terms (aceptacion_pendiente, the chain
       // ends at /aceptar-condiciones). Fail closed: without both answers no session is reported.
@@ -32,8 +34,7 @@ function mount(el, inputs, on) {
         if (cp.error) return on.failed("No pudimos verificar la política de datos. Intenta de nuevo.");
         if (ap.error) return on.failed("No pudimos verificar las condiciones del servicio. Intenta de nuevo.");
         var pend = ap.data || {};
-        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "", sinPerfil: false, aceptacion: pend.tipo || "", negocioNombre: pend.negocio_nombre || "" };
-        if (!nid) return on.session(s);
+        var s = { loggedIn: true, userId: user.id, userName: name, rol: rol, negocioId: nid, isOwner: false, politica: cp.data || "", sinPerfil: false, aceptacion: pend.tipo || "", negocioNombre: pend.negocio_nombre || "", baja: false };
         // owner_id === el usuario → es el JEFE (dueño) del negocio; si no, es empleado de gestión.
         supa.from("negocios").select("owner_id,nombre").eq("id", nid).maybeSingle().then(function (ng) {
           var n = (ng && ng.data) || {};

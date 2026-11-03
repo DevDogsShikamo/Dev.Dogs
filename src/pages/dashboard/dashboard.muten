@@ -1,5 +1,5 @@
 screen dashboard
-use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar from "~/lib/data.ts"
+use perroCrear, perroActualizar, perroEliminar, relacionSet, relacionQuitar, moverPerro, grupoSetHora, reprogramarBloque, horarioGuardar, servicioCrear, servicioActualizar, servicioEliminar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionTomar, zonaAgregar, zonaQuitar, vacacionAgregar, vacacionQuitar, paseoIniciar, paseoFinalizar, perroNoSalio, invitarCrear, invitacionQuitar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
 use cop from "~/lib/money.ts"
@@ -123,6 +123,9 @@ state {
   planPerro  = "" : text
   planSvc    = "" : text
   planCancel = "" : text
+  # People: the client whose removal is being confirmed (owner), and the company walker leaving the business.
+  bajaId   = "" : text
+  salirNeg = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 # Invitar clientes (solo el paseador independiente, dueño de su negocio): el código se muestra una vez.
@@ -149,6 +152,15 @@ action planGuardar mutates planForm { planMensualActivar(planPerro, planSvc)  pl
 action planCancelPedir(id: text) mutates planCancel { planCancel.set(id) }
 action planCancelNo mutates planCancel { planCancel.set("") }
 action planCancelSi mutates planCancel { planMensualCancelar(planCancel)  planCancel.set("") }
+# ---- People: principal owner of the open dog and "Dar de baja" of a client (owner); "Salir del negocio" (company
+# walker). Both confirmed in the page. The employee walker only reads: the server reserves every write to the owner.
+action principalSet(cid: text) { perroPrincipal(pedit, cid) }
+action bajaPedir(id: text) mutates bajaId { bajaId.set(id) }
+action bajaNo mutates bajaId { bajaId.set("") }
+action bajaSi mutates bajaId { miembroBaja(bajaId)  bajaId.set("") }
+action salirNegPedir mutates salirNeg { salirNeg.set(true) }
+action salirNegNo mutates salirNeg { salirNeg.set(false) }
+action salirNegSi mutates salirNeg { miembroSalir()  salirNeg.set(false) }
 action setOrg(v: bool) mutates orgMode { orgMode.set(v) }
 # Drag & drop: mover un perro a otro grupo (modo 'hoy' | 'siempre').
 # A dog from "Sin grupo" dropped with "Siempre" joins the group every day (grupo_agregar_perro); "Solo hoy" books that day.
@@ -313,7 +325,7 @@ Stack class("dd-app") {
   # Reemplaza los bridges por-sección: navegar ya no vuelve a pedir. Se recarga
   # solo en supa:refresh (escrituras). Se le van sumando dominios.
   Custom PoliticaBridge on(secciones: polCargar, meta: polMeta)
-  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
+  Custom DataBootstrap on(perros: catalogo.setPerros, relaciones: catalogo.setRelaciones, servicios: servicios.setServicios, zonas: servicios.setZonas, todos: grupos.setTodos, groups: grupos.setGrupos, fecha: grupos.setFecha, perrosHoy: grupos.setPerrosHoy, perrosPaseo: grupos.setPerrosPaseo, conflictos: grupos.setConflictos, miembros: grupos.setMiembros, sinAsignar: grupos.setSinAsignar, clientes: empresa.setClientes, duenos: empresa.setDuenos, invitaciones: empresa.setInvitaciones, codigoNuevo: empresa.setCodigoNuevo, identidad: idCargar, loaded: catalogo.setLoaded)
   # Calendario (reacciona a cal:nav para traer el rango visible) y horario laboral:
   # montados en el root también, para no re-pedir al entrar/salir de esas secciones.
   Custom AgendaCalendario on(label: calendario.setLabel, mesLabel: calendario.setMesLabel, cols: calendario.setCols, mini: calendario.setMini, month: calendario.setMonth, eventos: calendario.setEventos, detalle: calendario.setDetalle, noDisp: calendario.setNoDisp, descansos: calendario.setDescansos, vacas: calendario.setVacas)
@@ -543,8 +555,9 @@ Stack class("dd-app") {
       # ==== AGENDA / GRUPOS / PERFIL (placeholders) ====
       when section == "agenda" {
         Stack class("dd-sec") {
-          # Drag de bloques sobre la grilla (delegación en document; sin fetch).
-          Custom CalendarioDnD on(reprogramar: reprogramarBloqueAction)
+          # Drag de bloques sobre la grilla (delegación en document; sin fetch). Owner only: the server refuses it to a
+          # company walker.
+          when auth.isOwner { Custom CalendarioDnD on(reprogramar: reprogramarBloqueAction) }
 
           # Bookings without a group that nobody runs yet (the owner's business): take them.
           when auth.isOwner and grupos.sinAsignar.length > 0 {
@@ -794,9 +807,11 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-gr-head") {
             Title "{i18n.d.gr.grupos}" h2
-            Stack class("dd-org-toggle") {
-              Button "{i18n.d.gr.timeline}" -> setOrg(false) class("on" when not orgMode)
-              Button "{i18n.d.gr.organizar}" -> setOrg(true) class("on" when orgMode)
+            when auth.isOwner {
+              Stack class("dd-org-toggle") {
+                Button "{i18n.d.gr.timeline}" -> setOrg(false) class("on" when not orgMode)
+                Button "{i18n.d.gr.organizar}" -> setOrg(true) class("on" when orgMode)
+              }
             }
           }
 
@@ -838,7 +853,7 @@ Stack class("dd-app") {
           }
 
           # ---- Vista TIMELINE (grupos de hoy) ----
-          when not orgMode {
+          when not orgMode or not auth.isOwner {
             Span "{grupos.fecha}" class("dd-gr-date")
             when grupos.total == 0 {
               Stack class("dd-ph") {
@@ -879,7 +894,7 @@ Stack class("dd-app") {
           }
 
           # ---- Vista ORGANIZAR (arrastrar perros entre grupos) ----
-          when orgMode {
+          when orgMode and auth.isOwner {
             Text "{i18n.d.gr.hintPerro}" class("dd-gr-date")
             Custom Organizador on(mover: moverPerroGrupo, moverGrupo: moverGrupoHora)
           }
@@ -913,6 +928,7 @@ Stack class("dd-app") {
             Button class("dd-pf-opt") { Icon "lucide:bell"  Span "{i18n.d.pf.notif}"  Icon "lucide:chevron-right" class("chev") }
             Button class("dd-pf-opt") { Icon "lucide:circle-help"  Span "{i18n.d.pf.ayuda}"  Icon "lucide:chevron-right" class("chev") }
           }
+          when not auth.isOwner { SalirNegocio(abierto: salirNeg, onPedir: salirNegPedir, onSi: salirNegSi, onNo: salirNegNo) }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "{i18n.d.pf.salir}" }
           when salirConfirma {
             Stack class("dd-netbar dd-netbar-off") {
@@ -943,6 +959,20 @@ Stack class("dd-app") {
           Span "Invitaciones pendientes" class("dd-hor-lbl")
           each empresa.invitaciones as iv {
             InviteItem(iv: iv, onDelete: invBorrar)
+          }
+          Span "Tus clientes" class("dd-hor-lbl")
+          when empresa.nClientes == 0 { Text "Aún no tienes clientes." class("dd-rel-hint") }
+          Stack class("dd-cat-list") {
+            each empresa.clientes as c {
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("av") { Span "{initial(c.nombre)}" }
+                  Stack class("dd-cat-info") { Span "{c.nombre}" class("nm") }
+                  Stack class("acts") { Button -> bajaPedir(c.id) class("dd-cat-icon dd-danger") aria(label: "Dar de baja") { Icon "lucide:user-x" } }
+                }
+                when bajaId == c.id { BajaConfirm(nombre: c.nombre, onSi: bajaSi, onNo: bajaNo) }
+              }
+            }
           }
         }
       }
@@ -1124,7 +1154,7 @@ Stack class("dd-app") {
           Stack class("dd-hor-head") {
             Button -> go("perfil") class("dd-hor-back") aria(label: "Volver / Back") { Icon "lucide:chevron-left" }
             Title "{i18n.d.sv.titulo}" h2
-            Button -> servicioNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.sv.agregar}" }
+            when auth.isOwner { Button -> servicioNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.sv.agregar}" } }
           }
 
           # ---- Zonas donde trabaja el negocio ----
@@ -1133,14 +1163,16 @@ Stack class("dd-app") {
             each servicios.zonas as z {
               Stack class("dd-zn-chip") {
                 Span "{z}"
-                Button -> zonaDel(z) class("dd-zn-x") aria(label: "Quitar / Remove") { Icon "lucide:x" }
+                when auth.isOwner { Button -> zonaDel(z) class("dd-zn-x") aria(label: "Quitar / Remove") { Icon "lucide:x" } }
               }
             }
             when servicios.zonas.length == 0 { Span "{i18n.d.zn.sin}" class("dd-zn-empty") }
           }
-          Stack class("dd-zn-add") {
-            SearchField bind(znueva) "{i18n.d.zn.placeholder}" on(enter: zonaAdd)
-            Button -> zonaAdd class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.zn.agregar}" }
+          when auth.isOwner {
+            Stack class("dd-zn-add") {
+              SearchField bind(znueva) "{i18n.d.zn.placeholder}" on(enter: zonaAdd)
+              Button -> zonaAdd class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.zn.agregar}" }
+            }
           }
 
           Span "{i18n.d.sv.titulo}" class("dd-hor-lbl")
@@ -1163,9 +1195,11 @@ Stack class("dd-app") {
                   Span "{cop(s.precio)}" class("amt")
                   when s.modelo == "mensual" { Span "{i18n.d.sv.mensual}" class("per") }
                 }
-                Stack class("acts") {
-                  Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
-                  Button -> servicioBorrar(s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                when auth.isOwner {
+                  Stack class("acts") {
+                    Button -> servicioEditar(s.id, s.nombre, s.tipo, s.duracion, s.precio, s.modelo) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                    Button -> servicioBorrar(s.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                  }
                 }
               }
             }
@@ -1192,7 +1226,7 @@ Stack class("dd-app") {
           Stack class("dd-hor-head") {
             Button -> go("perfil") class("dd-hor-back") aria(label: "Volver / Back") { Icon "lucide:chevron-left" }
             Title "{i18n.d.gp.titulo}" h2
-            Button -> grupoNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.gp.agregar}" }
+            when auth.isOwner { Button -> grupoNuevo class("dd-cat-add dd-sv-add") { Icon "lucide:plus"  Span "{i18n.d.gp.agregar}" } }
           }
 
           when grupos.totalAdmin == 0 {
@@ -1220,9 +1254,11 @@ Stack class("dd-app") {
                     }
                   }
                 }
-                Stack class("acts") {
-                  Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
-                  Button -> grupoBorrar(g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                when auth.isOwner {
+                  Stack class("acts") {
+                    Button -> grupoEditar(g.id, g.nombre, g.zona, g.horaNum, g.duracion, g.servicio, g.color) class("dd-cat-icon") aria(label: "Editar / Edit") { Icon "lucide:pencil" }
+                    Button -> grupoBorrar(g.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar / Delete") { Icon "lucide:trash-2" }
+                  }
                 }
               }
             }
@@ -1318,7 +1354,7 @@ Stack class("dd-app") {
         Stack class("dd-sec") {
           Stack class("dd-cat-head") {
             Title "{i18n.d.pr.titulo}" h2
-            Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.pr.agregar}" }
+            when auth.isOwner { Button -> perroNuevo class("dd-cat-add") { Icon "lucide:plus"  Span "{i18n.d.pr.agregar}" } }
           }
 
           when catalogo.total == 0 {
@@ -1361,9 +1397,11 @@ Stack class("dd-app") {
                     when p.tips { Span "{p.tips}" class("obs") }
                   }
                 }
-                Stack class("acts") {
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
-                  Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
+                when auth.isOwner {
+                  Stack class("acts") {
+                    Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-icon") aria(label: "Editar {p.nombre}") { Icon "lucide:pencil" }
+                    Button -> perroBorrar(p.id) class("dd-cat-icon dd-danger") aria(label: "Eliminar {p.nombre}") { Icon "lucide:trash-2" }
+                  }
                 }
               }
             }
@@ -1434,20 +1472,22 @@ Stack class("dd-app") {
                           }
                           Icon "lucide:chevron-right" class("chev")
                         }
-                        Stack class("acts") {
-                          Button -> relEditar(r.aId, r.nivel, r.nota, r.motivo) class("dd-cat-icon") aria(label: "Editar relación / Edit") { Icon "lucide:pencil" }
-                          Button -> relBorrar(r.aId) class("dd-cat-icon dd-danger") aria(label: "Quitar relación / Remove") { Icon "lucide:trash-2" }
+                        when auth.isOwner {
+                          Stack class("acts") {
+                            Button -> relEditar(r.aId, r.nivel, r.nota, r.motivo) class("dd-cat-icon") aria(label: "Editar relación / Edit") { Icon "lucide:pencil" }
+                            Button -> relBorrar(r.aId) class("dd-cat-icon dd-danger") aria(label: "Quitar relación / Remove") { Icon "lucide:trash-2" }
+                          }
                         }
                       }
                     }
                   }
 
-                  when not relOpen {
+                  when auth.isOwner and not relOpen {
                     when catalogo.total > 1 {
                       Button -> relNueva class("dd-rel-add") { Icon "lucide:plus"  Span "{i18n.d.pr.agregarRel}" }
                     }
                   }
-                  when relOpen {
+                  when auth.isOwner and relOpen {
                     Stack class("dd-rel-editor") {
                       Text "{i18n.d.pr.relWalkHint}" class("dd-rel-walkhint")
                       Span "{i18n.d.pr.elegirPerro}" class("dd-hor-lbl")
@@ -1479,7 +1519,7 @@ Stack class("dd-app") {
                     }
                   }
 
-                  Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" }
+                  when auth.isOwner { Button -> perroEditar(p.id, p.nombre, p.raza, p.tamano, p.conducta, p.sociabilidad, p.tips, p.foto, p.celo, p.contagio, p.certificado) class("dd-cat-add dd-perro-edit") { Icon "lucide:pencil"  Span "{i18n.d.pr.editar}" } }
                 }
               }
             }
@@ -1497,6 +1537,36 @@ Stack class("dd-app") {
                 Form bind(pdraft) submit(perroGuardar) "{i18n.d.pr.guardar}"
                 Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
                 Text "{i18n.d.pr.relHint}" class("dd-rel-hint")
+                when pedit == "" { Text "Después de guardarlo, ábrelo de nuevo para elegir su dueño principal." class("dd-rel-hint") }
+                when pedit != "" and auth.isOwner {
+                  Stack class("dd-cat-list") {
+                    Title "Dueños" h4
+                    when (empresa.duenos.count where perroId == pedit and rol == "principal") == 0 {
+                      Text "Este perro aún no tiene dueño principal: elígelo abajo para que pueda comprar en la Tienda." class("dd-rel-hint")
+                    }
+                    each empresa.duenos as d where d.perroId == pedit {
+                      Stack class("dd-cat-item") {
+                        Stack class("dd-cat-info") {
+                          Stack class("nmline") {
+                            Span "{d.nombre}" class("nm")
+                            match d.rol {
+                              principal -> Span "Principal" class("cd")
+                              co        -> Span "Co-dueño" class("cd")
+                            }
+                          }
+                        }
+                      }
+                    }
+                    Title "Dueño principal" h4
+                    Text "Solo el dueño principal compra en la Tienda. Si eliges a otro cliente, el anterior queda como co-dueño." class("dd-rel-hint")
+                    Stack class("dd-gsvc") aria(role: "group", label: "Dueño principal") {
+                      each empresa.clientes as c {
+                        Button "{c.nombre}" -> principalSet(c.id) class("dd-gchip") class("on" when (empresa.duenos.count where perroId == pedit and rol == "principal" and id == c.id) > 0)
+                      }
+                      when empresa.nClientes == 0 { Span "Aún no tienes clientes: invítalos desde Perfil." class("dd-zn-empty") }
+                    }
+                  }
+                }
               }
             }
           }

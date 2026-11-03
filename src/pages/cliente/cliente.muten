@@ -1,5 +1,5 @@
 screen cliente
-use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar, fotoReportar from "~/lib/data.ts"
+use reservarPaseo, reservarServicio, venderProducto, crearMiPerro, resenaGuardar, reservaCancelar, fotoReportar, miembroSalir from "~/lib/data.ts"
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
@@ -25,6 +25,7 @@ entity PolMeta { version text  fecha text }
 
 state {
   section = "dashboard" : text
+  salirNeg = false : bool
   resSalidaId = "" : text
   resSvcId    = "" : text
   resHora     = "" : text
@@ -93,6 +94,10 @@ action perroCerrar mutates pform { pform.set(false) }
 action miPerroGuardar(p: PerroDraft) mutates pform { crearMiPerro(p)  pform.set(false) }
 # Logout: limpia el cache del cliente (dispositivo compartido) y cierra sesión.
 action salir { cliente.limpiar()  incidentes.limpiar()  auth.logout() }
+# Leave the business (confirmed in the page): the client loses its access and its links to the dogs; the session ends.
+action salirNegPedir mutates salirNeg { salirNeg.set(true) }
+action salirNegNo mutates salirNeg { salirNeg.set(false) }
+action salirNegSi mutates salirNeg { miembroSalir()  salirNeg.set(false) }
 action resAbrir(sid: text, svc: text, hora: text, zona: text) mutates resSalidaId, resSvcId, resHora, resZona, resPerro, resFecha, resForm {
   resSalidaId.set(sid)  resSvcId.set(svc)  resHora.set(hora)  resZona.set(zona)  resPerro.set("")  resFecha.set("")  resForm.set(true)
 }
@@ -515,6 +520,7 @@ Stack class("dd-app") {
             when polVer == "" { Text "Tu negocio aún no publicó sus políticas." class("dd-rel-hint") }
           }
           Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
+          SalirNegocio(abierto: salirNeg, onPedir: salirNegPedir, onSi: salirNegSi, onNo: salirNegNo)
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }

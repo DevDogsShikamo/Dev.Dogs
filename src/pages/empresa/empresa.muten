@@ -1,6 +1,6 @@
 screen empresa
 use cop from "~/lib/money.ts"
-use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar from "~/lib/data.ts"
+use paseadorSalario, permisoFinanzas, invitarCrear, invitacionQuitar, grupoAsignar, cobroMarcar, servicioCrear, servicioActualizar, servicioEliminar, perroCrear, perroActualizar, perroEliminar, coduenioAgregar, coduenioQuitar, grupoCrear, grupoActualizar, grupoEliminar, grupoAgregarPerro, grupoQuitarPerro, prestacionAsignar, resenaModerar, negocioIdentidadGuardar, negocioPoliticaPublicar, incidenteReportar, planMensualActivar, planMensualCancelar, perroPrincipal, miembroBaja, miembroSalir from "~/lib/data.ts"
 use exportarMesCSV, exportarMesExcel from "~/lib/export.ts"
 use politicaEditable, politicaError from "~/lib/politicaNegocio.js"
 use copiarCodigo, copiarLink from "~/lib/share.ts"
@@ -114,6 +114,9 @@ state {
   planPerro  = "" : text
   planSvc    = "" : text
   planCancel = "" : text
+  # People: the member whose removal is being confirmed (owner), and the office leaving the business.
+  bajaId   = "" : text
+  salirNeg = false : bool
 }
 action go(s: text) mutates section { section.set(s) }
 # Logout: limpia el cache del negocio (dispositivo compartido) y cierra sesión.
@@ -172,6 +175,15 @@ action perroBorrar(id: text) { catalogo.perroQuitar(id)  perroEliminar(id) }
 # Co-dueños: solo el jefe (RPC coduenio_*); el perro es el que está abierto en el form.
 action coAgregar(did: text) { coduenioAgregar(pedit, did) }
 action coQuitar(did: text) { coduenioQuitar(pedit, did) }
+
+# ---- People: principal owner of the open dog; "Dar de baja" (owner) and "Salir del negocio" (office), confirmed in the page ----
+action principalSet(cid: text) { perroPrincipal(pedit, cid) }
+action bajaPedir(id: text) mutates bajaId { bajaId.set(id) }
+action bajaNo mutates bajaId { bajaId.set("") }
+action bajaSi mutates bajaId { miembroBaja(bajaId)  bajaId.set("") }
+action salirNegPedir mutates salirNeg { salirNeg.set(true) }
+action salirNegNo mutates salirNeg { salirNeg.set(false) }
+action salirNegSi mutates salirNeg { miembroSalir()  salirNeg.set(false) }
 
 # ---- Salidas / grupos (ABM del jefe) ----
 action grupoNuevo mutates gnombre, gzona, ghora, gdur, gservicio, gcolor, gedit, gform {
@@ -392,22 +404,26 @@ Stack class("dd-app") {
           }
           Stack class("dd-cat-list") {
             each empresa.paseadores as p {
-              Stack class("dd-cat-item") {
-                Stack class("av") { Span "{initial(p.nombre)}" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") {
-                    Span "{p.nombre}" class("nm")
-                    when p.verificado { Span "✓" class("dd-emp-ver") }
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("av") { Span "{initial(p.nombre)}" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") {
+                      Span "{p.nombre}" class("nm")
+                      when p.verificado { Span "✓" class("dd-emp-ver") }
+                    }
+                    when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
+                    when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
+                    when p.telefono { Span "{p.telefono}" class("obs") }
                   }
-                  when auth.isOwner { Span "{p.paseosHoy} paseos hoy · {cop(p.salario)}/mes" class("meta") }
-                  when auth.isGestion { Span "{p.paseosHoy} paseos hoy" class("meta") }
-                  when p.telefono { Span "{p.telefono}" class("obs") }
-                }
-                when auth.isOwner {
-                  Stack class("acts") {
-                    Button -> salAbrir(p.id, p.nombre, p.salario) class("dd-cat-icon") aria(label: "Editar salario de {p.nombre}") { Icon "lucide:pencil" }
+                  when auth.isOwner {
+                    Stack class("acts") {
+                      Button -> salAbrir(p.id, p.nombre, p.salario) class("dd-cat-icon") aria(label: "Editar salario de {p.nombre}") { Icon "lucide:pencil" }
+                      Button -> bajaPedir(p.id) class("dd-cat-icon dd-danger") aria(label: "Dar de baja") { Icon "lucide:user-x" }
+                    }
                   }
                 }
+                when bajaId == p.id { BajaConfirm(nombre: p.nombre, onSi: bajaSi, onNo: bajaNo) }
               }
             }
           }
@@ -429,12 +445,18 @@ Stack class("dd-app") {
           }
           Stack class("dd-cat-list") {
             each empresa.clientes as c {
-              Stack class("dd-cat-item") {
-                Stack class("av") { Span "{initial(c.nombre)}" }
-                Stack class("dd-cat-info") {
-                  Stack class("nmline") { Span "{c.nombre}" class("nm") }
-                  when c.telefono { Span "{c.telefono}" class("meta") }
+              Stack class("dd-cli-paseo") {
+                Stack class("dd-cat-item") {
+                  Stack class("av") { Span "{initial(c.nombre)}" }
+                  Stack class("dd-cat-info") {
+                    Stack class("nmline") { Span "{c.nombre}" class("nm") }
+                    when c.telefono { Span "{c.telefono}" class("meta") }
+                  }
+                  when auth.isOwner {
+                    Stack class("acts") { Button -> bajaPedir(c.id) class("dd-cat-icon dd-danger") aria(label: "Dar de baja") { Icon "lucide:user-x" } }
+                  }
                 }
+                when bajaId == c.id { BajaConfirm(nombre: c.nombre, onSi: bajaSi, onNo: bajaNo) }
               }
             }
           }
@@ -855,17 +877,37 @@ Stack class("dd-app") {
                 }
                 Form bind(pdraft) submit(perroGuardar) "Guardar perro"
                 Text "Certificado: fecha de expedición del certificado de salud. Vale 6 meses." class("dd-rel-hint")
+                when pedit == "" { Text "Después de guardarlo, ábrelo de nuevo para elegir su dueño principal." class("dd-rel-hint") }
                 when pedit {
                   when auth.isOwner {
                     Stack class("dd-cat-list") {
                       Title "Dueños" h4
+                      when (empresa.duenos.count where perroId == pedit and rol == "principal") == 0 {
+                        Text "Este perro aún no tiene dueño principal: elígelo abajo para que pueda comprar en la Tienda." class("dd-rel-hint")
+                      }
                       each empresa.duenos as d where d.perroId == pedit {
                         Stack class("dd-cat-item") {
-                          Stack class("dd-cat-info") { Stack class("nmline") { Span "{d.nombre}" class("nm")  Span "{d.rol}" class("cd") } }
+                          Stack class("dd-cat-info") {
+                            Stack class("nmline") {
+                              Span "{d.nombre}" class("nm")
+                              match d.rol {
+                                principal -> Span "Principal" class("cd")
+                                co        -> Span "Co-dueño" class("cd")
+                              }
+                            }
+                          }
                           when d.rol == "co" {
                             Stack class("acts") { Button -> coQuitar(d.id) class("dd-cat-icon dd-danger") aria(label: "Quitar co-dueño") { Icon "lucide:user-minus" } }
                           }
                         }
+                      }
+                      Title "Dueño principal" h4
+                      Text "Solo el dueño principal compra en la Tienda. Si eliges a otro cliente, el anterior queda como co-dueño." class("dd-rel-hint")
+                      Stack class("dd-gsvc") aria(role: "group", label: "Dueño principal") {
+                        each empresa.clientes as c {
+                          Button "{c.nombre}" -> principalSet(c.id) class("dd-gchip") class("on" when (empresa.duenos.count where perroId == pedit and rol == "principal" and id == c.id) > 0)
+                        }
+                        when empresa.nClientes == 0 { Span "Aún no tienes clientes: invítalos desde Clientes." class("dd-zn-empty") }
                       }
                       Title "Agregar co-dueño" h4
                       each empresa.clientes as c {
@@ -958,13 +1000,17 @@ Stack class("dd-app") {
               }
               Stack class("dd-cat-list") {
                 each empresa.gestion as g {
-                  Stack class("dd-cat-item") {
-                    Stack class("av") { Span "{initial(g.nombre)}" }
-                    Stack class("dd-cat-info") {
-                      Stack class("nmline") { Span "{g.nombre}" class("nm") }
-                      when g.telefono { Span "{g.telefono}" class("meta") }
+                  Stack class("dd-cli-paseo") {
+                    Stack class("dd-cat-item") {
+                      Stack class("av") { Span "{initial(g.nombre)}" }
+                      Stack class("dd-cat-info") {
+                        Stack class("nmline") { Span "{g.nombre}" class("nm") }
+                        when g.telefono { Span "{g.telefono}" class("meta") }
+                      }
+                      Checkbox checked(g.finanzas) -> finanzasToggle(g.id, not g.finanzas) "Finanzas"
+                      Stack class("acts") { Button -> bajaPedir(g.id) class("dd-cat-icon dd-danger") aria(label: "Dar de baja") { Icon "lucide:user-x" } }
                     }
-                    Checkbox checked(g.finanzas) -> finanzasToggle(g.id, not g.finanzas) "Finanzas"
+                    when bajaId == g.id { BajaConfirm(nombre: g.nombre, onSi: bajaSi, onNo: bajaNo) }
                   }
                 }
               }
@@ -1015,6 +1061,7 @@ Stack class("dd-app") {
           }
 
           Stack class("dd-pf-list") { Link "" -> "/mis-datos" class("dd-pf-opt") { Icon "lucide:shield-check"  Span "Mis datos"  Icon "lucide:chevron-right" class("chev") } }
+          when auth.isGestion { SalirNegocio(abierto: salirNeg, onPedir: salirNegPedir, onSi: salirNegSi, onNo: salirNegNo) }
           Button -> salir class("dd-pf-logout") { Icon "lucide:log-out"  Span "Cerrar sesión" }
         }
       }

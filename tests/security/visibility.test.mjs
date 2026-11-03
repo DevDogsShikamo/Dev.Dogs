@@ -41,7 +41,7 @@ test('RV-6b: every sensitive value lives only in its side table and no address-l
   const exempt = { invitaciones: ['email'], negocio_identidad: ['direccion', 'correo'] }
   assert.deepEqual(cols.filter((x) => !(exempt[x.t] ?? []).includes(x.c) && /direcc|address|calle|barrio|ciudad|email|correo/i.test(x.c)), [])
   assert.deepEqual(sorted(cols.filter((x) => x.t === 'profiles').map((x) => x.c)),
-    ['created_at', 'horario', 'id', 'negocio_id', 'nombre', 'rol', 'vacaciones', 'verificado', 'verificado_at'])
+    ['baja_at', 'created_at', 'horario', 'id', 'negocio_id', 'nombre', 'rol', 'vacaciones', 'verificado', 'verificado_at'])
 })
 
 test('the sync triggers, their functions and the backfill helper are gone', () => {

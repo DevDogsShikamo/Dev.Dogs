@@ -1,0 +1,11 @@
+# In-page confirmation of "Dar de baja" in the people lists of the business (Paseadores, Clientes, Equipo de gestión)
+# and of the independent walker (his clients). The owner removes the person; its history stays (miembro_dar_de_baja).
+part BajaConfirm(nombre: text, onSi: action, onNo: action) {
+  Stack class("dd-cat-item") aria(role: "group", label: "Confirmar la baja") {
+    Text "¿Dar de baja a {$nombre}? Pierde el acceso a tu negocio y sus servicios futuros quedan sin asignar. Su historial se conserva." class("dd-cli-hint")
+    Stack class("acts") {
+      Button "Sí, dar de baja" -> $onSi class("dd-cat-add dd-danger")
+      Button "Cancelar" -> $onNo class("dd-cat-add")
+    }
+  }
+}

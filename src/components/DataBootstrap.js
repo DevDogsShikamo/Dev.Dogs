@@ -265,6 +265,27 @@ function mount(el, inputs, on) {
     });
   }
 
+  // ---------- PEOPLE (the independent walker owns his business): his clients and the owners of each dog ----------
+  // For the principal-owner picker and "Dar de baja". RLS: only the owner reads them; a company walker gets empty lists.
+  function loadPersonas() {
+    var supa = globalThis.__supa;
+    if (!supa || !on.clientes) return;
+    globalThis.__ddSesion().then(function (s) {
+      if (!s.negocioId) return;
+      supa.from("profiles").select("id,nombre").eq("negocio_id", s.negocioId).eq("rol", "cliente").order("nombre").then(function (cr) {
+        if (cr && cr.error) return;   // SWR: keep what is shown if the network failed
+        on.clientes((cr.data || []).map(function (c) { return { id: c.id, nombre: c.nombre || "", telefono: "" }; }));
+      });
+      if (!on.duenos) return;
+      supa.from("perro_duenos").select("perro_id,dueno_id,rol,profiles!dueno_id(nombre)").eq("estado", "activo").then(function (dr) {
+        if (dr && dr.error) return;
+        on.duenos((dr.data || []).map(function (d) {
+          return { id: d.dueno_id, perroId: d.perro_id, nombre: (d.profiles && d.profiles.nombre) || "", rol: d.rol || "" };
+        }));
+      });
+    });
+  }
+
   // ---------- LEGAL IDENTITY (Ley 1480 art. 50 and 53; the independent walker owns his business) ----------
   function loadIdentidad() {
     var supa = globalThis.__supa;
@@ -299,6 +320,7 @@ function mount(el, inputs, on) {
 
   function loadAll() {
     loadSinAsignar();
+    loadPersonas();
     loadIdentidad();
     loadInvitaciones();
     loadPerros();
