@@ -66,6 +66,7 @@ entity GrupoAdmin {
   zona     text
   hora     text
   horaNum  number
+  minNum   number
   duracion number
   servicio text
   color    text

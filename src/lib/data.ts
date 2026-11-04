@@ -261,21 +261,21 @@ export function zonaQuitar(nombre: string): void {
 }
 
 // ---- ABM de grupos (salidas: zona + hora + duración + servicio) -----------
-type GrupoInput = { nombre?: string; zona?: string; hora?: number; duracion?: number; servicio?: string; color?: string };
+type GrupoInput = { nombre?: string; zona?: string; hora?: number; minuto?: number; duracion?: number; servicio?: string; color?: string };
 
 function grupoFields(g: GrupoInput): Record<string, unknown> {
   return {
-    nombre: g.nombre || "",
+    nombre: (g.nombre || "").trim(),
     zona: g.zona || null,
-    hora: hhmm(g.hora || 8),
+    hora: hhmm(g.hora || 8, g.minuto),
     duracion_min: g.duracion || 60,
     servicio_id: g.servicio ? g.servicio : null,
     color: g.color || "purple",
   };
 }
 
-export function grupoCrear(nombre: string, zona: string, hora: number, duracion: number, servicio: string, color: string): void {
-  const g: GrupoInput = { nombre, zona, hora, duracion, servicio, color };
+export function grupoCrear(nombre: string, zona: string, hora: number, minuto: number, duracion: number, servicio: string, color: string): void {
+  const g: GrupoInput = { nombre, zona, hora, minuto, duracion, servicio, color };
   resolveSesion().then(function (s) {
     if (!s.uid || !s.negocioId) return;
     supa.from("grupos").insert({ negocio_id: s.negocioId, cuidador_id: s.uid, activo: true, ...grupoFields(g) }).then(done("No se pudo crear la salida", refresh));
@@ -283,9 +283,9 @@ export function grupoCrear(nombre: string, zona: string, hora: number, duracion:
 }
 
 // grupo_actualizar (owner/office) also re-stamps hour, service and price on the group's future walks.
-export function grupoActualizar(id: string, nombre: string, zona: string, hora: number, duracion: number, servicio: string, color: string): void {
+export function grupoActualizar(id: string, nombre: string, zona: string, hora: number, minuto: number, duracion: number, servicio: string, color: string): void {
   supa.rpc("grupo_actualizar", {
-    p_grupo: id, p_nombre: nombre || "", p_hora: hhmm(hora || 8), p_servicio: servicio || null,
+    p_grupo: id, p_nombre: nombre || "", p_hora: hhmm(hora || 8, minuto), p_servicio: servicio || null,
     p_duracion: duracion || 60, p_zona: zona || "", p_color: color || "purple",
   }).then(done("No se pudo guardar la salida", refresh));
 }
@@ -364,7 +364,11 @@ export function vacacionQuitar(desde: string): void {
 
 // ---- Horario laboral del paseador (profiles.horario jsonb) ----------------
 // dias = ["lun",...]; franjas = [["07:00","12:00"], ...] (2ª opcional). Horas como número (7 → "07:00").
-function hhmm(n: number): string { return String(n).padStart(2, "0") + ":00"; }
+// Clamped so a typed value never stores an impossible time (the grupos insert has no DB check on hora).
+function hhmm(h: number, m = 0): string {
+  const two = (v: number, max: number) => String(Math.min(max, Math.max(0, Math.floor(v) || 0))).padStart(2, "0");
+  return two(h, 23) + ":" + two(m, 59);
+}
 export function horarioGuardar(dias: string[], f1d: number, f1h: number, f2on: boolean, f2d: number, f2h: number): void {
   const franjas: string[][] = [[hhmm(f1d), hhmm(f1h)]];
   if (f2on) franjas.push([hhmm(f2d), hhmm(f2h)]);

@@ -3,6 +3,7 @@ use perroFotoQuitar, reservarPaseo, reservarServicio, venderProducto, crearMiPer
 use descargarEstadoCuentaCSV, descargarEstadoCuentaExcel from "~/lib/export.ts"
 use cop from "~/lib/money.ts"
 use tipoLabel from "~/lib/svc.ts"
+use estadoLabel from "~/lib/estados.js"
 use estadoCertificado from "~/lib/kiara.js"
 
 # Alta de perro propio del cliente (queda como dueño principal vía RPC crear_mi_perro) y edición de uno suyo
@@ -309,7 +310,7 @@ Stack class("dd-app") {
                 Stack class("dd-cat-item") {
                   Stack class("dd-sv-ic") { Icon "lucide:calendar" }
                   Stack class("dd-cat-info") {
-                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{estadoLabel(p.estado)}" class("cd") }
                     Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
                   }
                   when p.cancelable {
@@ -514,7 +515,7 @@ Stack class("dd-app") {
                 Stack class("dd-cat-item") class("dd-cli-past" when not p.futuro) {
                   Stack class("dd-sv-ic") { Icon "lucide:paw-print" }
                   Stack class("dd-cat-info") {
-                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{p.estado}" class("cd") }
+                    Stack class("nmline") { Span "{p.servicio}" class("nm")  Span "{estadoLabel(p.estado)}" class("cd") }
                     Span "{p.perro} · {p.fecha} {p.hora}" class("meta")
                     # Pickup and drop-off times the walker marked.
                     when p.recibido { Span "Recibido {p.recibido}" class("meta") }
@@ -793,7 +794,7 @@ Stack class("dd-app") {
                 Stack class("dd-fac-row") {
                   Span "{p.fecha}" class("c-f")
                   Span "{p.servicio}" class("c-s")
-                  Span "{p.estado}" class("c-e")
+                  Span "{estadoLabel(p.estado)}" class("c-e")
                   when p.cobrable { Span "{cop(p.precio)}" class("c-p") }
                   when not p.cobrable { Span "Mensualidad" class("c-p men") }
                 }
