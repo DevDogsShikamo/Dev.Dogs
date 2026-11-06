@@ -1,6 +1,6 @@
 screen completar
 use okPhone from "../../components/validate.js"
-use politicaVersion, alFinal from "~/lib/politica.js"
+use politicaVersion, alFinal, versionVisible from "~/lib/politica.js"
 
 # /completar-registro: a signed-in user without a profile (first Google login, or a signup whose
 # provisioning failed). The profile is created by the same RPCs as the email signup and /unirse
