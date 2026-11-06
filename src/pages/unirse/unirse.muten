@@ -1,6 +1,6 @@
 screen unirse
 use codigoDeURL from "~/lib/share.ts"
-use politicaVersion, alFinal from "~/lib/politica.js"
+use politicaVersion, alFinal, versionVisible from "~/lib/politica.js"
 
 # Canje de invitación: el invitado (paseador / cliente / gestión) crea su cuenta con
 # el CÓDIGO que le compartió el negocio (atado al correo con que se registra). redeem_invite lo

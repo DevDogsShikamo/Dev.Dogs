@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, ids, seed, tempUser } from '../security/_actors.mjs'
 import { acceptConditions, acceptPolicy, conditionsButton, policyDoc, startApp, understandButton } from './_app.mjs'
-import { AVISO_ROL_VERSION, POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION } from '../../src/lib/politica.js'
+import { AVISO_ROL_VERSION, POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION, versionVisible } from '../../src/lib/politica.js'
 
 let app
 
@@ -72,7 +72,7 @@ test('client without the role notice: gated, no portal by URL, accepts after rea
     assert.match(text, /DevDogs es la herramienta que usa Tenant A para organizar su servicio\./)
     assert.match(text, /DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro\./)
     assert.match(text, /Quien presta el servicio, recibe a tu perro y responde por él es Tenant A\./)
-    assert.match(text, new RegExp(`Versión del aviso: ${AVISO_ROL_VERSION}`))
+    assert.match(text, new RegExp(`Versión del aviso: ${versionVisible(AVISO_ROL_VERSION)}`))
     await page.getByRole('button', { name: 'Cerrar los documentos' }).click()
     await policyDoc(page).waitFor({ state: 'detached' })
     assert.equal(path(page), '/aceptar-condiciones')
@@ -95,7 +95,7 @@ test('owner without the business terms: gated, "Entiendo y acepto" stays locked 
     await page.waitForURL('**/aceptar-condiciones', { timeout: 60_000 })
     await lockedOut(page)
     await conditionsButton(page).click()
-    assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de estos términos: ${TERMINOS_NEGOCIO_VERSION}`))
+    assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de estos términos: ${versionVisible(TERMINOS_NEGOCIO_VERSION)}`))
     assert.equal(await understandButton(page).isDisabled(), true, 'locked before reading to the end')
     await policyDoc(page).evaluate((el) => { el.scrollTop = el.scrollHeight })
     await understandButton(page).click()

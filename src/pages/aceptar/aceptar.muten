@@ -1,5 +1,5 @@
 screen aceptar
-use politicaVersion, alFinal from "~/lib/politica.js"
+use politicaVersion, alFinal, versionVisible from "~/lib/politica.js"
 
 # Re-consent gate (/aceptar-politica). The server reported a current policy version this user has not
 # accepted (auth.politicaPendiente), so every portal guard is closed. "Aceptar y continuar" sends the

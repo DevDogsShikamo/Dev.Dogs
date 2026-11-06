@@ -4,13 +4,9 @@
 # public.version_vigente(). Unknown facts are [COMPLETAR: ...] markers.
 part TerminosNegocio(version: text) {
   Stack class("pv-doc") {
-    Stack class("pv-draft") {
-      Span "BORRADOR — pendiente de revisión legal" class("pv-draft-t")
-      Text "Estos términos son un borrador preparado para que los revise un abogado. Aún no han sido aprobados y no deben entenderse como garantía de adecuación legal. Los datos que todavía no se conocen aparecen entre corchetes con la indicación COMPLETAR." class("pv-draft-d")
-    }
 
     Title "Términos para negocios de DevDogs" h1 class("pv-h1")
-    Text "Versión de estos términos: {$version}" class("pv-meta")
+    Text "Versión de estos términos: {versionVisible($version)}" class("pv-meta")
     Text "Fecha de entrada en vigor: [COMPLETAR: fecha, una vez aprobados por el abogado]" class("pv-meta")
     Text "Estos términos rigen la relación entre DevDogs y cada negocio que se registra en la plataforma para organizar su servicio de cuidado de perros, sea una empresa o un paseador independiente (en adelante, el negocio). Los acepta el jefe del negocio dentro de la aplicación antes de operar, y se suman a los Términos y condiciones de uso y a la Política de tratamiento de datos personales."
 
