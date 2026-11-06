@@ -4,16 +4,20 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { pageAll, purgeDbs, purgeKeys, shouldPurge } from "./localData.js";
 
-// Test hook: the E2E harness sets window.__DD_CFG = { url, key, fotos } to point the app at
-// STAGING (Supabase and the photo Worker). It is honoured ONLY on localhost / 127.0.0.1; anywhere else the production
-// constants below are used, whatever the page sets.
+// Local dev (localhost / 127.0.0.1) talks to STAGING, so a browser session on `npm run dev` never writes to
+// production; anywhere else the production constants are used. Test hook: the E2E harness may still set
+// window.__DD_CFG = { url, key, fotos }, honoured ONLY on localhost, whatever the page sets elsewhere.
+// Publishable keys are public by design (RLS protects the data).
 type Cfg = { url: string; key: string; fotos: string };
 const isLocal = typeof location !== "undefined" && (location.hostname === "localhost" || location.hostname === "127.0.0.1");
 const override = isLocal ? (window as unknown as { __DD_CFG?: Partial<Cfg> }).__DD_CFG : undefined;
+const base: Cfg = isLocal
+  ? { url: "https://ruutxrqocwphzufenzti.supabase.co", key: "sb_publishable_NRvDO2c8jegK4xAKHpA7PQ_N_pBn-5a", fotos: "https://devdogs-fotos-staging.devdogsco.workers.dev" }
+  : { url: "https://agutaluxzruuthbbagkh.supabase.co", key: "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj", fotos: "https://devdogs-fotos.devdogsco.workers.dev" }; // walk-photo Worker (S5b)
 const cfg: Cfg = {
-  url: (override && override.url) || "https://agutaluxzruuthbbagkh.supabase.co",
-  key: (override && override.key) || "sb_publishable_2OTPocZUTdUcLo18VmmDWg_sksO5uqj",
-  fotos: (override && override.fotos) || "https://devdogs-fotos.devdogsco.workers.dev", // walk-photo Worker (S5b)
+  url: (override && override.url) || base.url,
+  key: (override && override.key) || base.key,
+  fotos: (override && override.fotos) || base.fotos,
 };
 
 // The URL hash an auth link lands with (#access_token=…&type=recovery, or #error_code=otp_expired), read
