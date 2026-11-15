@@ -1,10 +1,10 @@
 screen privacidad
 
-use politicaVersion, irAlAncla from "~/lib/politica.js"
+use politicaVersion, irAlAncla, versionVisible from "~/lib/politica.js"
 
 meta {
   title       "Política de tratamiento de datos | DevDogs"
-  description "Borrador de la política de tratamiento de datos personales de DevDogs, pendiente de revisión legal."
+  description "Política de tratamiento de datos personales de DevDogs."
   lang        "es"
 }
 

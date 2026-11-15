@@ -1,13 +1,12 @@
 // S7 browser half: the policy is unaccepted and required on every account-creation form (PC-2c), it
 // is accepted in a modal whose "Acepto" unlocks only at the end of the document, accepting stores a
-// consent record with the version the modal showed (PC-2d), and the policy carries the visible draft
-// marker (PC-3a).
+// consent record with the version the modal showed (PC-2d), and the policy shows no draft marker (PC-3a).
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { admin, as, ids, seed } from '../security/_actors.mjs'
 import { acceptConditions, acceptButton, acceptPolicy, autoconfirmSignup, consentLine, isAccepted, policyDoc, startApp } from './_app.mjs'
-import { POLITICA_VERSION } from '../../src/lib/politica.js'
+import { POLITICA_VERSION, versionVisible } from '../../src/lib/politica.js'
 
 let app
 before(async () => { await seed(); app = await startApp() }, { timeout: 120_000 })
@@ -17,7 +16,7 @@ after(async () => {
 })
 
 const PASSWORD = 'Abcdefg1'
-const MARKER = 'BORRADOR — pendiente de revisión legal'
+const MARKER = 'Política de tratamiento de datos personales'
 const mail = () => `dd-e2e-${randomUUID().slice(0, 8)}@example.com`
 const sessionUserId = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k)))).user.id)
@@ -102,7 +101,7 @@ for (const [rol, portal] of [['Empresa', 'empresa'], ['Paseador', 'app']]) {
   test(`PC-2d: accepting the policy creates the ${rol} account and stores a consent record with the version shown in the modal`, async () => {
     const page = await signupForm(rol, { intercept: true })
     const version = await acceptPolicy(page)
-    assert.equal(version, POLITICA_VERSION)
+    assert.equal(version, versionVisible(POLITICA_VERSION))
     await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
     await acceptConditions(page) // new owners and clients accept the role notice or the business terms
     await page.waitForURL(`**/${portal}`, { timeout: 30_000 })
@@ -110,7 +109,7 @@ for (const [rol, portal] of [['Empresa', 'empresa'], ['Paseador', 'app']]) {
     const rows = await consentOf(id)
     await admin().auth.admin.deleteUser(id)
     assert.equal(rows.length, 1)
-    assert.deepEqual({ policy_version: rows[0].policy_version, finalidad: rows[0].finalidad }, { policy_version: version, finalidad: 'prestacion_servicio' })
+    assert.deepEqual({ policy_version: rows[0].policy_version, finalidad: rows[0].finalidad }, { policy_version: POLITICA_VERSION, finalidad: 'prestacion_servicio' })
     assert.ok(Math.abs(new Date(rows[0].aceptado_at) - Date.now()) < 5 * 60_000)
     await page.close()
   })
@@ -121,7 +120,7 @@ test('PC-2d: accepting the policy on /unirse joins the tenant and stores a conse
   const code = (await (await as('OWNER')).rpc('invitacion_crear', { p_rol: 'cliente', p_email: email })).data
   const page = await joinForm(code, email, { intercept: true })
   const version = await acceptPolicy(page)
-  assert.equal(version, POLITICA_VERSION)
+  assert.equal(version, versionVisible(POLITICA_VERSION))
   await page.getByRole('button', { name: 'Unirme' }).click()
   await acceptConditions(page) // new owners and clients accept the role notice or the business terms
   await page.waitForURL('**/cliente', { timeout: 30_000 })
@@ -130,18 +129,19 @@ test('PC-2d: accepting the policy on /unirse joins the tenant and stores a conse
   const profile = (await admin().from('profiles').select('rol, negocio_id').eq('id', id).single()).data
   await admin().auth.admin.deleteUser(id)
   assert.deepEqual(profile, { rol: 'cliente', negocio_id: ids.negocios.A })
-  assert.deepEqual(rows.map((r) => r.policy_version), [version])
+  assert.deepEqual(rows.map((r) => r.policy_version), [POLITICA_VERSION])
   await page.close()
 })
 
-// ---- PC-3a: the draft marker is visible, and the policy is reachable from every entry point -----------
-test('PC-3a: the policy page is public, shows the draft marker, the version and the placeholders to complete', async () => {
+// ---- PC-3a: no draft marker is shown, and the policy is reachable from every entry point -----------
+test('PC-3a: the policy page is public, shows the title, the version (without the draft suffix) and the placeholders to complete', async () => {
   const page = await app.newPage()
   await page.goto(`${app.url}/privacidad`)
   await page.getByText(MARKER).first().waitFor()
   assert.equal(await page.getByText(MARKER).first().isVisible(), true)
   const text = await page.locator('body').innerText()
-  assert.ok(text.includes(`Versión de la política: ${POLITICA_VERSION}`), 'the version is not shown')
+  assert.ok(!/borrador|revisión legal/i.test(text), 'the reader sees no draft marker')
+  assert.ok(text.includes(`Versión de la política: ${versionVisible(POLITICA_VERSION)}`), 'the version is not shown')
   assert.ok((text.match(/\[COMPLETAR:/g) ?? []).length >= 5, 'unknown facts must be placeholders, not invented')
   assert.equal(new URL(page.url()).pathname, '/privacidad') // no redirect to /login for a guest
   await page.close()
@@ -153,14 +153,15 @@ for (const [label, open] of [
   ['signup', () => signupForm('Empresa')],
   ['/unirse', () => joinForm('0123-4567-89AB-CD', mail())],
 ]) {
-  test(`PC-3a: the ${label} policy modal shows the full draft and unlocks "Acepto" only at the end of the document`, async () => {
+  test(`PC-3a: the ${label} policy modal shows the full documents and unlocks "Acepto" only at the end of the document`, async () => {
     const page = await open()
     const typed = await page.getByPlaceholder('Ana Rondón').inputValue()
     assert.ok(typed.length > 0, 'precondition: the form holds typed data')
     await consentLine(page).click()
     const doc = await policyDoc(page).innerText()
-    assert.ok(doc.includes(MARKER), 'the draft marker is in the modal')
-    assert.ok(doc.includes(`Versión de la política: ${POLITICA_VERSION}`))
+    assert.ok(doc.includes(MARKER), 'the policy is in the modal')
+    assert.ok(!/borrador|revisión legal/i.test(doc), 'the modal shows no draft marker')
+    assert.ok(doc.includes(`Versión de la política: ${versionVisible(POLITICA_VERSION)}`))
     assert.ok(doc.includes('1.3 Aceptación') && doc.includes('1.10 Responsabilidad'), 'the terms of use are part of what is accepted')
     assert.ok(doc.includes('11. Cambios en esta política') && doc.includes('9. Marco legal de referencia'), 'the whole set, up to the last section')
     assert.equal(await acceptButton(page).isDisabled(), true, 'locked before scrolling')

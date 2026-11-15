@@ -18,6 +18,11 @@ export function condicionesVersion(tipo) {
   return tipo === "terminos_negocio" ? TERMINOS_NEGOCIO_VERSION : AVISO_ROL_VERSION;
 }
 
+// The version as shown to the reader: the internal "-borrador" suffix stays in the stored id only.
+export function versionVisible(v) {
+  return String(v ?? "").replace(/-borrador$/, "");
+}
+
 export function politicaVersion() {
   return POLITICA_VERSION;
 }

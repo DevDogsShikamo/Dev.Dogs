@@ -5,15 +5,17 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { POLITICA_VERSION } from '../../src/lib/politica.js'
+import { POLITICA_VERSION, versionVisible } from '../../src/lib/politica.js'
 
 const page = readFileSync(fileURLToPath(new URL('../../src/parts/politicatexto.muten', import.meta.url)), 'utf8')
 const section = (n) => page.match(new RegExp(String.raw`Title "${n}\. [^"]*" h2([\s\S]*?)(?=\n    Section class|\n  }\n}\s*$)`))?.[1] ?? ''
 
-test('the version was bumped with the photo text and keeps the draft marker', () => {
+test('the version was bumped with the photo text and the reader sees no draft marker', () => {
   assert.match(POLITICA_VERSION, /^\d{4}-\d\d-\d\d[a-z]?-borrador$/) // a letter marks a second version the same day
   assert.notEqual(POLITICA_VERSION, '2026-10-14-borrador')
-  assert.match(page, /BORRADOR — pendiente de revisión legal/)
+  assert.doesNotMatch(page, /pendiente de revisión legal|"[^"\n]*borrador[^"\n]*"/i, 'no visible string says draft')
+  assert.equal(versionVisible('2026-11-03b-borrador'), '2026-11-03b', 'the shown version drops the internal suffix')
+  assert.equal(versionVisible('2026-11-03b'), '2026-11-03b')
 })
 
 test('sections 4, 6, 8 and 9 describe tags per dog, R2 storage, the 30-day lifecycle and in-memory images', () => {

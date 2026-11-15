@@ -20,10 +20,10 @@ const section = (id) => page.match(new RegExp(String.raw`Section id\("${id}"\)([
 
 const DOCS = ['resumen', 'terminos', 'servicios', 'bienestar', 'fotos', 'resenas', 'dispositivo', 'atencion', 'datos', 'marco', 'negocios']
 
-test('the page is public, routed, linked from the landing footer and keeps the draft marker', () => {
+test('the page is public, routed, linked from the landing footer and shows no draft marker', () => {
   assert.match(read('../../src/app.muten'), /^\s*"\/politicas" -> politicas\s*(#.*)?$/m, 'a public route with no guard')
   assert.match(read('../../src/pages/landing/landing.muten'), /Link "Términos y políticas" -> "\/politicas"/)
-  assert.match(page, /BORRADOR — pendiente de revisión legal/)
+  assert.doesNotMatch(strings, /borrador|revisión legal/i, "no visible string says draft")
   assert.match(shell, /DocumentosLegales\(version: version\)/)
   assert.match(read('../../src/parts/consentimiento.muten'), /DocumentosLegales\(version: \$version\)/, 'the modal shows the same documents')
 })
@@ -70,7 +70,6 @@ test('the role notice says the business, not DevDogs, provides the service, and 
   assert.match(aviso, /Quien presta el servicio, recibe a tu perro y responde por él es \{\$negocio\}\./)
   // Without it the notice reads as a blanket exclusion of liability (Ley 1480 art. 43).
   assert.match(aviso, /DevDogs responde por su software y por la seguridad de los datos que almacena\./)
-  assert.match(aviso, /BORRADOR — pendiente de revisión legal/)
   assert.match(section('terminos'), /DevDogs no recoge, transporta, pasea, cuida ni responde por tu perro/, 'the consumer terms say the same')
   assert.match(section('terminos'), /Términos para negocios/, 'and point businesses to their own terms')
   const gate = read('../../src/pages/condiciones/condiciones.muten')
@@ -80,8 +79,7 @@ test('the role notice says the business, not DevDogs, provides the service, and 
 
 test('the business terms are published in #negocios and cover what the business answers for', () => {
   assert.match(shell, /Section id\("negocios"\)[\s\S]*TerminosNegocio\(version: versionNegocios\)/)
-  assert.match(terminos, /BORRADOR — pendiente de revisión legal/)
-  assert.match(terminos, /Versión de estos términos: \{\$version\}/)
+  assert.match(terminos, /Versión de estos términos: \{versionVisible\(\$version\)\}/)
   for (const fact of [
     /licencia de uso de la plataforma/, /único prestador del servicio/, /Ley 2480 de 2025/, /no revisa ni avala/,
     /manifiestamente ilegal[^"]*maltrato animal/, /no sustituyen su criterio/, /\[COMPLETAR: si DevDogs exigirá la póliza/,

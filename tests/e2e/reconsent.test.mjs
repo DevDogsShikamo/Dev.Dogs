@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { admin, credentials, seed, tempUser } from '../security/_actors.mjs'
 import { startApp, acceptPolicy, consentLine, isAccepted, policyDoc } from './_app.mjs'
-import { POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION } from '../../src/lib/politica.js'
+import { POLITICA_VERSION, TERMINOS_NEGOCIO_VERSION, versionVisible } from '../../src/lib/politica.js'
 
 // The version S7 seeded and S5b retired (still in `politicas`, vigente = false).
 const OLD = '2026-10-14-borrador'
@@ -69,7 +69,7 @@ test('outdated consent: the gate comes first, no portal opens by URL, accepting 
     assert.equal(path(page), '/aceptar-politica')
     assert.deepEqual(await versionsOf(u.id), [OLD], 'nothing accepted yet')
 
-    assert.equal(await acceptPolicy(page), POLITICA_VERSION, 'the modal shows the current version')
+    assert.equal(await acceptPolicy(page), versionVisible(POLITICA_VERSION), 'the modal shows the current version')
     assert.equal(await continueButton(page).isDisabled(), false)
     await continueButton(page).click()
     await page.waitForURL('**/app', { timeout: 60_000 })
@@ -97,7 +97,7 @@ test('outdated consent: the policy opens in a modal, closing it accepts nothing,
     const page = await login(u)
     await page.waitForURL('**/aceptar-politica', { timeout: 60_000 })
     await consentLine(page).click()
-    assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de la política: ${POLITICA_VERSION}`))
+    assert.match(await policyDoc(page).innerText(), new RegExp(`Versión de la política: ${versionVisible(POLITICA_VERSION)}`))
     await page.getByRole('button', { name: 'Cerrar los documentos' }).click()
     await policyDoc(page).waitFor({ state: 'detached' })
     assert.equal(await isAccepted(page), false)

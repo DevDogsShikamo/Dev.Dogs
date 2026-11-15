@@ -1,5 +1,5 @@
 screen condiciones
-use condicionesVersion, alFinal from "~/lib/politica.js"
+use condicionesVersion, alFinal, versionVisible from "~/lib/politica.js"
 
 # Acceptance gate (/aceptar-condiciones). The server reported a document this user has not accepted for its
 # business (auth.aceptacionPendiente, from aceptacion_pendiente()): the role notice for a client, the

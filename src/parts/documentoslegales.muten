@@ -312,7 +312,7 @@ part DocumentosLegales(version: text) {
     # ---- 9. Legal framework ------------------------------------------------------------------------
     Section id("marco") class("pv-sec pl-doc") {
       Title "9. Marco legal de referencia" h2
-      Text "Normas colombianas que el borrador toma como referencia. Su interpretación y aplicación final corresponden al abogado."
+      Text "Normas colombianas que estos documentos toman como referencia."
       List {
         Text "Ley 1581 de 2012 y Decreto 1377 de 2013, compilado en el Decreto 1074 de 2015: protección de datos personales."
         Text "Ley 1480 de 2011, Estatuto del Consumidor: información, cláusulas abusivas, retracto y comercio electrónico; modificada por la Ley 2439 de 2024."

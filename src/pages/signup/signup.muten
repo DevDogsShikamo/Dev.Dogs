@@ -2,7 +2,7 @@ screen signup
 
 use okPhone from "../../components/validate.js"
 use okPw from "../../components/validate.js"
-use politicaVersion, alFinal from "~/lib/politica.js"
+use politicaVersion, alFinal, versionVisible from "~/lib/politica.js"
 # OAuth sign-in (Google/Apple/Microsoft) is commented out until the providers are enabled.
 # use entrarCon from "~/lib/authActions.ts"
 
